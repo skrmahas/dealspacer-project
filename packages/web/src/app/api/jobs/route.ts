@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createPostgresStore, createPostgresFileStore, type OutputLanguage } from "@bei/shared";
+import { createPostgresStore, createPostgresFileStore, getPool, type OutputLanguage } from "@bei/shared";
 
 const ACCEPTED_EXTENSIONS = new Set([".pdf", ".csv", ".html", ".htm", ".xhtml"]);
 const ACCEPTED_MIME_TYPES = new Set([
@@ -12,6 +12,20 @@ const ACCEPTED_MIME_TYPES = new Set([
 ]);
 const OUTPUT_LANGUAGES = new Set<OutputLanguage>(["en", "et", "lv", "lt"]);
 const { saveFile } = createPostgresFileStore();
+
+export async function GET() {
+  try {
+    const pool = getPool();
+    const result = await pool.query(
+      `SELECT id, state, original_filename, output_language, error, created_at, updated_at
+       FROM jobs ORDER BY created_at DESC LIMIT 20`,
+    );
+    return NextResponse.json(result.rows);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
 
 export async function POST(request: NextRequest) {
   const formData = await request.formData();

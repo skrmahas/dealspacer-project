@@ -10,13 +10,19 @@ export async function processJob(
   assemblePdf: (data: ExtractedData) => Promise<Buffer>,
   saveReport: (jobId: string, pdf: Buffer) => Promise<void>,
 ): Promise<void> {
+  const log = (msg: string) => console.log(`[job ${job.id}] ${msg}`);
   try {
+    log(`Starting: ${job.originalFilename} (${job.outputLanguage})`);
+
     await store.updateJob(job.id, { state: "parsing" });
     const buffer = await readFile(job.id);
+    log(`File loaded: ${(buffer.length / 1024).toFixed(0)} KB`);
     const text = await parseDocument(buffer, job.originalFilename);
+    log(`Parsed: ${text.length} chars`);
 
     await store.updateJob(job.id, { state: "extracting" });
     const extracted = await extractFromText(text);
+    log(`Extracted: ${extracted.metrics.length} metrics, ${extracted.narratives.length} narratives`);
 
     // Detect non-financial uploads: no metrics and no meaningful narratives
     const hasMetrics = extracted.metrics.length > 0;
@@ -27,18 +33,22 @@ export async function processJob(
 
     await store.updateJob(job.id, { state: "translating" });
     const translated = await translateExtractedData(extracted, job.outputLanguage, store);
+    log("Translation complete");
 
     await store.updateJob(job.id, { state: "assembling" });
     const pdf = await assemblePdf(translated);
     await saveReport(job.id, pdf);
+    log(`Report PDF: ${(pdf.length / 1024).toFixed(0)} KB`);
 
     await store.updateJob(job.id, {
       state: "complete",
       extractedText: text,
       extractedJson: JSON.stringify(translated),
     });
+    log("Done!");
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
+    log(`FAILED: ${message}`);
     await store.updateJob(job.id, { state: "failed", error: message });
   }
 }
