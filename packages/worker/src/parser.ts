@@ -3,7 +3,8 @@ import * as cheerio from "cheerio";
 import { parse as parseCsv } from "csv-parse/sync";
 import { PDFParse } from "pdf-parse";
 import * as pdfjsLib from "pdfjs-dist";
-import { recognize } from "tesseract.js";
+import Tesseract from "tesseract.js";
+const { recognize } = Tesseract;
 
 export const NO_FINANCIAL_DATA_MESSAGE = "No financial data found in this document";
 
