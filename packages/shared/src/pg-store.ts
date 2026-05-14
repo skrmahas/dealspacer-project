@@ -1,5 +1,6 @@
 import { withClient } from "./db";
 import type { Job, CreateJobInput, UpdateJobInput, JobStore, TranslationCacheEntry, FileStore } from "./index";
+import { createFileStore } from "./file-store";
 
 function rowToJob(row: Record<string, unknown>): Job {
   return {
@@ -172,48 +173,21 @@ export function createPostgresStore(): JobStore {
 }
 
 export function createPostgresFileStore(): FileStore {
+  const dataDir = process.env.DATA_DIR?.trim() || "./bei-data";
+  const diskStore = createFileStore({ dataDir });
+
   return {
     async saveFile(jobId, buffer) {
-      await withClient(async (client) => {
-        const result = await client.query(
-          `UPDATE jobs SET file_data = $1, updated_at = NOW() WHERE id = $2`,
-          [buffer, jobId],
-        );
-        if (result.rowCount === 0) throw new Error(`Job ${jobId} not found`);
-      });
+      await diskStore.saveFile(jobId, buffer);
     },
     async readFile(jobId) {
-      return withClient(async (client) => {
-        const result = await client.query(
-          `SELECT file_data FROM jobs WHERE id = $1`,
-          [jobId],
-        );
-        if (result.rows.length === 0 || !result.rows[0].file_data) {
-          throw new Error(`File not found for job ${jobId}`);
-        }
-        return result.rows[0].file_data as Buffer;
-      });
+      return diskStore.readFile(jobId);
     },
     async saveReport(jobId, pdf) {
-      await withClient(async (client) => {
-        const result = await client.query(
-          `UPDATE jobs SET report_data = $1, updated_at = NOW() WHERE id = $2`,
-          [pdf, jobId],
-        );
-        if (result.rowCount === 0) throw new Error(`Job ${jobId} not found`);
-      });
+      await diskStore.saveReport(jobId, pdf);
     },
     async readReport(jobId) {
-      return withClient(async (client) => {
-        const result = await client.query(
-          `SELECT report_data FROM jobs WHERE id = $1`,
-          [jobId],
-        );
-        if (result.rows.length === 0 || !result.rows[0].report_data) {
-          throw new Error(`Report not found for job ${jobId}`);
-        }
-        return result.rows[0].report_data as Buffer;
-      });
+      return diskStore.readReport(jobId);
     },
   };
 }
