@@ -46,47 +46,74 @@ The intermediate artifact is semi-structured — a fixed JSON container shape wi
 
 - Stage 1 extracts everything and normalizes to English in one LLM call.
 - Stage 2 batch-translates all metric labels and narrative text to the target language in one LLM call per language.
-- A self-building translation cache stores metric labels after first encounter. Subsequent reports hit the cache for consistency and cost savings. No human-maintained glossary.
+- A PostgreSQL-backed translation cache (`translation_cache` table: source_text, et, lv, lt) stores metric labels after first encounter. Subsequent reports hit the cache for consistency and cost savings. No human-maintained glossary.
+- If the target language is English (`en`), Stage 2 is skipped entirely — the extraction is already in English.
+- PDF section labels (headings, table headers, disclaimer) are localized via hardcoded translation tables for ET/LV/LT, not via LLM calls.
 
 ### PDF output
 
 Generic template with data-driven sections:
 
-- Cover (company logo, title, date)
-- Executive Summary (3-4 paragraph narrative)
-- Key Metrics Dashboard (Revenue, EBITDA, Net Profit + YoY change + sparklines)
-- Revenue Breakdown (charts by segment/geography if present in source)
-- Profitability Trends (line/bar charts over time)
-- Balance Sheet Highlights (key ratios, whatever the source contains)
-- Sentiment Analysis (management tone, outlook, risk factors)
-- Source Attribution + AI disclaimer
+- Cover (company name, report period, generation date)
+- Executive Summary (merged from executive_summary + management_commentary narratives)
+- Key Metrics Dashboard (metrics table + YoY badges + sparklines for key metrics)
+- Revenue Breakdown (bar + donut charts by segment or geography if present)
+- Profitability Trends (multi-series line chart over time)
+- Business & Segment Highlights (merged from business_overview + segment_performance narratives)
+- Sentiment Analysis (management tone badge, outlook text, risk factors list)
+- Outlook (standalone outlook narrative section)
+- AI Disclaimer (localized disclaimer footer on every report)
 
 Sections are omitted if the source data is insufficient.
+
+All section labels, headings, and the disclaimer are localized to the target language (EN/ET/LV/LT) via hardcoded label tables in the assembler.
+
+### Monorepo structure
+
+Three npm workspace packages:
+
+| Package | Name | Role |
+|---|---|---|
+| `packages/shared` | `@bei/shared` | Types (Job, ExtractedData, etc.), DB pool, Postgres store, file store |
+| `packages/web` | `@bei/web` | Next.js 14 frontend (upload UI, polling, download, share links) |
+| `packages/worker` | `@bei/worker` | Node.js/TypeScript pipeline worker (parse → extract → translate → assemble) |
 
 ### Tech stack
 
 | Layer | Technology |
 |---|---|
-| Frontend | Next.js (Vercel Pro) |
-| Pipeline worker | Node.js/TypeScript (Railway Hobby, $5/mo) |
-| LLM | GPT-4o for both extraction and translation |
-| File parsing | `pdf-parse` (digital PDFs), `csv-parse`, `cheerio` (HTML) |
+| Frontend | Next.js 14 (React 18, TypeScript) |
+| Pipeline worker | Node.js/TypeScript (`tsx` runner) |
+| LLM | GPT-4o (OpenAI SDK v6) for both extraction and translation |
+| File parsing | `pdfjs-dist` (digital PDFs), `pdf-parse` (OCR screenshots), `csv-parse`, `cheerio` (HTML) |
 | OCR fallback | `tesseract.js` for scanned/image-only pages |
-| Charts | `chart.js` + `canvas` (server-side, headless) |
-| PDF rendering | `puppeteer` (HTML → PDF) |
-| Database | Railway Postgres (job status, translation cache) |
-| Job queue | Postgres `jobs` table (worker polls for pending jobs) |
+| Charts | `chart.js` v4 + `canvas` (node-canvas, server-side, headless) |
+| PDF rendering | `puppeteer` (Chromium HTML → PDF, with multi-attempt launch fallback) |
+| Database | PostgreSQL via `pg` (job metadata, uploaded files as BYTEA, generated PDFs, translation cache) |
+| Job queue | Postgres `jobs` table with `FOR UPDATE SKIP LOCKED` (worker polls for pending jobs) |
+| Testing | Vitest with jsdom (unit + integration tests for all packages) |
 
 ### Infrastructure
 
+The system is provider-agnostic and requires only:
+
+- **Next.js host**: Any platform that runs Next.js (Vercel, Railway, etc.)
+- **Worker host**: Any Node.js runtime with Chromium available (same or separate host)
+- **PostgreSQL database**: Accessible from both web and worker (stores jobs, files, reports, translation cache)
+
 ```
-Vercel Pro (Next.js)           Railway Hobby (Pipeline Worker)
+Next.js Host                      Worker Host (Node.js)
 ├── Upload UI                  ├── Parse + OCR
 ├── Progress tracker (polling) ├── GPT-4o extraction
 ├── Download endpoint          ├── GPT-4o translation
 ├── Shareable links            ├── Chart generation
 └── Access code gate           ├── PDF assembly
-                               └── Postgres (shared)
+                               └── DB connection
+
+                    PostgreSQL
+               ├── jobs (metadata + state)
+               ├── files & reports (BYTEA)
+               └── translation_cache
 ```
 
 ### UX
@@ -99,13 +126,15 @@ Vercel Pro (Next.js)           Railway Hobby (Pipeline Worker)
 
 ### Modules
 
-1. **File Parser** — extracts text from PDF/CSV/HTML; OCR fallback for image pages
-2. **Extraction Engine** — GPT-4o prompt + semi-structured JSON schema → typed financial data
-3. **Translation Engine** — GPT-4o batch translation + self-building cache
-4. **Chart Renderer** — chart.js → chart images with localized labels
-5. **PDF Assembler** — puppeteer HTML template → polished PDF
-6. **Job Orchestrator** — Postgres-backed job state machine
-7. **Web Frontend** — Next.js upload, polling, download UI
+1. **File Parser** (`packages/worker/src/parser.ts`) — extracts text from PDF (pdfjs-dist, pdf-parse OCR), CSV, HTML; OCR fallback with tesseract.js
+2. **Extraction Engine** (`packages/worker/src/extractor.ts`) — GPT-4o prompt + structured JSON output → typed financial data
+3. **Translation Engine** (`packages/worker/src/translator.ts`) — GPT-4o batch translation + PostgreSQL-backed self-building cache
+4. **Chart Renderer** (`packages/worker/src/chart-renderer.ts`) — chart.js + node-canvas → PNG images with localized labels, sparklines, YoY computation
+5. **PDF Assembler** (`packages/worker/src/assembler.ts`) — puppeteer HTML template → polished A4 PDF with multi-attempt browser launch
+6. **Job Orchestrator** (`packages/worker/src/orchestrator.ts`) — Postgres-backed job state machine (pending → parsing → extracting → translating → assembling → complete/failed)
+7. **Worker Loop** (`packages/worker/src/worker.ts` + `index.ts`) — polling loop with stale-job recovery sweep, env-driven config
+8. **Web Frontend** (`packages/web/`) — Next.js 14 App Router: upload form, polling progress tracker, download endpoint, share page
+9. **Shared Package** (`packages/shared/`) — DB pool (`pg`), Postgres-backed job store + file store + translation cache, migrations, shared types
 
 ---
 
@@ -124,10 +153,12 @@ Tests should verify behavior through public interfaces, not implementation detai
 
 ### Test approach
 
+- Vitest with jsdom for frontend tests, plain Vitest for worker/shared tests
 - Use fixture files (example Baltic earnings reports) as test inputs
 - Assert on output JSON structure, not exact LLM output (LLM responses have natural variation)
 - Run chart/PDF tests as snapshot tests (compare pixel output or text extraction from generated PDF)
-- Mock OpenAI API calls in unit tests; use a cached response for integration tests
+- Mock OpenAI API calls in unit tests via `setClient`/`setTranslationClient`; use cached responses for integration tests
+- Worker tests exercise the full pipeline with mocked external dependencies
 
 ---
 
@@ -151,16 +182,17 @@ Tests should verify behavior through public interfaces, not implementation detai
 ### Dependencies
 
 - Requires OpenAI API key with GPT-4o access
-- Requires Railway account (Hobby plan) for the pipeline worker
-- Requires Vercel Pro for frontend hosting
-- The `puppeteer` dependency ships a Chromium binary (~300MB) — acceptable on Railway but increases cold start time
+- Requires PostgreSQL database accessible from both web and worker hosts
+- Requires Node.js runtime with Chromium available for PDF generation (puppeteer supports bundled Chromium, system Chrome, or remote browser via `PUPPETEER_BROWSER_WS_ENDPOINT`/`PUPPETEER_BROWSER_URL`)
+- The `puppeteer` dependency ships a Chromium binary (~300MB) — use system Chrome on macOS or a remote browser in production to avoid cold start overhead
 
 ### Risk areas
 
-1. **LLM hallucination**: GPT-4o may fabricate numbers. Mitigation: prominent "AI-generated" disclaimer on every report page.
-2. **OCR quality on poor scans**: tesseract.js may produce garbage on low-quality scanned pages. Mitigation: detect OCR failure by measuring text coherence; fail gracefully.
-3. **Pipeline timeout on Railway**: extremely large documents may approach memory limits. Mitigation: page-level processing, not whole-document-in-memory.
-4. **Translation consistency across calls**: self-building cache mitigates this, but first-call translations for rare metrics may vary. Acceptable for MVP.
+1. **LLM hallucination**: GPT-4o may fabricate numbers. Mitigation: prominent "AI-generated" disclaimer on every report page (localized to target language).
+2. **OCR quality on poor scans**: tesseract.js may produce garbage on low-quality scanned pages. Mitigation: text coherence detection (alpha ratio ≥ 0.45, ≥ 3 words of 3+ letters); fail gracefully with "No financial data found".
+3. **Pipeline timeout**: extremely large documents may approach memory limits on worker host. Mitigation: text truncated to 60k chars before LLM call; client-side 9-minute polling timeout.
+4. **Translation consistency across calls**: PostgreSQL-backed translation cache (`translation_cache` table) mitigates this, but first-call translations for rare metrics may vary. Acceptable for MVP.
+5. **Stale jobs**: worker crashes while processing leave jobs stuck in intermediate states. Mitigation: stale-job sweep resets jobs in parsing/extracting/translating/assembling back to `pending` after a configurable threshold (default 30 min).
 
 ### Post-hackathon roadmap
 
