@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createPostgresStore, createPostgresFileStore } from "@bei/shared";
+import { createPostgresStore, createAutoFileStore } from "@bei/shared";
 
-const { readReport } = createPostgresFileStore();
+const { readReport } = createAutoFileStore();
 
 /**
  * Parse an HTTP Range header value.
