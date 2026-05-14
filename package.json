@@ -1,6 +1,9 @@
 {
   "name": "baltic-earnings-intelligence",
   "private": true,
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "workspaces": [
     "packages/*"
   ],
