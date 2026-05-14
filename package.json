@@ -1,0 +1,7 @@
+{
+  "name": "baltic-earnings-intelligence",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ]
+}
