@@ -1,8 +1,22 @@
 export { createPostgresStore, createPostgresFileStore } from "./pg-store";
 export { getPool, closePool } from "./db";
 export { createFileStore, createEnvFileStore } from "./file-store";
+export { createS3FileStore } from "./s3-store";
 export type { FileStore, EnvFileStoreOptions } from "./file-store";
 export { runMigrations } from "./migrate";
+
+import { createS3FileStore } from "./s3-store";
+import { createFileStore } from "./file-store";
+import type { FileStore } from "./file-store";
+
+/** Auto-detect the right file store: S3 if configured, otherwise local disk. */
+export function createAutoFileStore(): FileStore {
+  if (process.env.S3_BUCKET) {
+    return createS3FileStore();
+  }
+  const dataDir = process.env.DATA_DIR?.trim() || "./bei-data";
+  return createFileStore({ dataDir });
+}
 
 export type JobState = "pending" | "parsing" | "extracting" | "translating" | "assembling" | "complete" | "failed";
 export type OutputLanguage = "en" | "et" | "lv" | "lt";

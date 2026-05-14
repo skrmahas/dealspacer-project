@@ -12,7 +12,7 @@ import { translateExtractedData } from "./translator.js";
 import { assemblePdf, warmBrowser, checkBrowserHealth, closeBrowser } from "./assembler.js";
 import { processJob } from "./orchestrator.js";
 import { startWorker } from "./worker.js";
-import { createPostgresStore, createPostgresFileStore, runMigrations } from "@bei/shared";
+import { createPostgresStore, createAutoFileStore, runMigrations } from "@bei/shared";
 
 await runMigrations();
 
@@ -20,7 +20,7 @@ await runMigrations();
 await warmBrowser();
 
 const store = createPostgresStore();
-const { readFile, saveReport } = createPostgresFileStore();
+const { readFile, saveReport } = createAutoFileStore();
 const DEFAULT_POLL_INTERVAL_MS = 2000;
 const DEFAULT_STALE_JOB_SWEEP_INTERVAL_MS = 30_000;
 const DEFAULT_STALE_JOB_THRESHOLD_MS = 30 * 60 * 1000;

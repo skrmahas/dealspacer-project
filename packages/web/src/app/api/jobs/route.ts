@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createPostgresStore, createPostgresFileStore, getPool, type OutputLanguage } from "@bei/shared";
+import { createPostgresStore, createAutoFileStore, getPool, type OutputLanguage } from "@bei/shared";
 
 const ACCEPTED_EXTENSIONS = new Set([".pdf", ".csv", ".html", ".htm", ".xhtml"]);
 const ACCEPTED_MIME_TYPES = new Set([
@@ -11,7 +11,7 @@ const ACCEPTED_MIME_TYPES = new Set([
   "",
 ]);
 const OUTPUT_LANGUAGES = new Set<OutputLanguage>(["en", "et", "lv", "lt"]);
-const { saveFile } = createPostgresFileStore();
+const { saveFile } = createAutoFileStore();
 
 export async function GET() {
   try {
