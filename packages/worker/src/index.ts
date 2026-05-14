@@ -16,13 +16,29 @@ import { startWorker } from "./worker.js";
 import { createPostgresStore } from "@bei/shared";
 
 const store = createPostgresStore();
+const DEFAULT_POLL_INTERVAL_MS = 2000;
+const DEFAULT_STALE_JOB_SWEEP_INTERVAL_MS = 30_000;
+const DEFAULT_STALE_JOB_THRESHOLD_MS = 30 * 60 * 1000;
+
+function readPositiveMsEnv(name: string, fallback: number): number {
+  const raw = process.env[name];
+  if (!raw) return fallback;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    console.warn(`${name} must be a positive number. Using default ${fallback}.`);
+    return fallback;
+  }
+  return parsed;
+}
 
 const stop = startWorker({
   store,
   processJob: async (job, store) => {
     await processJob(job, store, readFile, parseDocument, extractFromText, translateExtractedData, assemblePdf, saveReport);
   },
-  pollIntervalMs: 2000,
+  pollIntervalMs: readPositiveMsEnv("WORKER_POLL_INTERVAL_MS", DEFAULT_POLL_INTERVAL_MS),
+  staleJobSweepIntervalMs: readPositiveMsEnv("STALE_JOB_SWEEP_INTERVAL_MS", DEFAULT_STALE_JOB_SWEEP_INTERVAL_MS),
+  staleJobThresholdMs: readPositiveMsEnv("STALE_JOB_THRESHOLD_MS", DEFAULT_STALE_JOB_THRESHOLD_MS),
 });
 
 console.log("Worker started. Polling for pending jobs...");
