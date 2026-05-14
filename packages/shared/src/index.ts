@@ -1,3 +1,6 @@
+export { createPostgresStore } from "./pg-store.js";
+export { getPool, closePool } from "./db.js";
+
 export type JobState = "pending" | "parsing" | "extracting" | "assembling" | "complete" | "failed";
 
 export interface Job {

@@ -6,3 +6,4 @@ dist/
 .env
 .env.local
 data/
+packages/worker/src/__fixtures__/ignitis-strategic-plan.pdf

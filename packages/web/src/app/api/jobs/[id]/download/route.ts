@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createFileStore, readReport } from "@/lib/file-store";
+import { readReport } from "@/lib/file-store";
+import { createPostgresStore } from "@bei/shared";
 
 export async function GET(
   _request: NextRequest,
   { params }: { params: { id: string } },
 ) {
-  const store = createFileStore();
+  const store = createPostgresStore();
   const job = await store.getJob(params.id);
 
   if (!job) {

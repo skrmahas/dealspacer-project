@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createFileStore, saveFile } from "@/lib/file-store";
+import { saveFile } from "@/lib/file-store";
+import { createPostgresStore } from "@bei/shared";
 
 export async function POST(request: NextRequest) {
   const formData = await request.formData();
@@ -23,7 +24,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const store = createFileStore();
+  const store = createPostgresStore();
   const buffer = Buffer.from(await file.arrayBuffer());
   console.log("Creating job for:", file.name, "size:", buffer.length);
   const job = await store.createJob({ originalFilename: file.name });

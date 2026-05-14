@@ -1,11 +1,12 @@
-import { createFileStore, readFile, saveReport } from "./file-store.js";
+import { readFile, saveReport } from "./file-store.js";
 import { parsePdf } from "./parser.js";
 import { extractFromText } from "./extractor.js";
 import { assemblePdf } from "./assembler.js";
 import { processJob } from "./orchestrator.js";
 import { startWorker } from "./worker.js";
+import { createPostgresStore } from "@bei/shared";
 
-const store = createFileStore();
+const store = createPostgresStore();
 
 const stop = startWorker({
   store,
