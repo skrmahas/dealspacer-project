@@ -12,13 +12,11 @@ import { translateExtractedData } from "./translator.js";
 import { assemblePdf } from "./assembler.js";
 import { processJob } from "./orchestrator.js";
 import { startWorker } from "./worker.js";
-import { createPostgresStore, createEnvFileStore, runMigrations } from "@bei/shared";
+import { createPostgresStore, createPostgresFileStore, runMigrations } from "@bei/shared";
 
 await runMigrations();
 const store = createPostgresStore();
-const { readFile, saveReport } = createEnvFileStore({
-  defaultDataDir: resolve(__dirname, "..", "..", "data"),
-});
+const { readFile, saveReport } = createPostgresFileStore();
 const DEFAULT_POLL_INTERVAL_MS = 2000;
 const DEFAULT_STALE_JOB_SWEEP_INTERVAL_MS = 30_000;
 const DEFAULT_STALE_JOB_THRESHOLD_MS = 30 * 60 * 1000;

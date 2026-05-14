@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import path from "node:path";
-import { createPostgresStore, createEnvFileStore } from "@bei/shared";
+import { createPostgresStore, createPostgresFileStore } from "@bei/shared";
 
-const { readReport } = createEnvFileStore({
-  defaultDataDir: path.resolve(process.cwd(), "..", "..", "data"),
-});
+const { readReport } = createPostgresFileStore();
 
 export async function GET(
   _request: NextRequest,

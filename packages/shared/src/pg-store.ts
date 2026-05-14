@@ -1,5 +1,5 @@
 import { withClient } from "./db";
-import type { Job, CreateJobInput, UpdateJobInput, JobStore, TranslationCacheEntry } from "./index";
+import type { Job, CreateJobInput, UpdateJobInput, JobStore, TranslationCacheEntry, FileStore } from "./index";
 
 function rowToJob(row: Record<string, unknown>): Job {
   return {
@@ -166,6 +166,53 @@ export function createPostgresStore(): JobStore {
             [entry.sourceText, entry.et ?? null, entry.lv ?? null, entry.lt ?? null],
           );
         }
+      });
+    },
+  };
+}
+
+export function createPostgresFileStore(): FileStore {
+  return {
+    async saveFile(jobId, buffer) {
+      await withClient(async (client) => {
+        const result = await client.query(
+          `UPDATE jobs SET file_data = $1, updated_at = NOW() WHERE id = $2`,
+          [buffer, jobId],
+        );
+        if (result.rowCount === 0) throw new Error(`Job ${jobId} not found`);
+      });
+    },
+    async readFile(jobId) {
+      return withClient(async (client) => {
+        const result = await client.query(
+          `SELECT file_data FROM jobs WHERE id = $1`,
+          [jobId],
+        );
+        if (result.rows.length === 0 || !result.rows[0].file_data) {
+          throw new Error(`File not found for job ${jobId}`);
+        }
+        return result.rows[0].file_data as Buffer;
+      });
+    },
+    async saveReport(jobId, pdf) {
+      await withClient(async (client) => {
+        const result = await client.query(
+          `UPDATE jobs SET report_data = $1, updated_at = NOW() WHERE id = $2`,
+          [pdf, jobId],
+        );
+        if (result.rowCount === 0) throw new Error(`Job ${jobId} not found`);
+      });
+    },
+    async readReport(jobId) {
+      return withClient(async (client) => {
+        const result = await client.query(
+          `SELECT report_data FROM jobs WHERE id = $1`,
+          [jobId],
+        );
+        if (result.rows.length === 0 || !result.rows[0].report_data) {
+          throw new Error(`Report not found for job ${jobId}`);
+        }
+        return result.rows[0].report_data as Buffer;
       });
     },
   };

@@ -1,4 +1,4 @@
-export { createPostgresStore } from "./pg-store";
+export { createPostgresStore, createPostgresFileStore } from "./pg-store";
 export { getPool, closePool } from "./db";
 export { createFileStore, createEnvFileStore } from "./file-store";
 export type { FileStore, EnvFileStoreOptions } from "./file-store";

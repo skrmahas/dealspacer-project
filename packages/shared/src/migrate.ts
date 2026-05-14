@@ -37,6 +37,16 @@ async function migrate() {
       );
     `);
 
+    await client.query(`
+      ALTER TABLE jobs
+      ADD COLUMN IF NOT EXISTS file_data BYTEA;
+    `);
+
+    await client.query(`
+      ALTER TABLE jobs
+      ADD COLUMN IF NOT EXISTS report_data BYTEA;
+    `);
+
     console.log("Migration complete: jobs and translation cache ready.");
   } finally {
     client.release();
