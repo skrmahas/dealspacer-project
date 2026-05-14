@@ -6,6 +6,7 @@ export async function processJob(
   readFile: (jobId: string) => Promise<Buffer>,
   parseDocument: (buffer: Buffer, filename: string) => Promise<string>,
   extractFromText: (text: string) => Promise<ExtractedData>,
+  translateExtractedData: (data: ExtractedData, language: Job["outputLanguage"], store: JobStore) => Promise<ExtractedData>,
   assemblePdf: (data: ExtractedData) => Promise<Buffer>,
   saveReport: (jobId: string, pdf: Buffer) => Promise<void>,
 ): Promise<void> {
@@ -24,14 +25,17 @@ export async function processJob(
       throw new Error("No financial data found in this document");
     }
 
+    await store.updateJob(job.id, { state: "translating" });
+    const translated = await translateExtractedData(extracted, job.outputLanguage, store);
+
     await store.updateJob(job.id, { state: "assembling" });
-    const pdf = await assemblePdf(extracted);
+    const pdf = await assemblePdf(translated);
     await saveReport(job.id, pdf);
 
     await store.updateJob(job.id, {
       state: "complete",
       extractedText: text,
-      extractedJson: JSON.stringify(extracted),
+      extractedJson: JSON.stringify(translated),
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";

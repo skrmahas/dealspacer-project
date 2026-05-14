@@ -1,12 +1,14 @@
 export { createPostgresStore } from "./pg-store.js";
 export { getPool, closePool } from "./db.js";
 
-export type JobState = "pending" | "parsing" | "extracting" | "assembling" | "complete" | "failed";
+export type JobState = "pending" | "parsing" | "extracting" | "translating" | "assembling" | "complete" | "failed";
+export type OutputLanguage = "en" | "et" | "lv" | "lt";
 
 export interface Job {
   id: string;
   state: JobState;
   originalFilename: string;
+  outputLanguage: OutputLanguage;
   extractedText: string | null;
   extractedJson: string | null;
   error: string | null;
@@ -14,7 +16,9 @@ export interface Job {
   updatedAt: string;
 }
 
-export type CreateJobInput = Pick<Job, "originalFilename">;
+export type CreateJobInput = Pick<Job, "originalFilename"> & {
+  outputLanguage?: OutputLanguage;
+};
 export type UpdateJobInput = {
   state?: JobState;
   extractedText?: string;
@@ -27,6 +31,15 @@ export interface JobStore {
   getJob(id: string): Promise<Job | null>;
   updateJob(id: string, input: UpdateJobInput): Promise<Job>;
   pollNextPending(): Promise<Job | null>;
+  getCachedTranslations(sourceTexts: string[]): Promise<Map<string, TranslationCacheEntry>>;
+  saveCachedTranslations(entries: TranslationCacheEntry[]): Promise<void>;
+}
+
+export interface TranslationCacheEntry {
+  sourceText: string;
+  et?: string | null;
+  lv?: string | null;
+  lt?: string | null;
 }
 
 // Semi-structured extraction result from GPT-4o
@@ -65,6 +78,7 @@ export interface ExtractedData {
     companyName: string;
     reportPeriod: string;
     sourceLanguage: string;
+    outputLanguage?: OutputLanguage;
   };
   metrics: ExtractedMetric[];
   narratives: ExtractedNarrative[];

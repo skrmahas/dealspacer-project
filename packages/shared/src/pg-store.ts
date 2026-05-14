@@ -1,8 +1,27 @@
 import { withClient } from "./db.js";
-import type { Job, CreateJobInput, UpdateJobInput, JobStore } from "./index.js";
+import type { Job, CreateJobInput, UpdateJobInput, JobStore, TranslationCacheEntry } from "./index.js";
 
 function rowToJob(row: Record<string, unknown>): Job {
-  return row as unknown as Job;
+  return {
+    id: row.id as string,
+    state: row.state as Job["state"],
+    originalFilename: row.original_filename as string,
+    outputLanguage: (row.output_language as Job["outputLanguage"]) ?? "en",
+    extractedText: (row.extracted_text as string | null) ?? null,
+    extractedJson: (row.extracted_json as string | null) ?? null,
+    error: (row.error as string | null) ?? null,
+    createdAt: row.created_at as string,
+    updatedAt: row.updated_at as string,
+  };
+}
+
+function rowToTranslation(row: Record<string, unknown>): TranslationCacheEntry {
+  return {
+    sourceText: row.source_text as string,
+    et: row.et as string | null,
+    lv: row.lv as string | null,
+    lt: row.lt as string | null,
+  };
 }
 
 export function createPostgresStore(): JobStore {
@@ -10,10 +29,10 @@ export function createPostgresStore(): JobStore {
     async createJob(input: CreateJobInput): Promise<Job> {
       return withClient(async (client) => {
         const result = await client.query(
-          `INSERT INTO jobs (original_filename)
-           VALUES ($1)
+          `INSERT INTO jobs (original_filename, output_language)
+           VALUES ($1, $2)
            RETURNING *`,
-          [input.originalFilename],
+          [input.originalFilename, input.outputLanguage ?? "en"],
         );
         return rowToJob(result.rows[0]);
       });
@@ -101,6 +120,43 @@ export function createPostgresStore(): JobStore {
           return rowToJob(result.rows[0]);
         }
         return null;
+      });
+    },
+
+    async getCachedTranslations(sourceTexts: string[]): Promise<Map<string, TranslationCacheEntry>> {
+      if (sourceTexts.length === 0) return new Map();
+
+      return withClient(async (client) => {
+        const result = await client.query(
+          `SELECT source_text, et, lv, lt
+           FROM translation_cache
+           WHERE source_text = ANY($1::text[])`,
+          [sourceTexts],
+        );
+
+        return new Map(result.rows.map((row) => {
+          const entry = rowToTranslation(row);
+          return [entry.sourceText, entry];
+        }));
+      });
+    },
+
+    async saveCachedTranslations(entries: TranslationCacheEntry[]): Promise<void> {
+      if (entries.length === 0) return;
+
+      await withClient(async (client) => {
+        for (const entry of entries) {
+          await client.query(
+            `INSERT INTO translation_cache (source_text, et, lv, lt)
+             VALUES ($1, $2, $3, $4)
+             ON CONFLICT (source_text) DO UPDATE SET
+               et = COALESCE(EXCLUDED.et, translation_cache.et),
+               lv = COALESCE(EXCLUDED.lv, translation_cache.lv),
+               lt = COALESCE(EXCLUDED.lt, translation_cache.lt),
+               updated_at = NOW()`,
+            [entry.sourceText, entry.et ?? null, entry.lv ?? null, entry.lt ?? null],
+          );
+        }
       });
     },
   };
