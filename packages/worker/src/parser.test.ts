@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parsePdf } from "./parser.js";
+import { detectFileType, parseCsvBuffer, parseDocument, parseHtml, parsePdf } from "./parser.js";
 import { readFileSync } from "node:fs";
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
@@ -38,4 +38,50 @@ describe("parsePdf", () => {
       30000,
     );
   }
+});
+
+describe("parseDocument", () => {
+  it("detects supported file types from extension or MIME type", () => {
+    expect(detectFileType("report.pdf")).toBe("pdf");
+    expect(detectFileType("report.csv")).toBe("csv");
+    expect(detectFileType("report.htm")).toBe("html");
+    expect(detectFileType("upload", "text/html")).toBe("html");
+  });
+
+  it("serializes CSV rows as structured text", async () => {
+    const text = await parseCsvBuffer(Buffer.from([
+      "Metric,Amount,Period,Comment",
+      "Revenue,EUR 1200000,Q1 2026,Revenue increased because subscription sales expanded.",
+      "EBITDA,EUR 320000,Q1 2026,EBITDA margin improved.",
+    ].join("\n")));
+
+    expect(text).toContain("Row 1");
+    expect(text).toContain("Metric: Revenue");
+    expect(text).toContain("Amount: EUR 1200000");
+  });
+
+  it("extracts visible HTML text", async () => {
+    const text = await parseHtml(Buffer.from(`
+      <html>
+        <body>
+          <h1>Baltic Holdings Q1 report</h1>
+          <p>Revenue reached EUR 1200000 and EBITDA reached EUR 320000.</p>
+          <script>window.hidden = true;</script>
+        </body>
+      </html>
+    `));
+
+    expect(text).toContain("Baltic Holdings Q1 report");
+    expect(text).toContain("Revenue reached EUR 1200000");
+    expect(text).not.toContain("window.hidden");
+  });
+
+  it("routes CSV files by filename", async () => {
+    const text = await parseDocument(Buffer.from([
+      "Metric,Amount",
+      "Revenue,EUR 1200000",
+    ].join("\n")), "report.csv");
+
+    expect(text).toContain("Metric: Revenue");
+  });
 });

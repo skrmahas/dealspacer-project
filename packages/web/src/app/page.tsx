@@ -3,6 +3,7 @@
 import { useState, useCallback, useRef } from "react";
 
 type JobState = "pending" | "parsing" | "extracting" | "assembling" | "complete" | "failed";
+const ACCEPTED_EXTENSIONS = [".pdf", ".csv", ".html", ".htm"];
 
 interface JobInfo {
   jobId: string;
@@ -124,6 +125,10 @@ export default function Home() {
 
   const handleUpload = useCallback(async () => {
     if (!file) return;
+    if (!ACCEPTED_EXTENSIONS.some((extension) => file.name.toLowerCase().endsWith(extension))) {
+      setJob({ jobId: "", state: "failed", error: "Only PDF, CSV, and HTML files are accepted" });
+      return;
+    }
 
     setUploading(true);
     setJob(null);
@@ -165,7 +170,7 @@ export default function Home() {
         Baltic Earnings Intelligence
       </h1>
       <p style={{ color: "#666", marginBottom: 32 }}>
-        Upload a Baltic company earnings report PDF and extract its text.
+        Upload a Baltic company earnings report and extract its financial data.
       </p>
 
       <div
@@ -179,7 +184,7 @@ export default function Home() {
       >
         <input
           type="file"
-          accept="application/pdf"
+          accept=".pdf,.csv,.html,.htm,application/pdf,text/csv,text/html"
           onChange={(e) => setFile(e.target.files?.[0] ?? null)}
           style={{ marginBottom: 16 }}
         />

@@ -57,7 +57,7 @@ describe("processJob", () => {
   it("transitions pending → parsing → extracting → assembling → complete on success", async () => {
     const job = await store.createJob({ originalFilename: "report.pdf" });
     const readFile = vi.fn().mockResolvedValue(Buffer.from("fake pdf"));
-    const parsePdf = vi.fn().mockResolvedValue("Extracted financial data");
+    const parseDocument = vi.fn().mockResolvedValue("Extracted financial data");
     const extractFromText = vi.fn().mockResolvedValue(mockExtraction());
     const assemblePdf = vi.fn().mockResolvedValue(Buffer.from("fake pdf"));
     const saveReport = vi.fn().mockResolvedValue(undefined);
@@ -69,10 +69,11 @@ describe("processJob", () => {
       return originalUpdate(id, input);
     });
 
-    await processJob(job, store, readFile, parsePdf, extractFromText, assemblePdf, saveReport);
+    await processJob(job, store, readFile, parseDocument, extractFromText, assemblePdf, saveReport);
 
     expect(states).toEqual(["parsing", "extracting", "assembling", "complete"]);
     expect(readFile).toHaveBeenCalledWith(job.id);
+    expect(parseDocument).toHaveBeenCalledWith(Buffer.from("fake pdf"), "report.pdf");
     expect(extractFromText).toHaveBeenCalledWith("Extracted financial data");
     expect(assemblePdf).toHaveBeenCalledWith(mockExtraction());
     expect(saveReport).toHaveBeenCalledWith(job.id, Buffer.from("fake pdf"));
@@ -86,7 +87,7 @@ describe("processJob", () => {
   it("transitions pending → parsing → failed on parse error", async () => {
     const job = await store.createJob({ originalFilename: "bad.pdf" });
     const readFile = vi.fn().mockResolvedValue(Buffer.from("fake pdf"));
-    const parsePdf = vi.fn().mockRejectedValue(new Error("PDF corrupt"));
+    const parseDocument = vi.fn().mockRejectedValue(new Error("PDF corrupt"));
     const extractFromText = vi.fn();
     const assemblePdf = vi.fn();
     const saveReport = vi.fn();
@@ -98,7 +99,7 @@ describe("processJob", () => {
       return originalUpdate(id, input);
     });
 
-    await processJob(job, store, readFile, parsePdf, extractFromText, assemblePdf, saveReport);
+    await processJob(job, store, readFile, parseDocument, extractFromText, assemblePdf, saveReport);
 
     expect(states).toEqual(["parsing", "failed"]);
     expect(extractFromText).not.toHaveBeenCalled();
@@ -112,7 +113,7 @@ describe("processJob", () => {
   it("transitions pending → parsing → extracting → failed on extraction error", async () => {
     const job = await store.createJob({ originalFilename: "report.pdf" });
     const readFile = vi.fn().mockResolvedValue(Buffer.from("fake pdf"));
-    const parsePdf = vi.fn().mockResolvedValue("Some text");
+    const parseDocument = vi.fn().mockResolvedValue("Some text");
     const extractFromText = vi.fn().mockRejectedValue(new Error("GPT-4o rate limit"));
     const assemblePdf = vi.fn();
     const saveReport = vi.fn();
@@ -124,7 +125,7 @@ describe("processJob", () => {
       return originalUpdate(id, input);
     });
 
-    await processJob(job, store, readFile, parsePdf, extractFromText, assemblePdf, saveReport);
+    await processJob(job, store, readFile, parseDocument, extractFromText, assemblePdf, saveReport);
 
     expect(states).toEqual(["parsing", "extracting", "failed"]);
     expect(assemblePdf).not.toHaveBeenCalled();
@@ -137,7 +138,7 @@ describe("processJob", () => {
   it("transitions pending → parsing → extracting → assembling → failed on assembly error", async () => {
     const job = await store.createJob({ originalFilename: "report.pdf" });
     const readFile = vi.fn().mockResolvedValue(Buffer.from("fake pdf"));
-    const parsePdf = vi.fn().mockResolvedValue("Some text");
+    const parseDocument = vi.fn().mockResolvedValue("Some text");
     const extractFromText = vi.fn().mockResolvedValue(mockExtraction());
     const assemblePdf = vi.fn().mockRejectedValue(new Error("PDF rendering failed"));
     const saveReport = vi.fn();
@@ -149,7 +150,7 @@ describe("processJob", () => {
       return originalUpdate(id, input);
     });
 
-    await processJob(job, store, readFile, parsePdf, extractFromText, assemblePdf, saveReport);
+    await processJob(job, store, readFile, parseDocument, extractFromText, assemblePdf, saveReport);
 
     expect(states).toEqual(["parsing", "extracting", "assembling", "failed"]);
     expect(saveReport).not.toHaveBeenCalled();
@@ -162,7 +163,7 @@ describe("processJob", () => {
   it("fails with 'No financial data found' when extraction returns empty", async () => {
     const job = await store.createJob({ originalFilename: "not-financial.pdf" });
     const readFile = vi.fn().mockResolvedValue(Buffer.from("fake pdf"));
-    const parsePdf = vi.fn().mockResolvedValue("Some random text");
+    const parseDocument = vi.fn().mockResolvedValue("Some random text");
     const extractFromText = vi.fn().mockResolvedValue({
       metadata: { companyName: "", reportPeriod: "", sourceLanguage: "" },
       metrics: [],
@@ -179,7 +180,7 @@ describe("processJob", () => {
       return originalUpdate(id, input);
     });
 
-    await processJob(job, store, readFile, parsePdf, extractFromText, assemblePdf, saveReport);
+    await processJob(job, store, readFile, parseDocument, extractFromText, assemblePdf, saveReport);
 
     expect(states).toEqual(["parsing", "extracting", "failed"]);
     expect(assemblePdf).not.toHaveBeenCalled();

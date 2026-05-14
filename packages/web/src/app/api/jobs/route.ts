@@ -2,6 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { saveFile } from "@/lib/file-store";
 import { createPostgresStore } from "@bei/shared";
 
+const ACCEPTED_EXTENSIONS = new Set([".pdf", ".csv", ".html", ".htm"]);
+const ACCEPTED_MIME_TYPES = new Set([
+  "application/pdf",
+  "text/csv",
+  "application/csv",
+  "text/html",
+  "application/xhtml+xml",
+  "",
+]);
+
 export async function POST(request: NextRequest) {
   const formData = await request.formData();
   const file = formData.get("file");
@@ -10,9 +20,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "No file provided" }, { status: 400 });
   }
 
-  if (file.type !== "application/pdf") {
+  const dotIndex = file.name.lastIndexOf(".");
+  const extension = dotIndex >= 0 ? file.name.slice(dotIndex).toLowerCase() : "";
+  if (!ACCEPTED_EXTENSIONS.has(extension) && !ACCEPTED_MIME_TYPES.has(file.type)) {
     return NextResponse.json(
-      { error: "Only PDF files are accepted" },
+      { error: "Only PDF, CSV, and HTML files are accepted" },
       { status: 400 },
     );
   }

@@ -4,7 +4,7 @@ export async function processJob(
   job: Job,
   store: JobStore,
   readFile: (jobId: string) => Promise<Buffer>,
-  parsePdf: (buffer: Buffer) => Promise<string>,
+  parseDocument: (buffer: Buffer, filename: string) => Promise<string>,
   extractFromText: (text: string) => Promise<ExtractedData>,
   assemblePdf: (data: ExtractedData) => Promise<Buffer>,
   saveReport: (jobId: string, pdf: Buffer) => Promise<void>,
@@ -12,7 +12,7 @@ export async function processJob(
   try {
     await store.updateJob(job.id, { state: "parsing" });
     const buffer = await readFile(job.id);
-    const text = await parsePdf(buffer);
+    const text = await parseDocument(buffer, job.originalFilename);
 
     await store.updateJob(job.id, { state: "extracting" });
     const extracted = await extractFromText(text);

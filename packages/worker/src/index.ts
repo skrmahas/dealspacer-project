@@ -1,5 +1,5 @@
 import { readFile, saveReport } from "./file-store.js";
-import { parsePdf } from "./parser.js";
+import { parseDocument } from "./parser.js";
 import { extractFromText } from "./extractor.js";
 import { assemblePdf } from "./assembler.js";
 import { processJob } from "./orchestrator.js";
@@ -11,7 +11,7 @@ const store = createPostgresStore();
 const stop = startWorker({
   store,
   processJob: async (job, store) => {
-    await processJob(job, store, readFile, parsePdf, extractFromText, assemblePdf, saveReport);
+    await processJob(job, store, readFile, parseDocument, extractFromText, assemblePdf, saveReport);
   },
   pollIntervalMs: 2000,
 });
