@@ -1,5 +1,6 @@
 import type { Job, JobStore, ExtractedData } from "@bei/shared";
 import { classifyDocument } from "./classifier.js";
+import { deduplicateMetrics } from "./deduplicator.js";
 
 export async function processJob(
   job: Job,
@@ -31,6 +32,13 @@ export async function processJob(
     await store.updateJob(job.id, { state: "extracting" });
     const extracted = await extractFromText(text);
     log(`Extracted: ${extracted.metrics.length} metrics, ${extracted.narratives.length} narratives`);
+
+    // Deduplicate near-duplicate metrics before further processing
+    const dedupedMetrics = deduplicateMetrics(extracted.metrics);
+    if (dedupedMetrics.length !== extracted.metrics.length) {
+      log(`Deduped metrics: ${extracted.metrics.length} → ${dedupedMetrics.length}`);
+    }
+    extracted.metrics = dedupedMetrics;
 
     // Detect non-financial uploads: no metrics and no meaningful narratives
     const hasMetrics = extracted.metrics.length > 0;
