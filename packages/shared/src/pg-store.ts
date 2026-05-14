@@ -1,6 +1,6 @@
 import { withClient } from "./db";
 import type { Job, CreateJobInput, UpdateJobInput, JobStore, TranslationCacheEntry, FileStore } from "./index";
-import { createFileStore } from "./file-store";
+import { createAutoFileStore } from "./file-store";
 
 function rowToJob(row: Record<string, unknown>): Job {
   return {
@@ -186,21 +186,5 @@ export function createPostgresStore(): JobStore {
 }
 
 export function createPostgresFileStore(): FileStore {
-  const dataDir = process.env.DATA_DIR?.trim() || "./bei-data";
-  const diskStore = createFileStore({ dataDir });
-
-  return {
-    async saveFile(jobId, buffer) {
-      await diskStore.saveFile(jobId, buffer);
-    },
-    async readFile(jobId) {
-      return diskStore.readFile(jobId);
-    },
-    async saveReport(jobId, pdf) {
-      await diskStore.saveReport(jobId, pdf);
-    },
-    async readReport(jobId) {
-      return diskStore.readReport(jobId);
-    },
-  };
+  return createAutoFileStore("./bei-data");
 }

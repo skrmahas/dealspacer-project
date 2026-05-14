@@ -1,6 +1,6 @@
 export { createPostgresStore, createPostgresFileStore } from "./pg-store";
 export { getPool, closePool } from "./db";
-export { createFileStore, createEnvFileStore } from "./file-store";
+export { createFileStore, createEnvFileStore, createS3FileStore, createAutoFileStore } from "./file-store";
 export type { FileStore, EnvFileStoreOptions } from "./file-store";
 export { runMigrations } from "./migrate";
 

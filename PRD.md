@@ -89,7 +89,8 @@ Three npm workspace packages:
 | OCR fallback | `tesseract.js` for scanned/image-only pages |
 | Charts | `chart.js` v4 + `canvas` (node-canvas, server-side, headless) |
 | PDF rendering | `puppeteer` (Chromium HTML → PDF, with multi-attempt launch fallback) |
-| Database | PostgreSQL via `pg` (job metadata, uploaded files as BYTEA, generated PDFs, translation cache) |
+| Database | PostgreSQL via `pg` (job metadata, translation cache) |
+| File storage | S3-compatible object storage or local disk via `createAutoFileStore()` (auto-detection) |
 | Job queue | Postgres `jobs` table with `FOR UPDATE SKIP LOCKED` (worker polls for pending jobs) |
 | Testing | Vitest with jsdom (unit + integration tests for all packages) |
 
@@ -98,24 +99,35 @@ Three npm workspace packages:
 Everything runs on **Railway**:
 
 - **Web service**: Next.js 14 frontend (upload UI, API routes, polling, downloads, share pages)
-- **Worker service**: Separate Railway service running the Node.js pipeline worker (parse → extract → translate → assemble)
-- **PostgreSQL**: Railway Postgres (jobs, file storage, translation cache)
+- **Worker service**: Separate Railway service running the Node.js pipeline worker (parse → classify → extract → deduplicate → sanitize → translate → assemble)
+- **PostgreSQL**: Railway Postgres (jobs, translation cache)
+- **Object storage**: S3-compatible (AWS S3, Cloudflare R2, Backblaze B2, MinIO) for files/reports; disk fallback when S3 not configured
 
 ```
 Railway
 ├── Web (Next.js)              ├── Worker (Node.js)
 │   ├── Upload UI              │   ├── Parse + OCR
-│   ├── API routes             │   ├── GPT-4o extraction
-│   ├── Progress polling       │   ├── GPT-4o translation
-│   ├── Download endpoint      │   ├── Chart generation
-│   └── Access code gate       │   ├── PDF assembly
-│                              │   └── DB connection
-└──────────────────┬───────────┘
-                   │
-           Railway Postgres
-      ├── jobs (metadata + state)
-      ├── files & reports (BYTEA)
-      └── translation_cache
+│   ├── API routes             │   ├── Document classifier
+│   ├── Progress polling       │   ├── GPT-4o extraction (chunked)
+│   ├── Download endpoint      │   ├── Metric deduplication
+│   ├── Access code gate       │   ├── Sanitization
+│   └── Share page             │   ├── GPT-4o translation
+│                              │   ├── Chart generation
+│                              │   └── PDF assembly
+│                              │
+└──────────┬───────────────────┘
+           │
+    ┌──────┴────────┐
+    │  Postgres      │
+    │  - jobs        │
+    │  - translation │
+    └───────────────┘
+           │
+    ┌──────┴────────┐
+    │  S3 / Disk     │
+    │  - files       │
+    │  - reports     │
+    └───────────────┘
 ```
 
 ### UX
@@ -128,15 +140,18 @@ Railway
 
 ### Modules
 
-1. **File Parser** (`packages/worker/src/parser.ts`) — extracts text from PDF (pdfjs-dist, pdf-parse OCR), CSV, HTML; OCR fallback with tesseract.js
-2. **Extraction Engine** (`packages/worker/src/extractor.ts`) — GPT-4o prompt + structured JSON output → typed financial data
-3. **Translation Engine** (`packages/worker/src/translator.ts`) — GPT-4o batch translation + PostgreSQL-backed self-building cache
-4. **Chart Renderer** (`packages/worker/src/chart-renderer.ts`) — chart.js + node-canvas → PNG images with localized labels, sparklines, YoY computation
-5. **PDF Assembler** (`packages/worker/src/assembler.ts`) — puppeteer HTML template → polished A4 PDF with multi-attempt browser launch
-6. **Job Orchestrator** (`packages/worker/src/orchestrator.ts`) — Postgres-backed job state machine (pending → parsing → extracting → translating → assembling → complete/failed)
-7. **Worker Loop** (`packages/worker/src/worker.ts` + `index.ts`) — polling loop with stale-job recovery sweep, env-driven config
-8. **Web Frontend** (`packages/web/`) — Next.js 14 App Router: upload form, polling progress tracker, download endpoint, share page
-9. **Shared Package** (`packages/shared/`) — DB pool (`pg`), Postgres-backed job store + file store + translation cache, migrations, shared types
+1. **File Parser** (`packages/worker/src/parser.ts`) — extracts text from PDF (pdfjs-dist, pdf-parse OCR), CSV, HTML; OCR fallback with tesseract.js; parallel batched page extraction via Promise.all
+2. **Document Classifier** (`packages/worker/src/classifier.ts`) — pre-extraction document type check; rejects auditor reports, legal contracts, and other non-financial documents before incurring GPT-4o API cost
+3. **Extraction Engine** (`packages/worker/src/extractor.ts`) — GPT-4o prompt + structured JSON output → typed financial data; chunked parallel extraction for documents >60k chars
+4. **Metric Deduplicator** (`packages/worker/src/deduplicator.ts`) — post-extraction deduplication of near-identical metric labels using Levenshtein distance + Jaccard similarity
+5. **Sanitizer** (`packages/worker/src/sanitizer.ts`) — validates structural coherence: drops duplicate labels, null-value metrics, implausible YoY changes, broken revenue/profitability sections
+6. **Translation Engine** (`packages/worker/src/translator.ts`) — GPT-4o batch translation + PostgreSQL-backed self-building cache; batched multi-row cache writes
+7. **Chart Renderer** (`packages/worker/src/chart-renderer.ts`) — chart.js + node-canvas → JPEG images with localized labels; parallel sparkline rendering via Promise.all; file:// URLs for chart images
+8. **PDF Assembler** (`packages/worker/src/assembler.ts`) — puppeteer HTML template → polished A4 PDF; pre-warmed browser at worker startup; preferCSSPageSize; optional Ghostscript compression; PUPPETEER_PDF_SCALE support
+9. **Job Orchestrator** (`packages/worker/src/orchestrator.ts`) — Postgres-backed job state machine (pending → parsing → extracting → translating → assembling → complete/failed)
+10. **Worker Loop** (`packages/worker/src/worker.ts` + `index.ts`) — polling loop with stale-job recovery sweep; browser health check every 5 minutes
+11. **Web Frontend** (`packages/web/`) — Next.js 14 App Router: upload form with progress bar, polling progress tracker, download endpoint with HTTP range request support, share page with iframe PDF embedding
+12. **Shared Package** (`packages/shared/`) — DB pool (`pg`), Postgres-backed job store + file store + translation cache, migrations, shared types; S3 + disk file store with auto-detection
 
 ---
 
@@ -179,6 +194,50 @@ Tests should verify behavior through public interfaces, not implementation detai
 
 ---
 
+## Environment Variables Reference
+
+### Shared (both web and worker)
+
+| Variable | Default | Description |
+|---|---|---|
+| `DATABASE_URL` | — | PostgreSQL connection string (required) |
+| `OPENAI_API_KEY` | — | OpenAI API key for GPT-4o (required) |
+| `DATA_DIR` | `./bei-data` | Local disk directory for file/report storage |
+| `S3_BUCKET` | — | S3 bucket name (enables S3 mode when set) |
+| `S3_ENDPOINT` | — | S3-compatible endpoint URL (e.g., R2, B2, MinIO) |
+| `S3_REGION` | `auto` | S3 region |
+| `S3_ACCESS_KEY_ID` | — | S3 access key |
+| `S3_SECRET_ACCESS_KEY` | — | S3 secret key |
+| `S3_FORCE_PATH_STYLE` | `false` | Use path-style S3 URLs |
+
+### Worker-only
+
+| Variable | Default | Description |
+|---|---|---|
+| `WORKER_POLL_INTERVAL_MS` | `2000` | Job polling interval in milliseconds |
+| `STALE_JOB_SWEEP_INTERVAL_MS` | `30000` | Stale-job recovery sweep interval |
+| `STALE_JOB_THRESHOLD_MS` | `1800000` | Max age before job considered stale (30 min) |
+| `EXTRACTION_CHUNK_THRESHOLD` | `60000` | Char limit before chunked extraction |
+| `EXTRACTION_CHUNK_SIZE` | `50000` | Chunk size for parallel extraction |
+| `EXTRACTION_CHUNK_OVERLAP` | `5000` | Overlap between extraction chunks |
+| `EXTRACTION_MAX_CONCURRENCY` | `3` | Max parallel GPT-4o extraction calls |
+| `WORKER_PDF_BATCH_SIZE` | `8` | Parallel page extraction batch size |
+| `PUPPETEER_BROWSER_WS_ENDPOINT` | — | Remote browser WebSocket endpoint |
+| `PUPPETEER_BROWSER_URL` | — | Remote browser URL (connect) |
+| `PUPPETEER_EXECUTABLE_PATH` | — | Path to Chrome/Chromium executable |
+| `PUPPETEER_DEBUG` | `0` | Enable Puppeteer debug logging |
+| `PUPPETEER_PDF_SCALE` | `1.0` | PDF rendering scale (0-2) |
+| `GHOSTSCRIPT_PATH` | — | Path to gs binary for PDF compression |
+
+### Web-only
+
+| Variable | Default | Description |
+|---|---|---|
+| `ACCESS_CODE` | — | Access code for the web UI gate |
+| `ACCESS_CODE_COOKIE_NAME` | `bei_access` | Cookie name for access code |
+
+---
+
 ## Further Notes
 
 ### Dependencies
@@ -191,9 +250,10 @@ Tests should verify behavior through public interfaces, not implementation detai
 
 1. **LLM hallucination**: GPT-4o may fabricate numbers. Mitigation: prominent "AI-generated" disclaimer on every report page (localized to target language).
 2. **OCR quality on poor scans**: tesseract.js may produce garbage on low-quality scanned pages. Mitigation: text coherence detection (alpha ratio ≥ 0.45, ≥ 3 words of 3+ letters); fail gracefully with "No financial data found".
-3. **Pipeline timeout**: extremely large documents may approach memory limits on worker host. Mitigation: text truncated to 60k chars before LLM call; client-side 9-minute polling timeout.
-4. **Translation consistency across calls**: PostgreSQL-backed translation cache (`translation_cache` table) mitigates this, but first-call translations for rare metrics may vary. Acceptable for MVP.
-5. **Stale jobs**: worker crashes while processing leave jobs stuck in intermediate states. Mitigation: stale-job sweep resets jobs in parsing/extracting/translating/assembling back to `pending` after a configurable threshold (default 30 min).
+3. **Document type misclassification**: non-financial uploads waste API costs. Mitigation: document classifier rejects auditor reports and legal documents before GPT-4o extraction.
+4. **Pipeline timeout**: extremely large documents may approach memory limits on worker host. Mitigation: chunked parallel extraction for documents >60k chars; client-side 9-minute polling timeout.
+5. **Translation consistency across calls**: PostgreSQL-backed translation cache (`translation_cache` table) with batched multi-row writes mitigates this.
+6. **Stale jobs**: worker crashes while processing leave jobs stuck in intermediate states. Mitigation: stale-job sweep resets jobs back to `pending` after configurable threshold (default 30 min).
 
 ### Post-hackathon roadmap
 
