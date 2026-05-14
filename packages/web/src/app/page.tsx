@@ -196,7 +196,7 @@ export default function Home() {
                 style={{ border: "1px solid #cfd8e3", borderRadius: 10, padding: "10px 12px", background: "#f9fbfd" }}
               />
             </label>
-            <p style={{ margin: 0, color: "#6e7d90", fontSize: 13 }}>{file ? file.name : "No file selected"} · Max 50MB</p>
+            <p style={{ margin: 0, color: "#6e7d90", fontSize: 13 }}>{file ? file.name : "No file selected"} · Max 1GB</p>
           </div>
 
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
