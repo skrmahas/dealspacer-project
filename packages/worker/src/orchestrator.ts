@@ -1,4 +1,5 @@
 import type { Job, JobStore, ExtractedData } from "@bei/shared";
+import { detectFileType, FILE_TOO_LARGE_MESSAGE, MAX_FILE_SIZE_BYTES } from "./parser.js";
 
 export async function processJob(
   job: Job,
@@ -13,6 +14,10 @@ export async function processJob(
   try {
     await store.updateJob(job.id, { state: "parsing" });
     const buffer = await readFile(job.id);
+    if (buffer.length > MAX_FILE_SIZE_BYTES) {
+      throw new Error(FILE_TOO_LARGE_MESSAGE);
+    }
+    detectFileType(job.originalFilename);
     const text = await parseDocument(buffer, job.originalFilename);
 
     await store.updateJob(job.id, { state: "extracting" });

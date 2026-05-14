@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { Job, JobState, JobStore, ExtractedData, OutputLanguage, TranslationCacheEntry } from "@bei/shared";
 import { processJob } from "./orchestrator.js";
+import { FILE_TOO_LARGE_MESSAGE, UNSUPPORTED_FILE_TYPE_MESSAGE, MAX_FILE_SIZE_BYTES } from "./parser.js";
 
 function mockExtraction(): ExtractedData {
   return {
@@ -43,6 +44,9 @@ function createMockStore() {
         if (job.state === "pending") return job;
       }
       return null;
+    },
+    async resetStaleJobs(_staleAfterMs: number) {
+      return 0;
     },
     async getCachedTranslations(_sourceTexts: string[]) {
       return new Map<string, TranslationCacheEntry>();
@@ -203,5 +207,63 @@ describe("processJob", () => {
     const updated = await store.getJob(job.id);
     expect(updated!.state).toBe("failed");
     expect(updated!.error).toBe("No financial data found in this document");
+  });
+
+  it("rejects files larger than 50MB before parsing", async () => {
+    const job = await store.createJob({ originalFilename: "huge.pdf" });
+    const readFile = vi.fn().mockResolvedValue(Buffer.alloc(MAX_FILE_SIZE_BYTES + 1));
+    const parseDocument = vi.fn();
+    const extractFromText = vi.fn();
+    const translateExtractedData = vi.fn();
+    const assemblePdf = vi.fn();
+    const saveReport = vi.fn();
+
+    const states: JobState[] = [];
+    const originalUpdate = store.updateJob;
+    store.updateJob = vi.fn().mockImplementation(async (id, input) => {
+      if (input.state) states.push(input.state);
+      return originalUpdate(id, input);
+    });
+
+    await processJob(job, store, readFile, parseDocument, extractFromText, translateExtractedData, assemblePdf, saveReport);
+
+    expect(states).toEqual(["parsing", "failed"]);
+    expect(parseDocument).not.toHaveBeenCalled();
+    expect(extractFromText).not.toHaveBeenCalled();
+    expect(translateExtractedData).not.toHaveBeenCalled();
+    expect(assemblePdf).not.toHaveBeenCalled();
+
+    const updated = await store.getJob(job.id);
+    expect(updated!.state).toBe("failed");
+    expect(updated!.error).toBe(FILE_TOO_LARGE_MESSAGE);
+  });
+
+  it("rejects unsupported file extensions before parsing", async () => {
+    const job = await store.createJob({ originalFilename: "report.docx" });
+    const readFile = vi.fn().mockResolvedValue(Buffer.from("not-supported"));
+    const parseDocument = vi.fn();
+    const extractFromText = vi.fn();
+    const translateExtractedData = vi.fn();
+    const assemblePdf = vi.fn();
+    const saveReport = vi.fn();
+
+    const states: JobState[] = [];
+    const originalUpdate = store.updateJob;
+    store.updateJob = vi.fn().mockImplementation(async (id, input) => {
+      if (input.state) states.push(input.state);
+      return originalUpdate(id, input);
+    });
+
+    await processJob(job, store, readFile, parseDocument, extractFromText, translateExtractedData, assemblePdf, saveReport);
+
+    expect(states).toEqual(["parsing", "failed"]);
+    expect(parseDocument).not.toHaveBeenCalled();
+    expect(extractFromText).not.toHaveBeenCalled();
+    expect(translateExtractedData).not.toHaveBeenCalled();
+    expect(assemblePdf).not.toHaveBeenCalled();
+
+    const updated = await store.getJob(job.id);
+    expect(updated!.state).toBe("failed");
+    expect(updated!.error).toBe(UNSUPPORTED_FILE_TYPE_MESSAGE);
   });
 });

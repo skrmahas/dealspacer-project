@@ -18,6 +18,9 @@ const standardFontsDir = path.resolve(
 const standardFontDataUrl = `${standardFontsDir}${path.sep}`;
 
 export const NO_FINANCIAL_DATA_MESSAGE = "No financial data found in this document";
+export const FILE_TOO_LARGE_MESSAGE = "File must be under 50MB";
+export const UNSUPPORTED_FILE_TYPE_MESSAGE = "Only PDF, CSV, HTML, and XHTML files are accepted";
+export const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024;
 
 export type SupportedFileType = "pdf" | "csv" | "html";
 
@@ -44,10 +47,13 @@ export function detectFileType(filename: string, mimeType?: string): SupportedFi
   if (extension === ".csv" || mime === "text/csv" || mime === "application/csv") return "csv";
   if ([".html", ".htm", ".xhtml"].includes(extension) || ["text/html", "application/xhtml+xml"].includes(mime)) return "html";
 
-  throw new Error("Unsupported file type. Upload a PDF, CSV, HTML, or XHTML document.");
+  throw new Error(UNSUPPORTED_FILE_TYPE_MESSAGE);
 }
 
 export async function parseDocument(buffer: Buffer, filename: string, mimeType?: string): Promise<string> {
+  if (buffer.length > MAX_FILE_SIZE_BYTES) {
+    throw new Error(FILE_TOO_LARGE_MESSAGE);
+  }
   const type = detectFileType(filename, mimeType);
   if (type === "pdf") return parsePdf(buffer);
   if (type === "csv") return parseCsvBuffer(buffer);

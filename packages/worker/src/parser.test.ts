@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { detectFileType, parseCsvBuffer, parseDocument, parseHtml, parsePdf } from "./parser.js";
+import { detectFileType, parseCsvBuffer, parseDocument, parseHtml, parsePdf, FILE_TOO_LARGE_MESSAGE, MAX_FILE_SIZE_BYTES } from "./parser.js";
 import { readFileSync } from "node:fs";
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
@@ -84,5 +84,11 @@ describe("parseDocument", () => {
     ].join("\n")), "report.csv");
 
     expect(text).toContain("Metric: Revenue");
+  });
+
+  it("rejects files larger than 50MB", async () => {
+    await expect(parseDocument(Buffer.alloc(MAX_FILE_SIZE_BYTES + 1), "report.pdf"))
+      .rejects
+      .toThrow(FILE_TOO_LARGE_MESSAGE);
   });
 });
