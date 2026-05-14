@@ -31,9 +31,9 @@ export function detectFileType(filename: string, mimeType?: string): SupportedFi
 
   if (extension === ".pdf" || mime === "application/pdf") return "pdf";
   if (extension === ".csv" || mime === "text/csv" || mime === "application/csv") return "csv";
-  if ([".html", ".htm"].includes(extension) || ["text/html", "application/xhtml+xml"].includes(mime)) return "html";
+  if ([".html", ".htm", ".xhtml"].includes(extension) || ["text/html", "application/xhtml+xml"].includes(mime)) return "html";
 
-  throw new Error("Unsupported file type. Upload a PDF, CSV, or HTML document.");
+  throw new Error("Unsupported file type. Upload a PDF, CSV, HTML, or XHTML document.");
 }
 
 export async function parseDocument(buffer: Buffer, filename: string, mimeType?: string): Promise<string> {
