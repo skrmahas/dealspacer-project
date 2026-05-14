@@ -12,11 +12,38 @@ import { translateExtractedData } from "./translator.js";
 import { assemblePdf, warmBrowser, checkBrowserHealth, closeBrowser } from "./assembler.js";
 import { processJob } from "./orchestrator.js";
 import { startWorker } from "./worker.js";
-import { createPostgresStore, createPostgresFileStore, runMigrations } from "@bei/shared";
+import { createPostgresStore, createPostgresFileStore, runMigrations, getPool } from "@bei/shared";
 
 await runMigrations();
 
-// Pre-warm the Puppeteer browser at startup to avoid cold-start latency on first job
+// ── Startup health check ──────────────────────────────────────────────
+
+console.log("[worker] Running startup health checks...");
+
+// Verify database connectivity
+const pool = getPool();
+try {
+  const dbResult = await pool.query("SELECT 1 AS ok");
+  if (dbResult.rows[0]?.ok !== 1) {
+    throw new Error("Unexpected response from database");
+  }
+  console.log("[worker] Database connectivity: OK");
+} catch (err) {
+  const message = err instanceof Error ? err.message : String(err);
+  console.error(`[worker] FATAL: Database connectivity check failed: ${message}`);
+  process.exit(1);
+}
+
+// Verify OpenAI API key is configured
+if (!process.env.OPENAI_API_KEY?.trim()) {
+  console.error("[worker] FATAL: OPENAI_API_KEY environment variable is not set");
+  process.exit(1);
+}
+console.log("[worker] OpenAI API key: configured");
+
+console.log("[worker] Health check passed");
+
+// ── Pre-warm browser ──────────────────────────────────────────────────
 await warmBrowser();
 
 const store = createPostgresStore();
