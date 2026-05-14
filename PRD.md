@@ -95,25 +95,27 @@ Three npm workspace packages:
 
 ### Infrastructure
 
-The system is provider-agnostic and requires only:
+Everything runs on **Railway**:
 
-- **Next.js host**: Any platform that runs Next.js (Vercel, Railway, etc.)
-- **Worker host**: Any Node.js runtime with Chromium available (same or separate host)
-- **PostgreSQL database**: Accessible from both web and worker (stores jobs, files, reports, translation cache)
+- **Web service**: Next.js 14 frontend (upload UI, API routes, polling, downloads, share pages)
+- **Worker service**: Separate Railway service running the Node.js pipeline worker (parse → extract → translate → assemble)
+- **PostgreSQL**: Railway Postgres (jobs, file storage, translation cache)
 
 ```
-Next.js Host                      Worker Host (Node.js)
-├── Upload UI                  ├── Parse + OCR
-├── Progress tracker (polling) ├── GPT-4o extraction
-├── Download endpoint          ├── GPT-4o translation
-├── Shareable links            ├── Chart generation
-└── Access code gate           ├── PDF assembly
-                               └── DB connection
-
-                    PostgreSQL
-               ├── jobs (metadata + state)
-               ├── files & reports (BYTEA)
-               └── translation_cache
+Railway
+├── Web (Next.js)              ├── Worker (Node.js)
+│   ├── Upload UI              │   ├── Parse + OCR
+│   ├── API routes             │   ├── GPT-4o extraction
+│   ├── Progress polling       │   ├── GPT-4o translation
+│   ├── Download endpoint      │   ├── Chart generation
+│   └── Access code gate       │   ├── PDF assembly
+│                              │   └── DB connection
+└──────────────────┬───────────┘
+                   │
+           Railway Postgres
+      ├── jobs (metadata + state)
+      ├── files & reports (BYTEA)
+      └── translation_cache
 ```
 
 ### UX
@@ -182,9 +184,8 @@ Tests should verify behavior through public interfaces, not implementation detai
 ### Dependencies
 
 - Requires OpenAI API key with GPT-4o access
-- Requires PostgreSQL database accessible from both web and worker hosts
-- Requires Node.js runtime with Chromium available for PDF generation (puppeteer supports bundled Chromium, system Chrome, or remote browser via `PUPPETEER_BROWSER_WS_ENDPOINT`/`PUPPETEER_BROWSER_URL`)
-- The `puppeteer` dependency ships a Chromium binary (~300MB) — use system Chrome on macOS or a remote browser in production to avoid cold start overhead
+- Requires Railway account with Postgres, web service, and worker service
+- Worker service needs Chromium for PDF generation (puppeteer bundled binary or remote browser via `PUPPETEER_BROWSER_URL`)
 
 ### Risk areas
 
