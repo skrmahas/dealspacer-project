@@ -2,9 +2,20 @@ import path from "node:path";
 import * as cheerio from "cheerio";
 import { parse as parseCsv } from "csv-parse/sync";
 import { PDFParse } from "pdf-parse";
-import * as pdfjsLib from "pdfjs-dist";
+import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
 import Tesseract from "tesseract.js";
 const { recognize } = Tesseract;
+
+const standardFontsDir = path.resolve(
+  import.meta.dirname,
+  "..",
+  "..",
+  "..",
+  "node_modules",
+  "pdfjs-dist",
+  "standard_fonts",
+);
+const standardFontDataUrl = `${standardFontsDir}${path.sep}`;
 
 export const NO_FINANCIAL_DATA_MESSAGE = "No financial data found in this document";
 
@@ -52,7 +63,10 @@ export async function parsePdf(buffer: Buffer): Promise<string> {
 
 async function extractPdfText(buffer: Buffer): Promise<string> {
   const data = new Uint8Array(buffer);
-  const doc = await pdfjsLib.getDocument({ data }).promise;
+  const doc = await pdfjsLib.getDocument({
+    data,
+    standardFontDataUrl,
+  }).promise;
 
   const texts: string[] = [];
   for (let i = 1; i <= doc.numPages; i++) {

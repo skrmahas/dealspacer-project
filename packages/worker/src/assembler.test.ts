@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import * as pdfjsLib from "pdfjs-dist";
+import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
 import { assemblePdf, canLaunchPdfBrowser, closeBrowser } from "./assembler.js";
 import type { ExtractedData } from "@bei/shared";
 
@@ -15,6 +15,15 @@ const minimalFixturePath = resolve(
   "__fixtures__",
   "minimal-extraction.json",
 );
+const standardFontDataUrl = `${resolve(
+  import.meta.dirname,
+  "..",
+  "..",
+  "..",
+  "node_modules",
+  "pdfjs-dist",
+  "standard_fonts",
+)}/`;
 
 function readFixture(path: string): ExtractedData {
   return JSON.parse(readFileSync(path, "utf-8")) as ExtractedData;
@@ -33,7 +42,7 @@ if (!browserAvailable) {
 
 async function extractPdfText(pdfBuffer: Buffer): Promise<string> {
   const data = new Uint8Array(pdfBuffer);
-  const doc = await pdfjsLib.getDocument({ data }).promise;
+  const doc = await pdfjsLib.getDocument({ data, standardFontDataUrl }).promise;
 
   const texts: string[] = [];
   for (let i = 1; i <= doc.numPages; i++) {
