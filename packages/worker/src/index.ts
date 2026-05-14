@@ -24,7 +24,8 @@ const { readFile, saveReport } = createPostgresFileStore();
 const DEFAULT_POLL_INTERVAL_MS = 2000;
 const DEFAULT_STALE_JOB_SWEEP_INTERVAL_MS = 30_000;
 const DEFAULT_STALE_JOB_THRESHOLD_MS = 30 * 60 * 1000;
-const BROWSER_HEALTH_CHECK_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+const BROWSER_HEALTH_CHECK_INTERVAL_MS = 5 * 60 * 1000;
+const DEFAULT_SHUTDOWN_GRACE_MS = 120_000;
 
 function formatMemoryMb(bytes: number): string {
   return (bytes / (1024 * 1024)).toFixed(0);
@@ -87,15 +88,21 @@ const stopWorker = startWorker({
 
 console.log("Worker started. Polling for pending jobs...");
 
-const shutdown = () => {
+const shutdown = async () => {
   console.log("Shutting down...");
   stopped = true;
-  stopWorker();
+  stopWorker.stop();
   if (healthCheckTimer) {
     clearInterval(healthCheckTimer);
     healthCheckTimer = null;
   }
-  closeBrowser().then(() => process.exit(0)).catch(() => process.exit(0));
+
+  const graceMs = readPositiveMsEnv("WORKER_SHUTDOWN_GRACE_MS", DEFAULT_SHUTDOWN_GRACE_MS);
+  console.log(`[worker] Shutting down gracefully — waiting up to ${graceMs}ms for current job...`);
+  await stopWorker.drain(graceMs);
+
+  await closeBrowser().catch(() => {});
+  process.exit(0);
 };
 
 process.on("SIGINT", shutdown);

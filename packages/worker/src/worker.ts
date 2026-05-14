@@ -8,10 +8,12 @@ export interface WorkerConfig {
   staleJobThresholdMs?: number;
 }
 
-export function startWorker(config: WorkerConfig): () => void {
+export function startWorker(config: WorkerConfig) {
   let stopped = false;
   let staleSweepInFlight = false;
   let staleSweepTimer: ReturnType<typeof setInterval> | null = null;
+  let jobsInFlight = 0;
+  let drainResolve: (() => void) | null = null;
 
   const shouldRunSweep = config.staleJobSweepIntervalMs !== undefined
     && config.staleJobSweepIntervalMs > 0
@@ -33,11 +35,24 @@ export function startWorker(config: WorkerConfig): () => void {
     }, config.staleJobSweepIntervalMs);
   }
 
+  function checkDrain() {
+    if (jobsInFlight === 0 && drainResolve) {
+      drainResolve();
+      drainResolve = null;
+    }
+  }
+
   async function poll() {
     while (!stopped) {
       const job = await config.store.pollNextPending();
       if (job) {
-        await config.processJob(job, config.store);
+        jobsInFlight++;
+        try {
+          await config.processJob(job, config.store);
+        } finally {
+          jobsInFlight--;
+          checkDrain();
+        }
       }
       if (!stopped) {
         await new Promise((resolve) => setTimeout(resolve, config.pollIntervalMs));
@@ -47,11 +62,35 @@ export function startWorker(config: WorkerConfig): () => void {
 
   poll();
 
-  return () => {
+  const stop = () => {
     stopped = true;
     if (staleSweepTimer) {
       clearInterval(staleSweepTimer);
       staleSweepTimer = null;
     }
   };
+
+  const drain = (graceMs: number): Promise<void> => {
+    return new Promise((resolve) => {
+      if (jobsInFlight === 0) {
+        resolve();
+        return;
+      }
+
+      drainResolve = resolve;
+
+      // Safety: force resolve after grace period
+      if (graceMs > 0) {
+        setTimeout(() => {
+          if (drainResolve) {
+            console.warn(`[worker] Shutdown grace period (${graceMs}ms) expired with ${jobsInFlight} job(s) still in-flight — forcing exit`);
+            drainResolve();
+            drainResolve = null;
+          }
+        }, graceMs);
+      }
+    });
+  };
+
+  return { stop, drain };
 }

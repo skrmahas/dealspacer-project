@@ -384,8 +384,8 @@ describe("extractFromText — retry behavior", () => {
             create: vi.fn().mockImplementation(() => {
               callCount++;
               if (callCount < 3) {
-                const err = new Error("429 Too Many Requests") as Error & { status: number };
-                (err as Record<string, unknown>).status = 429;
+                const err = new Error("429 Too Many Requests") as unknown as Error & { status: number };
+                (err as unknown as Record<string, unknown>).status = 429;
                 throw err;
               }
               return Promise.resolve({
@@ -415,8 +415,8 @@ describe("extractFromText — retry behavior", () => {
           completions: {
             create: vi.fn().mockImplementation(() => {
               callCount++;
-              const err = new Error("400 Bad Request") as Error & { status: number };
-              (err as Record<string, unknown>).status = 400;
+              const err = new Error("400 Bad Request") as unknown as Error & { status: number };
+              (err as unknown as Record<string, unknown>).status = 400;
               throw err;
             }),
           },
@@ -442,8 +442,8 @@ describe("extractFromText — retry behavior", () => {
             create: vi.fn().mockImplementation(() => {
               callCount++;
               if (callCount < 2) {
-                const err = new Error("503 Service Unavailable") as Error & { status: number };
-                (err as Record<string, unknown>).status = 503;
+                const err = new Error("503 Service Unavailable") as unknown as Error & { status: number };
+                (err as unknown as Record<string, unknown>).status = 503;
                 throw err;
               }
               return Promise.resolve({
@@ -473,8 +473,8 @@ describe("extractFromText — retry behavior", () => {
           completions: {
             create: vi.fn().mockImplementation(() => {
               callCount++;
-              const err = new Error("429 Too Many Requests") as Error & { status: number };
-              (err as Record<string, unknown>).status = 429;
+              const err = new Error("429 Too Many Requests") as unknown as Error & { status: number };
+              (err as unknown as Record<string, unknown>).status = 429;
               throw err;
             }),
           },
