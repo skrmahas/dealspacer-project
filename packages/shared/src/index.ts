@@ -33,6 +33,7 @@ export interface JobStore {
   getJob(id: string): Promise<Job | null>;
   updateJob(id: string, input: UpdateJobInput): Promise<Job>;
   pollNextPending(): Promise<Job | null>;
+  resetStaleJobs?(staleAfterMs: number): Promise<number>;
   getCachedTranslations(sourceTexts: string[]): Promise<Map<string, TranslationCacheEntry>>;
   saveCachedTranslations(entries: TranslationCacheEntry[]): Promise<void>;
 }

@@ -119,6 +119,19 @@ export function createPostgresStore(): JobStore {
       });
     },
 
+    async resetStaleJobs(staleAfterMs: number): Promise<number> {
+      return withClient(async (client) => {
+        const result = await client.query(
+          `UPDATE jobs
+           SET state = 'pending', updated_at = NOW()
+           WHERE state = ANY($1::text[])
+             AND updated_at < NOW() - ($2 * INTERVAL '1 millisecond')`,
+          [["parsing", "extracting", "translating", "assembling"], staleAfterMs],
+        );
+        return result.rowCount ?? 0;
+      });
+    },
+
     async getCachedTranslations(sourceTexts: string[]): Promise<Map<string, TranslationCacheEntry>> {
       if (sourceTexts.length === 0) return new Map();
 
