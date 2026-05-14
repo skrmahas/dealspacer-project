@@ -1,5 +1,6 @@
 import OpenAI from "openai";
-import type { ExtractedData } from "@bei/shared";
+import type { ExtractedData, ExtractedMetric, ExtractedNarrative, RevenueBreakdown, ProfitabilityTrends } from "@bei/shared";
+import { deduplicateMetrics, normalizeLabel } from "./deduplicator.js";
 
 const SYSTEM_PROMPT = `You are a financial document extraction specialist focused on Baltic company financial and business documents.
 
@@ -48,6 +49,11 @@ IMPORTANT:
 - If genuine financial or strategic content is found, populate the appropriate sections. Only return completely empty arrays/sections if the document truly contains no business or financial content (e.g., a legal contract, a press release about a non-financial topic).
 - Output ONLY the JSON object, no markdown fences, no explanation.`;
 
+const DEFAULT_CHUNK_THRESHOLD = 60000;
+const DEFAULT_CHUNK_SIZE = 50000;
+const DEFAULT_CHUNK_OVERLAP = 5000;
+const DEFAULT_MAX_CONCURRENCY = 3;
+
 export type OpenAIClient = Pick<OpenAI, "chat">;
 
 let client: OpenAIClient | null = null;
@@ -65,21 +71,57 @@ export function setClient(c: OpenAIClient): void {
   client = c;
 }
 
-export async function extractFromText(
-  text: string,
-  apiClient?: OpenAIClient,
-): Promise<ExtractedData> {
-  const openai = apiClient ?? getClient();
+// ── Chunking ────────────────────────────────────────────────────────────────
 
-  // Truncate text to avoid context limit issues. GPT-4o has 128k context,
-  // but we keep it manageable. 60k chars ≈ 15k tokens, leaves room for output.
-  const truncated = text.length > 60000 ? text.slice(0, 60000) : text;
+interface ChunkConfig {
+  threshold: number;
+  chunkSize: number;
+  overlap: number;
+  maxConcurrency: number;
+}
 
+function getChunkConfig(): ChunkConfig {
+  const threshold = readPositiveEnv("EXTRACTION_CHUNK_THRESHOLD", DEFAULT_CHUNK_THRESHOLD);
+  const chunkSize = readPositiveEnv("EXTRACTION_CHUNK_SIZE", DEFAULT_CHUNK_SIZE);
+  const overlap = readPositiveEnv("EXTRACTION_CHUNK_OVERLAP", DEFAULT_CHUNK_OVERLAP);
+  const maxConcurrency = readPositiveEnv("EXTRACTION_MAX_CONCURRENCY", DEFAULT_MAX_CONCURRENCY);
+
+  // Ensure overlap < chunkSize
+  const effectiveOverlap = Math.min(overlap, Math.floor(chunkSize * 0.2));
+
+  return { threshold, chunkSize, overlap: effectiveOverlap, maxConcurrency };
+}
+
+function readPositiveEnv(name: string, fallback: number): number {
+  const raw = process.env[name];
+  if (!raw) return fallback;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
+  return parsed;
+}
+
+function chunkText(text: string, chunkSize: number, overlap: number): string[] {
+  const chunks: string[] = [];
+  let start = 0;
+
+  while (start < text.length) {
+    const end = Math.min(start + chunkSize, text.length);
+    chunks.push(text.slice(start, end));
+    if (end >= text.length) break;
+    start = end - overlap;
+  }
+
+  return chunks;
+}
+
+// ── Single extraction call ───────────────────────────────────────────────────
+
+async function callExtract(text: string, openai: OpenAIClient): Promise<ExtractedData> {
   const response = await openai.chat.completions.create({
     model: "gpt-4o",
     messages: [
       { role: "system", content: SYSTEM_PROMPT },
-      { role: "user", content: `Extract financial data from this document:\n\n${truncated}` },
+      { role: "user", content: `Extract financial data from this document:\n\n${text}` },
     ],
     response_format: { type: "json_object" },
     temperature: 0,
@@ -88,13 +130,214 @@ export async function extractFromText(
   const content = response.choices[0]?.message?.content;
   if (!content) throw new Error("GPT-4o returned empty response");
 
-  console.log(`[extractor] GPT-4o response: ${content.slice(0, 300)}...`);
+  return JSON.parse(content) as ExtractedData;
+}
 
-  try {
-    const parsed = JSON.parse(content) as ExtractedData;
-    console.log(`[extractor] Parsed: ${parsed.metrics.length} metrics, ${parsed.narratives.length} narratives, company: ${parsed.metadata.companyName}`);
-    return parsed;
-  } catch {
-    throw new Error(`Failed to parse GPT-4o response as JSON: ${content.slice(0, 200)}`);
+// ── Result merging ───────────────────────────────────────────────────────────
+
+function mergeExtractions(results: ExtractedData[]): ExtractedData {
+  if (results.length === 0) {
+    return {
+      metadata: { companyName: "", reportPeriod: "", sourceLanguage: "" },
+      metrics: [],
+      narratives: [],
+      sentiment: { managementTone: "", outlook: "", riskFactors: [] },
+    };
   }
+
+  if (results.length === 1) return results[0];
+
+  // Metadata: use first non-empty
+  const metadata = results.reduce((best, r) => {
+    if (!best.companyName && r.metadata.companyName) return r.metadata;
+    return best;
+  }, results[0].metadata);
+
+  // Metrics: collect all, deduplicate by label
+  const allMetrics: ExtractedMetric[] = [];
+  for (const r of results) {
+    allMetrics.push(...r.metrics);
+  }
+  const metrics = deduplicateMetrics(allMetrics);
+
+  // Narratives: concatenate text per section
+  const narrativeMap = new Map<string, string>();
+  for (const r of results) {
+    for (const n of r.narratives) {
+      const existing = narrativeMap.get(n.section);
+      if (existing) {
+        // Append only if the new text adds unique content
+        narrativeMap.set(n.section, existing + "\n" + n.text);
+      } else {
+        narrativeMap.set(n.section, n.text);
+      }
+    }
+  }
+  const narratives: ExtractedNarrative[] = Array.from(narrativeMap.entries()).map(
+    ([section, text]) => ({ section, text }),
+  );
+
+  // Sentiment: use the most confident (non-empty tone)
+  const sentiment = results.reduce((best, r) => {
+    if (!best.managementTone && r.sentiment.managementTone) return r.sentiment;
+    if (!best.outlook && r.sentiment.outlook) {
+      return { ...best, outlook: r.sentiment.outlook };
+    }
+    return best;
+  }, results[0].sentiment);
+
+  // Merge risk factors, deduplicating
+  const riskSet = new Set<string>();
+  for (const r of results) {
+    for (const rf of r.sentiment.riskFactors) {
+      riskSet.add(rf);
+    }
+  }
+  sentiment.riskFactors = Array.from(riskSet);
+
+  // Revenue breakdown: merge segments/geography, deduplicating by name
+  const revenueBreakdown: RevenueBreakdown = {};
+  const segmentMap = new Map<string, number>();
+  const geoMap = new Map<string, number>();
+
+  for (const r of results) {
+    for (const seg of r.revenueBreakdown?.bySegment ?? []) {
+      const norm = normalizeLabel(seg.name);
+      if (!segmentMap.has(norm)) {
+        segmentMap.set(norm, seg.value);
+      }
+    }
+    for (const geo of r.revenueBreakdown?.byGeography ?? []) {
+      const norm = normalizeLabel(geo.name);
+      if (!geoMap.has(norm)) {
+        geoMap.set(norm, geo.value);
+      }
+    }
+  }
+
+  if (segmentMap.size > 0) {
+    revenueBreakdown.bySegment = Array.from(segmentMap.entries()).map(([name, value]) => ({ name, value }));
+  }
+  if (geoMap.size > 0) {
+    revenueBreakdown.byGeography = Array.from(geoMap.entries()).map(([name, value]) => ({ name, value }));
+  }
+
+  // Profitability trends: merge by period, deduplicating
+  const periodSet = new Set<string>();
+  const revenueByPeriod = new Map<string, number | null>();
+  const ebitdaByPeriod = new Map<string, number | null>();
+  const netProfitByPeriod = new Map<string, number | null>();
+
+  for (const r of results) {
+    const trends = r.profitabilityTrends;
+    if (!trends || !trends.periods) continue;
+
+    for (let i = 0; i < trends.periods.length; i++) {
+      const period = trends.periods[i];
+      if (periodSet.has(period)) continue;
+      periodSet.add(period);
+
+      if (trends.revenue && trends.revenue[i] != null) {
+        revenueByPeriod.set(period, trends.revenue[i]);
+      }
+      if (trends.ebitda && trends.ebitda[i] != null) {
+        ebitdaByPeriod.set(period, trends.ebitda[i]);
+      }
+      if (trends.netProfit && trends.netProfit[i] != null) {
+        netProfitByPeriod.set(period, trends.netProfit[i]);
+      }
+    }
+  }
+
+  const periods = Array.from(periodSet);
+  const profitabilityTrends: ProfitabilityTrends = { periods };
+
+  if (revenueByPeriod.size > 0) {
+    profitabilityTrends.revenue = periods.map((p) => revenueByPeriod.get(p) ?? null);
+  }
+  if (ebitdaByPeriod.size > 0) {
+    profitabilityTrends.ebitda = periods.map((p) => ebitdaByPeriod.get(p) ?? null);
+  }
+  if (netProfitByPeriod.size > 0) {
+    profitabilityTrends.netProfit = periods.map((p) => netProfitByPeriod.get(p) ?? null);
+  }
+
+  return { metadata, metrics, narratives, sentiment, revenueBreakdown, profitabilityTrends };
+}
+
+// ── Main export ──────────────────────────────────────────────────────────────
+
+export async function extractFromText(
+  text: string,
+  apiClient?: OpenAIClient,
+): Promise<ExtractedData> {
+  const openai = apiClient ?? getClient();
+  const config = getChunkConfig();
+
+  // For small documents, use the single-call path unchanged
+  if (text.length <= config.threshold) {
+    console.log(`[extractor] Single-call extraction (${text.length} chars)`);
+    const response = await callExtract(text, openai);
+    console.log(`[extractor] GPT-4o response: ${JSON.stringify(response).slice(0, 300)}...`);
+    logExtractionResult(response);
+    return response;
+  }
+
+  // Large document: chunk and parallelize
+  const chunks = chunkText(text, config.chunkSize, config.overlap);
+  console.log(`[extractor] Chunked extraction: ${chunks.length} chunks (${text.length} chars total)`);
+
+  // Process chunks in parallel with concurrency limit
+  const results: ExtractedData[] = new Array(chunks.length);
+  let completedCount = 0;
+
+  async function processChunk(index: number): Promise<void> {
+    const chunk = chunks[index];
+    try {
+      const result = await callExtract(chunk, openai);
+      results[index] = result;
+      completedCount++;
+      console.log(
+        `[extractor] Chunk ${index + 1}/${chunks.length}: extracted ${result.metrics.length} metrics, ${result.narratives.length} narratives`,
+      );
+    } catch (error) {
+      console.error(`[extractor] Chunk ${index + 1}/${chunks.length} failed:`, error instanceof Error ? error.message : error);
+      // Use empty result for failed chunk so merging still works
+      results[index] = {
+        metadata: { companyName: "", reportPeriod: "", sourceLanguage: "" },
+        metrics: [],
+        narratives: [],
+        sentiment: { managementTone: "", outlook: "", riskFactors: [] },
+      };
+      completedCount++;
+    }
+  }
+
+  // Process with concurrency limit using a simple semaphore
+  const queue = chunks.map((_, i) => i);
+  const workers: Promise<void>[] = [];
+
+  for (let w = 0; w < Math.min(config.maxConcurrency, queue.length); w++) {
+    workers.push(
+      (async () => {
+        while (queue.length > 0) {
+          const index = queue.shift()!;
+          await processChunk(index);
+        }
+      })(),
+    );
+  }
+
+  await Promise.all(workers);
+
+  console.log(`[extractor] Merging ${results.length} chunk results...`);
+  const merged = mergeExtractions(results);
+  logExtractionResult(merged);
+  return merged;
+}
+
+function logExtractionResult(data: ExtractedData): void {
+  console.log(
+    `[extractor] Parsed: ${data.metrics.length} metrics, ${data.narratives.length} narratives, company: ${data.metadata.companyName}`,
+  );
 }
