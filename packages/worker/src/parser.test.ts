@@ -45,6 +45,7 @@ describe("parseDocument", () => {
     expect(detectFileType("report.pdf")).toBe("pdf");
     expect(detectFileType("report.csv")).toBe("csv");
     expect(detectFileType("report.htm")).toBe("html");
+    expect(detectFileType("report.xhtml")).toBe("html");
     expect(detectFileType("upload", "text/html")).toBe("html");
   });
 

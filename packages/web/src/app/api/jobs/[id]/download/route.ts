@@ -26,7 +26,7 @@ export async function GET(
       status: 200,
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="${job.originalFilename.replace(/\.pdf$/i, "")}-report.pdf"`,
+        "Content-Disposition": `attachment; filename="${job.originalFilename.replace(/\.(pdf|csv|html|htm|xhtml)$/i, "")}-report.pdf"`,
       },
     });
   } catch {

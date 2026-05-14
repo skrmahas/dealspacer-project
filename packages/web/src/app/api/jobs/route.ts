@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { saveFile } from "@/lib/file-store";
 import { createPostgresStore, type OutputLanguage } from "@bei/shared";
 
-const ACCEPTED_EXTENSIONS = new Set([".pdf", ".csv", ".html", ".htm"]);
+const ACCEPTED_EXTENSIONS = new Set([".pdf", ".csv", ".html", ".htm", ".xhtml"]);
 const ACCEPTED_MIME_TYPES = new Set([
   "application/pdf",
   "text/csv",
@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
   const extension = dotIndex >= 0 ? file.name.slice(dotIndex).toLowerCase() : "";
   if (!ACCEPTED_EXTENSIONS.has(extension) && !ACCEPTED_MIME_TYPES.has(file.type)) {
     return NextResponse.json(
-      { error: "Only PDF, CSV, and HTML files are accepted" },
+      { error: "Only PDF, CSV, HTML, and XHTML files are accepted" },
       { status: 400 },
     );
   }
