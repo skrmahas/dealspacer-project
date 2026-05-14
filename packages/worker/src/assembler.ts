@@ -524,6 +524,24 @@ function escapeHtml(text: string): string {
 // ── PDF rendering ───────────────────────────────────────────────────────────
 
 let browser: Browser | null = null;
+let browserIsRemote = false;
+
+async function connectToRemoteBrowserIfConfigured(): Promise<Browser | null> {
+  const browserWSEndpoint = process.env.PUPPETEER_BROWSER_WS_ENDPOINT;
+  const browserURL = process.env.PUPPETEER_BROWSER_URL;
+
+  if (browserWSEndpoint) {
+    browserIsRemote = true;
+    return puppeteer.connect({ browserWSEndpoint });
+  }
+
+  if (browserURL) {
+    browserIsRemote = true;
+    return puppeteer.connect({ browserURL });
+  }
+
+  return null;
+}
 
 function buildLaunchOptions(): LaunchOptions[] {
   const baseArgs = ["--no-sandbox", "--disable-setuid-sandbox"];
@@ -575,6 +593,11 @@ function buildLaunchOptions(): LaunchOptions[] {
 }
 
 async function launchBrowserWithFallback(): Promise<Browser> {
+  const connected = await connectToRemoteBrowserIfConfigured();
+  if (connected) {
+    return connected;
+  }
+
   const attempts = buildLaunchOptions();
   const failures: string[] = [];
 
@@ -600,22 +623,37 @@ async function getBrowser(): Promise<Browser> {
 
 export async function canLaunchPdfBrowser(): Promise<boolean> {
   let probe: Browser | null = null;
+  let probeIsRemote = false;
   try {
+    probe = await connectToRemoteBrowserIfConfigured();
+    if (probe) {
+      probeIsRemote = true;
+      return true;
+    }
     probe = await launchBrowserWithFallback();
     return true;
   } catch {
     return false;
   } finally {
     if (probe) {
-      await probe.close();
+      if (probeIsRemote) {
+        await probe.disconnect();
+      } else {
+        await probe.close();
+      }
     }
   }
 }
 
 export async function closeBrowser(): Promise<void> {
   if (browser) {
-    await browser.close();
+    if (browserIsRemote) {
+      await browser.disconnect();
+    } else {
+      await browser.close();
+    }
     browser = null;
+    browserIsRemote = false;
   }
 }
 
