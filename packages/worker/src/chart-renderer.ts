@@ -1,3 +1,5 @@
+import fs from "node:fs/promises";
+import path from "node:path";
 import { Chart, ChartConfiguration, registerables } from "chart.js";
 import { createCanvas, Canvas, CanvasRenderingContext2D } from "canvas";
 import type { ExtractedMetric, RevenueBreakdown, ProfitabilityTrends } from "@bei/shared";
@@ -18,28 +20,34 @@ function makeCanvas(width: number, height: number): ChartCanvas {
   return { canvas, ctx };
 }
 
-async function renderChartToBase64(
+async function renderChartToFile(
   config: ChartConfiguration,
   width: number,
   height: number,
+  tempDir: string,
+  filename: string,
 ): Promise<string> {
   const { canvas } = makeCanvas(width, height);
 
   // chart.js needs the canvas element to be cast-friendly
   const chart = new Chart(canvas as unknown as HTMLCanvasElement, config);
   // Force synchronous rendering (Chart.js v4 renders synchronously by default)
-  const buffer = canvas.toBuffer("image/png");
+  const buffer = canvas.toBuffer("image/jpeg", { quality: 0.85 });
   chart.destroy();
 
-  return `data:image/png;base64,${buffer.toString("base64")}`;
+  const filePath = path.join(tempDir, filename);
+  await fs.writeFile(filePath, buffer);
+  return `file://${filePath}`;
 }
 
 // ── Sparkline ───────────────────────────────────────────────────────────────
 
 export async function renderSparkline(
   values: (number | null)[],
-  width = 200,
-  height = 36,
+  tempDir: string,
+  filename: string,
+  width = 160,
+  height = 28,
 ): Promise<string> {
   // Filter out nulls and fill gaps with nearest neighbor for visual continuity
   const cleanValues = cleanSeries(values);
@@ -82,15 +90,16 @@ export async function renderSparkline(
     },
   };
 
-  return renderChartToBase64(config, width, height);
+  return renderChartToFile(config, width, height, tempDir, filename);
 }
 
 // ── Revenue Breakdown: Bar chart ────────────────────────────────────────────
 
 export async function renderRevenueBreakdownBar(
   segments: { name: string; value: number }[],
-  width = 480,
-  height = 280,
+  tempDir: string,
+  width = 440,
+  height = 240,
 ): Promise<string> {
   if (segments.length < 2) {
     console.warn(`[chart-renderer] Skipping revenue breakdown bar chart: only ${segments.length} segment(s), need ≥2`);
@@ -140,15 +149,16 @@ export async function renderRevenueBreakdownBar(
     },
   };
 
-  return renderChartToBase64(config, width, height);
+  return renderChartToFile(config, width, height, tempDir, "revenue-bar.jpg");
 }
 
 // ── Revenue Breakdown: Donut chart ──────────────────────────────────────────
 
 export async function renderRevenueDonut(
   segments: { name: string; value: number }[],
-  width = 400,
-  height = 300,
+  tempDir: string,
+  width = 360,
+  height = 240,
 ): Promise<string> {
   if (segments.length < 2) {
     console.warn(`[chart-renderer] Skipping revenue donut chart: only ${segments.length} segment(s), need ≥2`);
@@ -192,15 +202,16 @@ export async function renderRevenueDonut(
     },
   };
 
-  return renderChartToBase64(config, width, height);
+  return renderChartToFile(config, width, height, tempDir, "revenue-donut.jpg");
 }
 
 // ── Profitability Trends ────────────────────────────────────────────────────
 
 export async function renderProfitabilityTrends(
   trends: ProfitabilityTrends,
-  width = 520,
-  height = 300,
+  tempDir: string,
+  width = 480,
+  height = 240,
 ): Promise<string> {
   // Require ≥2 periods
   if (trends.periods.length < 2) {
@@ -305,7 +316,7 @@ export async function renderProfitabilityTrends(
     },
   };
 
-  return renderChartToBase64(config, width, height);
+  return renderChartToFile(config, width, height, tempDir, "profitability-trends.jpg");
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -377,15 +388,16 @@ function getTrendSeries(
 // ── Combined renderer for the assembler ─────────────────────────────────────
 
 export interface ChartImages {
-  sparklines: Map<string, string>; // metric label → base64 sparkline
+  sparklines: Map<string, string>; // metric label → file:// URL
   yoyChanges: Map<string, number | null>; // metric label → YoY %
-  revenueBarChart: string;
-  revenueDonutChart: string;
-  profitabilityChart: string;
+  revenueBarChart: string;     // file:// URL or ""
+  revenueDonutChart: string;   // file:// URL or ""
+  profitabilityChart: string;  // file:// URL or ""
 }
 
 export async function renderAllCharts(
   metrics: ExtractedMetric[],
+  tempDir: string,
   revenueBreakdown?: RevenueBreakdown,
   profitabilityTrends?: ProfitabilityTrends,
 ): Promise<ChartImages> {
@@ -397,7 +409,7 @@ export async function renderAllCharts(
     profitabilityChart: "",
   };
 
-  // Sparklines + YoY per key metric
+  // Sparklines + YoY per key metric — rendered in parallel
   const keyMetrics = metrics.filter((m) => {
     const label = m.label.toLowerCase();
     return (
@@ -410,48 +422,65 @@ export async function renderAllCharts(
     );
   });
 
+  // Compute YoY changes (sync)
   for (const m of keyMetrics) {
     const yoy = computeYoYChange(m.label, profitabilityTrends);
     result.yoyChanges.set(m.label, yoy);
+  }
 
+  // Collect all sparkline render promises for parallel execution
+  const sparklinePromises: Promise<void>[] = [];
+  for (const m of keyMetrics) {
     if (profitabilityTrends) {
       const series = getTrendSeries(m.label, profitabilityTrends);
       if (series && series.some((v) => v != null)) {
-        const sparkline = await renderSparkline(series);
-        if (sparkline) result.sparklines.set(m.label, sparkline);
+        const slug = m.label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
+        const filename = `sparkline-${slug}.jpg`;
+        sparklinePromises.push(
+          renderSparkline(series, tempDir, filename).then((url) => {
+            if (url) result.sparklines.set(m.label, url);
+          }),
+        );
       }
     }
   }
 
-  // Revenue breakdown charts
-  if (revenueBreakdown?.bySegment && revenueBreakdown.bySegment.length > 0) {
-    result.revenueBarChart =
-      await renderRevenueBreakdownBar(revenueBreakdown.bySegment);
-    result.revenueDonutChart =
-      await renderRevenueDonut(revenueBreakdown.bySegment);
-  } else if (
-    revenueBreakdown?.byGeography &&
-    revenueBreakdown.byGeography.length > 0
-  ) {
-    result.revenueBarChart = await renderRevenueBreakdownBar(
-      revenueBreakdown.byGeography,
-    );
-    result.revenueDonutChart = await renderRevenueDonut(
-      revenueBreakdown.byGeography,
-    );
-  }
+  // Parallel: revenue charts + sparklines
+  const revenuePromise = (async () => {
+    if (revenueBreakdown?.bySegment && revenueBreakdown.bySegment.length > 0) {
+      result.revenueBarChart =
+        await renderRevenueBreakdownBar(revenueBreakdown.bySegment, tempDir);
+      result.revenueDonutChart =
+        await renderRevenueDonut(revenueBreakdown.bySegment, tempDir);
+    } else if (
+      revenueBreakdown?.byGeography &&
+      revenueBreakdown.byGeography.length > 0
+    ) {
+      result.revenueBarChart = await renderRevenueBreakdownBar(
+        revenueBreakdown.byGeography,
+        tempDir,
+      );
+      result.revenueDonutChart = await renderRevenueDonut(
+        revenueBreakdown.byGeography,
+        tempDir,
+      );
+    }
+  })();
 
-  // Profitability trends chart
-  if (
-    profitabilityTrends &&
-    profitabilityTrends.periods.length >= 2 &&
-    (profitabilityTrends.revenue?.some((v) => v != null) ||
-      profitabilityTrends.ebitda?.some((v) => v != null) ||
-      profitabilityTrends.netProfit?.some((v) => v != null))
-  ) {
-    result.profitabilityChart =
-      await renderProfitabilityTrends(profitabilityTrends);
-  }
+  const profitabilityPromise = (async () => {
+    if (
+      profitabilityTrends &&
+      profitabilityTrends.periods.length >= 2 &&
+      (profitabilityTrends.revenue?.some((v) => v != null) ||
+        profitabilityTrends.ebitda?.some((v) => v != null) ||
+        profitabilityTrends.netProfit?.some((v) => v != null))
+    ) {
+      result.profitabilityChart =
+        await renderProfitabilityTrends(profitabilityTrends, tempDir);
+    }
+  })();
+
+  await Promise.all([...sparklinePromises, revenuePromise, profitabilityPromise]);
 
   return result;
 }

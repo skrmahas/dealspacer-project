@@ -1,3 +1,6 @@
+import fs from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import puppeteer, { Browser, Page, type LaunchOptions } from "puppeteer";
 import type { ExtractedData, ExtractedMetric, OutputLanguage } from "@bei/shared";
 import { renderAllCharts, type ChartImages } from "./chart-renderer.js";
@@ -658,26 +661,33 @@ export async function closeBrowser(): Promise<void> {
 }
 
 export async function assemblePdf(data: ExtractedData): Promise<Buffer> {
-  const charts = await renderAllCharts(
-    data.metrics,
-    data.revenueBreakdown,
-    data.profitabilityTrends,
-  );
-  const html = buildHtml(data, charts);
-  const b = await getBrowser();
-  const page: Page = await b.newPage();
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "bei-charts-"));
   try {
-    await page.setContent(html, {
-      waitUntil: "load",
-      timeout: 30000,
-    });
-    const pdf = await page.pdf({
-      format: "A4",
-      printBackground: true,
-      margin: { top: "2cm", right: "2.2cm", bottom: "2cm", left: "2.2cm" },
-    });
-    return Buffer.from(pdf);
+    const charts = await renderAllCharts(
+      data.metrics,
+      tempDir,
+      data.revenueBreakdown,
+      data.profitabilityTrends,
+    );
+    const html = buildHtml(data, charts);
+    const b = await getBrowser();
+    const page: Page = await b.newPage();
+    try {
+      await page.setContent(html, {
+        waitUntil: "load",
+        timeout: 30000,
+      });
+      const pdf = await page.pdf({
+        format: "A4",
+        printBackground: true,
+        margin: { top: "2cm", right: "2.2cm", bottom: "2cm", left: "2.2cm" },
+      });
+      return Buffer.from(pdf);
+    } finally {
+      await page.close();
+    }
   } finally {
-    await page.close();
+    // Clean up temp chart files
+    await fs.rm(tempDir, { recursive: true, force: true }).catch(() => {});
   }
 }
