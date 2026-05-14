@@ -2,8 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import * as pdfjsLib from "pdfjs-dist";
-import puppeteer from "puppeteer";
-import { assemblePdf, closeBrowser } from "./assembler.js";
+import { assemblePdf, canLaunchPdfBrowser, closeBrowser } from "./assembler.js";
 import type { ExtractedData } from "@bei/shared";
 
 const completeFixturePath = resolve(
@@ -22,16 +21,7 @@ function readFixture(path: string): ExtractedData {
 }
 
 async function canLaunchBrowser(): Promise<boolean> {
-  try {
-    const browser = await puppeteer.launch({
-      headless: true,
-      args: ["--no-sandbox", "--disable-setuid-sandbox"],
-    });
-    await browser.close();
-    return true;
-  } catch {
-    return false;
-  }
+  return canLaunchPdfBrowser();
 }
 
 const browserAvailable = await canLaunchBrowser();
