@@ -6,16 +6,18 @@ import { fileURLToPath } from "node:url";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: resolve(__dirname, "..", ".env") });
 
-import { readFile, saveReport } from "./file-store.js";
 import { parseDocument } from "./parser.js";
 import { extractFromText } from "./extractor.js";
 import { translateExtractedData } from "./translator.js";
 import { assemblePdf } from "./assembler.js";
 import { processJob } from "./orchestrator.js";
 import { startWorker } from "./worker.js";
-import { createPostgresStore } from "@bei/shared";
+import { createPostgresStore, createEnvFileStore } from "@bei/shared";
 
 const store = createPostgresStore();
+const { readFile, saveReport } = createEnvFileStore({
+  defaultDataDir: resolve(__dirname, "..", "..", "data"),
+});
 const DEFAULT_POLL_INTERVAL_MS = 2000;
 const DEFAULT_STALE_JOB_SWEEP_INTERVAL_MS = 30_000;
 const DEFAULT_STALE_JOB_THRESHOLD_MS = 30 * 60 * 1000;

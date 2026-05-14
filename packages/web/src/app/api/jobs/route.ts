@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { saveFile } from "@/lib/file-store";
-import { createPostgresStore, type OutputLanguage } from "@bei/shared";
+import path from "node:path";
+import { createPostgresStore, createEnvFileStore, type OutputLanguage } from "@bei/shared";
 
 const ACCEPTED_EXTENSIONS = new Set([".pdf", ".csv", ".html", ".htm", ".xhtml"]);
 const ACCEPTED_MIME_TYPES = new Set([
@@ -12,6 +12,9 @@ const ACCEPTED_MIME_TYPES = new Set([
   "",
 ]);
 const OUTPUT_LANGUAGES = new Set<OutputLanguage>(["en", "et", "lv", "lt"]);
+const { saveFile } = createEnvFileStore({
+  defaultDataDir: path.resolve(process.cwd(), "..", "..", "data"),
+});
 
 export async function POST(request: NextRequest) {
   const formData = await request.formData();

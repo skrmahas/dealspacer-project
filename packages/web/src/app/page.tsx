@@ -2,9 +2,7 @@
 
 import { useCallback, useMemo, useRef, useState } from "react";
 import { ReportSummary } from "@/components/report-summary";
-
-type JobState = "pending" | "parsing" | "extracting" | "translating" | "assembling" | "complete" | "failed";
-type OutputLanguage = "en" | "et" | "lv" | "lt";
+import type { JobState, OutputLanguage } from "@bei/shared";
 
 type JobInfo = {
   jobId: string;

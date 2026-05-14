@@ -1,30 +1,12 @@
 "use client";
 
-type Metric = {
-  label: string;
-  value: number | null;
-  unit?: string;
-};
+import type { ExtractedData, ExtractedMetric, ExtractedNarrative, ExtractedSentiment } from "@bei/shared";
 
-type Narrative = {
-  section: string;
-  text: string;
-};
-
-type Sentiment = {
-  managementTone: string;
-  outlook: string;
-  riskFactors: string[];
-};
-
-type ExtractedPayload = {
-  metadata?: {
-    companyName?: string;
-    reportPeriod?: string;
-  };
-  metrics?: Metric[];
-  narratives?: Narrative[];
-  sentiment?: Sentiment;
+type ExtractedPayload = Partial<ExtractedData> & {
+  metadata?: Partial<ExtractedData["metadata"]>;
+  metrics?: ExtractedMetric[];
+  narratives?: ExtractedNarrative[];
+  sentiment?: ExtractedSentiment;
 };
 
 function narrativeTitle(section: string): string {
@@ -44,7 +26,7 @@ function narrativeTitle(section: string): string {
   }
 }
 
-function sectionNarrative(narratives: Narrative[], section: string): string | null {
+function sectionNarrative(narratives: ExtractedNarrative[], section: string): string | null {
   const item = narratives.find((narrative) => narrative.section === section);
   return item?.text?.trim() ? item.text.trim() : null;
 }

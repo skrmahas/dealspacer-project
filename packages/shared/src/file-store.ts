@@ -8,6 +8,10 @@ export interface FileStore {
   readReport(jobId: string): Promise<Buffer>;
 }
 
+export interface EnvFileStoreOptions {
+  defaultDataDir: string;
+}
+
 export function createFileStore({ dataDir }: { dataDir: string }): FileStore {
   const resolvedDataDir = path.resolve(dataDir);
 
@@ -31,4 +35,9 @@ export function createFileStore({ dataDir }: { dataDir: string }): FileStore {
       return fs.readFile(path.join(resolvedDataDir, `${jobId}-report.pdf`));
     },
   };
+}
+
+export function createEnvFileStore({ defaultDataDir }: EnvFileStoreOptions): FileStore {
+  const dataDir = process.env.DATA_DIR?.trim() || defaultDataDir;
+  return createFileStore({ dataDir });
 }
