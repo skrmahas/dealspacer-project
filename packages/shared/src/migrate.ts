@@ -19,11 +19,6 @@ async function migrate() {
     `);
 
     await client.query(`
-      ALTER TABLE jobs
-      ADD COLUMN IF NOT EXISTS output_language TEXT NOT NULL DEFAULT 'en';
-    `);
-
-    await client.query(`
       CREATE INDEX IF NOT EXISTS idx_jobs_state ON jobs(state);
     `);
 
