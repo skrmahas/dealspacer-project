@@ -1,5 +1,5 @@
-import { withClient } from "./db.js";
-import type { Job, CreateJobInput, UpdateJobInput, JobStore, TranslationCacheEntry } from "./index.js";
+import { withClient } from "./db";
+import type { Job, CreateJobInput, UpdateJobInput, JobStore, TranslationCacheEntry } from "./index";
 
 function rowToJob(row: Record<string, unknown>): Job {
   return {

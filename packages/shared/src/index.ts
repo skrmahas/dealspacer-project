@@ -1,5 +1,5 @@
-export { createPostgresStore } from "./pg-store.js";
-export { getPool, closePool } from "./db.js";
+export { createPostgresStore } from "./pg-store";
+export { getPool, closePool } from "./db";
 
 export type JobState = "pending" | "parsing" | "extracting" | "translating" | "assembling" | "complete" | "failed";
 export type OutputLanguage = "en" | "et" | "lv" | "lt";
