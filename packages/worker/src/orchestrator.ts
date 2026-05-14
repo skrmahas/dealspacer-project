@@ -1,4 +1,5 @@
 import type { Job, JobStore, ExtractedData } from "@bei/shared";
+import { classifyDocument } from "./classifier.js";
 
 export async function processJob(
   job: Job,
@@ -19,6 +20,13 @@ export async function processJob(
     log(`File loaded: ${(buffer.length / 1024).toFixed(0)} KB`);
     const text = await parseDocument(buffer, job.originalFilename);
     log(`Parsed: ${text.length} chars`);
+
+    // Classify document type BEFORE GPT-4o extraction (saves API cost on invalid uploads)
+    const classification = classifyDocument(text);
+    if (classification.shouldReject) {
+      log(`Rejected: ${classification.docClass} — "${classification.rejectionMessage}"`);
+      throw new Error(classification.rejectionMessage);
+    }
 
     await store.updateJob(job.id, { state: "extracting" });
     const extracted = await extractFromText(text);

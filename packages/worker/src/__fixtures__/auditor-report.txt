@@ -1,0 +1,29 @@
+## Independent Auditor's Report
+
+To the Shareholders of AS Example Baltic
+
+### Opinion
+
+We have audited the consolidated financial statements of AS Example Baltic (the Company) and its subsidiaries (the Group), which comprise the consolidated statement of financial position as at 31 December 2024, and the consolidated statement of profit or loss and other comprehensive income, consolidated statement of changes in equity and consolidated statement of cash flows for the year then ended, and notes to the consolidated financial statements, including a summary of significant accounting policies.
+
+In our opinion, the accompanying consolidated financial statements present fairly, in all material respects, the consolidated financial position of the Group as at 31 December 2024, and its consolidated financial performance and its consolidated cash flows for the year then ended in accordance with International Financial Reporting Standards (IFRSs).
+
+### Basis for Opinion
+
+We conducted our audit in accordance with International Standards on Auditing (ISAs). Our responsibilities under those standards are further described in the Auditor's Responsibilities for the Audit of the Consolidated Financial Statements section of our report. We are independent of the Group in accordance with the International Ethics Standards Board for Accountants' Code of Ethics for Professional Accountants (IESBA Code), and we have fulfilled our other ethical responsibilities in accordance with these requirements and the IESBA Code.
+
+### Key Audit Matters
+
+Key audit matters are those matters that, in our professional judgement, were of most significance in our audit of the consolidated financial statements of the current period. These matters were addressed in the context of our audit of the consolidated financial statements as a whole, and in forming our opinion thereon, and we do not provide a separate opinion on these matters.
+
+**Revenue Recognition — EUR 142.3 million**
+
+The Group reported revenue of EUR 142.3 million for the year ended 31 December 2024. Revenue recognition involves management judgement in determining the timing of revenue recognition for complex customer contracts.
+
+**Valuation of Trade Receivables — EUR 38.7 million**
+
+Trade receivables of EUR 38.7 million include allowances for expected credit losses of EUR 2.1 million. The estimation of expected credit losses requires significant management judgement.
+
+KPMG Baltics OÜ
+Tallinn, Estonia
+28 February 2025

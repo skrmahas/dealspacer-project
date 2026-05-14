@@ -204,4 +204,33 @@ describe("processJob", () => {
     expect(updated!.state).toBe("failed");
     expect(updated!.error).toBe("No financial data found in this document");
   });
+
+  it("rejects auditor reports with user-friendly message before extraction", async () => {
+    const job = await store.createJob({ originalFilename: "kpmg-audit.pdf" });
+    const readFile = vi.fn().mockResolvedValue(Buffer.from("fake pdf"));
+    const parseDocument = vi.fn().mockResolvedValue("Independent Auditor's Report. We have audited the financial statements. In our opinion they present fairly...");
+    const extractFromText = vi.fn();
+    const translateExtractedData = vi.fn();
+    const assemblePdf = vi.fn();
+    const saveReport = vi.fn();
+
+    const states: JobState[] = [];
+    const originalUpdate = store.updateJob;
+    store.updateJob = vi.fn().mockImplementation(async (id, input) => {
+      if (input.state) states.push(input.state);
+      return originalUpdate(id, input);
+    });
+
+    await processJob(job, store, readFile, parseDocument, extractFromText, translateExtractedData, assemblePdf, saveReport);
+
+    expect(states).toEqual(["parsing", "failed"]);
+    // GPT-4o extraction should NOT be called for rejected documents
+    expect(extractFromText).not.toHaveBeenCalled();
+    expect(translateExtractedData).not.toHaveBeenCalled();
+    expect(assemblePdf).not.toHaveBeenCalled();
+
+    const updated = await store.getJob(job.id);
+    expect(updated!.state).toBe("failed");
+    expect(updated!.error).toContain("auditor's report");
+  });
 });
