@@ -78,7 +78,7 @@ describe("extractFromText", () => {
     expect(callArgs.response_format).toEqual({ type: "json_object" });
     expect(callArgs.temperature).toBe(0);
     expect(callArgs.messages[0].role).toBe("system");
-    expect(callArgs.messages[0].content).toContain("Baltic company earnings reports");
+    expect(callArgs.messages[0].content).toContain("financial document extraction specialist");
     expect(callArgs.messages[1].role).toBe("user");
     expect(callArgs.messages[1].content).toContain("Financial report text here");
   });
