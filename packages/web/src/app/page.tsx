@@ -2,6 +2,8 @@
 
 import { useCallback, useMemo, useRef, useState } from "react";
 import { ReportSummary } from "@/components/report-summary";
+import { uploadFileWithProgress } from "@/lib/upload-progress";
+import type { UploadProgress } from "@/lib/upload-progress";
 import type { JobState, OutputLanguage } from "@bei/shared";
 
 type JobInfo = {
@@ -79,6 +81,7 @@ export default function Home() {
   const [file, setFile] = useState<File | null>(null);
   const [outputLanguage, setOutputLanguage] = useState<OutputLanguage>("en");
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<UploadProgress | null>(null);
   const [job, setJob] = useState<JobInfo | null>(null);
   const [pipelineError, setPipelineError] = useState<string | null>(null);
   const [polling, setPolling] = useState(false);
@@ -142,28 +145,28 @@ export default function Home() {
     }
 
     setUploading(true);
+    setUploadProgress(null);
     setJob(null);
     try {
       const form = new FormData();
       form.set("file", file);
       form.set("outputLanguage", outputLanguage);
 
-      const response = await fetch("/api/jobs", { method: "POST", body: form });
-      const payload = await response.json();
-      if (!response.ok) {
-        setJob({ jobId: "", state: "failed", error: payload.error || "Upload failed" });
-        setPipelineError("Upload failed. Please retry.");
-        return;
-      }
+      const created = await uploadFileWithProgress(
+        "/api/jobs",
+        form,
+        (progress) => setUploadProgress(progress),
+      );
 
-      const created = payload as JobInfo;
-      setJob(created);
+      setJob({ jobId: created.jobId, state: created.state as JobState });
       startPolling(created.jobId);
-    } catch {
-      setJob({ jobId: "", state: "failed", error: "Upload failed" });
-      setPipelineError("Upload failed due to a network error.");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Upload failed";
+      setJob({ jobId: "", state: "failed", error: message });
+      setPipelineError(message || "Upload failed. Please retry.");
     } finally {
       setUploading(false);
+      setUploadProgress(null);
     }
   }, [file, outputLanguage, startPolling]);
 
@@ -239,8 +242,39 @@ export default function Home() {
               cursor: !file || uploading ? "not-allowed" : "pointer",
             }}
           >
-            {uploading ? "Uploading..." : "Start Pipeline"}
+            {uploading && uploadProgress
+              ? `Uploading… ${Math.round((uploadProgress.loaded / uploadProgress.total) * 100)}%`
+              : uploading
+                ? "Uploading..."
+                : "Start Pipeline"}
           </button>
+
+          {uploading && uploadProgress && (
+            <div style={{ marginTop: 8 }}>
+              <div
+                style={{
+                  height: 8,
+                  borderRadius: 999,
+                  background: "#d4dbe4",
+                  overflow: "hidden",
+                }}
+              >
+                <div
+                  className="upload-progress-fill"
+                  style={{
+                    height: "100%",
+                    borderRadius: 999,
+                    background: "linear-gradient(90deg, #0b7ea4, #145f82)",
+                    width: `${Math.round((uploadProgress.loaded / uploadProgress.total) * 100)}%`,
+                    transition: "width 150ms ease-out",
+                  }}
+                />
+              </div>
+              <p style={{ margin: "4px 0 0", fontSize: 12, color: "#6e7d90" }}>
+                {(uploadProgress.loaded / (1024 * 1024)).toFixed(1)} MB / {(uploadProgress.total / (1024 * 1024)).toFixed(1)} MB
+              </p>
+            </div>
+          )}
         </section>
 
         {job && (
