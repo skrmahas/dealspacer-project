@@ -1,4 +1,4 @@
-import puppeteer, { Browser, Page } from "puppeteer";
+import puppeteer, { Browser, Page, type LaunchOptions } from "puppeteer";
 import type { ExtractedData, ExtractedMetric, OutputLanguage } from "@bei/shared";
 import { renderAllCharts, type ChartImages } from "./chart-renderer.js";
 
@@ -524,21 +524,136 @@ function escapeHtml(text: string): string {
 // ── PDF rendering ───────────────────────────────────────────────────────────
 
 let browser: Browser | null = null;
+let browserIsRemote = false;
+
+async function connectToRemoteBrowserIfConfigured(): Promise<Browser | null> {
+  const browserWSEndpoint = process.env.PUPPETEER_BROWSER_WS_ENDPOINT;
+  const browserURL = process.env.PUPPETEER_BROWSER_URL;
+
+  if (browserWSEndpoint) {
+    browserIsRemote = true;
+    return puppeteer.connect({ browserWSEndpoint });
+  }
+
+  if (browserURL) {
+    browserIsRemote = true;
+    return puppeteer.connect({ browserURL });
+  }
+
+  return null;
+}
+
+function buildLaunchOptions(): LaunchOptions[] {
+  const baseArgs = ["--no-sandbox", "--disable-setuid-sandbox"];
+  const debugLaunch = process.env.PUPPETEER_DEBUG === "1";
+  const executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
+
+  if (executablePath) {
+    return [{
+      executablePath,
+      browser: "chrome",
+      headless: true,
+      args: baseArgs,
+      dumpio: debugLaunch,
+    }];
+  }
+
+  // On newer macOS versions, Chrome for Testing app startup may abort in
+  // app-registration path. Prefer installed stable Chrome first there.
+  if (process.platform === "darwin") {
+    return [
+      {
+        browser: "chrome",
+        channel: "chrome",
+        headless: true,
+        args: baseArgs,
+        dumpio: debugLaunch,
+      },
+      {
+        browser: "chrome",
+        headless: true,
+        args: baseArgs,
+        dumpio: debugLaunch,
+      },
+      {
+        browser: "chrome",
+        headless: "shell",
+        args: baseArgs,
+        dumpio: debugLaunch,
+      },
+    ];
+  }
+
+  return [{
+    browser: "chrome",
+    headless: true,
+    args: baseArgs,
+    dumpio: debugLaunch,
+  }];
+}
+
+async function launchBrowserWithFallback(): Promise<Browser> {
+  const connected = await connectToRemoteBrowserIfConfigured();
+  if (connected) {
+    return connected;
+  }
+
+  const attempts = buildLaunchOptions();
+  const failures: string[] = [];
+
+  for (const options of attempts) {
+    try {
+      return await puppeteer.launch(options);
+    } catch (error) {
+      const launchMode = `channel=${options.channel ?? "bundled"}, headless=${String(options.headless ?? true)}`;
+      const message = error instanceof Error ? error.message : String(error);
+      failures.push(`${launchMode}: ${message}`);
+    }
+  }
+
+  throw new Error(`Failed to launch browser after ${attempts.length} attempts:\n${failures.join("\n")}`);
+}
 
 async function getBrowser(): Promise<Browser> {
   if (!browser || !browser.isConnected()) {
-    browser = await puppeteer.launch({
-      headless: true,
-      args: ["--no-sandbox", "--disable-setuid-sandbox"],
-    });
+    browser = await launchBrowserWithFallback();
   }
   return browser;
 }
 
+export async function canLaunchPdfBrowser(): Promise<boolean> {
+  let probe: Browser | null = null;
+  let probeIsRemote = false;
+  try {
+    probe = await connectToRemoteBrowserIfConfigured();
+    if (probe) {
+      probeIsRemote = true;
+      return true;
+    }
+    probe = await launchBrowserWithFallback();
+    return true;
+  } catch {
+    return false;
+  } finally {
+    if (probe) {
+      if (probeIsRemote) {
+        await probe.disconnect();
+      } else {
+        await probe.close();
+      }
+    }
+  }
+}
+
 export async function closeBrowser(): Promise<void> {
   if (browser) {
-    await browser.close();
+    if (browserIsRemote) {
+      await browser.disconnect();
+    } else {
+      await browser.close();
+    }
     browser = null;
+    browserIsRemote = false;
   }
 }
 
