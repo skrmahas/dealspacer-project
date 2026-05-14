@@ -43,7 +43,10 @@ export async function renderSparkline(
 ): Promise<string> {
   // Filter out nulls and fill gaps with nearest neighbor for visual continuity
   const cleanValues = cleanSeries(values);
-  if (cleanValues.length < 2) return "";
+  if (cleanValues.length < 3) {
+    console.warn(`[chart-renderer] Skipping sparkline: only ${cleanValues.length} non-null value(s), need ≥3`);
+    return "";
+  }
 
   const labels = cleanValues.map((_, i) => String(i));
   const min = Math.min(...cleanValues) * 0.95;
@@ -89,7 +92,10 @@ export async function renderRevenueBreakdownBar(
   width = 480,
   height = 280,
 ): Promise<string> {
-  if (segments.length === 0) return "";
+  if (segments.length < 2) {
+    console.warn(`[chart-renderer] Skipping revenue breakdown bar chart: only ${segments.length} segment(s), need ≥2`);
+    return "";
+  }
 
   const colors = [
     "#003366", "#005599", "#0077CC", "#3399DD",
@@ -144,7 +150,10 @@ export async function renderRevenueDonut(
   width = 400,
   height = 300,
 ): Promise<string> {
-  if (segments.length === 0) return "";
+  if (segments.length < 2) {
+    console.warn(`[chart-renderer] Skipping revenue donut chart: only ${segments.length} segment(s), need ≥2`);
+    return "";
+  }
 
   const colors = [
     "#003366", "#005599", "#0077CC", "#3399DD",
@@ -193,6 +202,12 @@ export async function renderProfitabilityTrends(
   width = 520,
   height = 300,
 ): Promise<string> {
+  // Require ≥2 periods
+  if (trends.periods.length < 2) {
+    console.warn(`[chart-renderer] Skipping profitability chart: only ${trends.periods.length} period(s), need ≥2`);
+    return "";
+  }
+
   const datasets: {
     label: string;
     data: (number | null)[];
@@ -242,6 +257,15 @@ export async function renderProfitabilityTrends(
   }
 
   if (datasets.length === 0) return "";
+
+  // Require at least one series with ≥2 non-null values
+  const hasValidSeries = datasets.some(
+    (ds) => ds.data.filter((v) => v != null).length >= 2
+  );
+  if (!hasValidSeries) {
+    console.warn("[chart-renderer] Skipping profitability chart: no series has ≥2 non-null values");
+    return "";
+  }
 
   const config: ChartConfiguration = {
     type: "line",
