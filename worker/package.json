@@ -1,0 +1,14 @@
+{
+  "name": "worker",
+  "version": "1.0.0",
+  "description": "Dealspacer pipeline worker — parse, extract, translate, render",
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
+    "db:migrate": "psql $DATABASE_URL -f src/schema.sql",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  }
+}
