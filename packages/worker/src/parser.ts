@@ -1,5 +1,4 @@
 import path from "node:path";
-import * as cheerio from "cheerio";
 import { parse as parseCsv } from "csv-parse/sync";
 import { PDFParse } from "pdf-parse";
 import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
@@ -18,6 +17,11 @@ const standardFontsDir = path.resolve(
 const standardFontDataUrl = `${standardFontsDir}${path.sep}`;
 
 export const NO_FINANCIAL_DATA_MESSAGE = "No financial data found in this document";
+
+export const FILE_TOO_LARGE_MESSAGE = "File too large for processing";
+
+/** Maximum file size the worker will attempt to parse (100 MB). */
+const MAX_FILE_BYTES = 100 * 1024 * 1024;
 
 export type SupportedFileType = "pdf" | "csv" | "html";
 
@@ -48,6 +52,9 @@ export function detectFileType(filename: string, mimeType?: string): SupportedFi
 }
 
 export async function parseDocument(buffer: Buffer, filename: string, mimeType?: string): Promise<string> {
+  if (buffer.length > MAX_FILE_BYTES) {
+    throw new Error(FILE_TOO_LARGE_MESSAGE);
+  }
   const type = detectFileType(filename, mimeType);
   if (type === "pdf") return parsePdf(buffer);
   if (type === "csv") return parseCsvBuffer(buffer);
@@ -180,7 +187,32 @@ export async function parseCsvBuffer(buffer: Buffer): Promise<string> {
 }
 
 export async function parseHtml(buffer: Buffer): Promise<string> {
-  const $ = cheerio.load(buffer.toString("utf8"));
-  $("script, style, noscript, svg").remove();
-  return normalizeText($("body").text() || $.root().text());
+  // Use regex-based tag stripping instead of cheerio DOM parsing.
+  // cheerio builds a full DOM tree in memory, which for large XHTML
+  // files (65MB+) causes 5-10x memory expansion and OOM crashes.
+  // A regex strip uses O(n) memory proportional to string size.
+  const html = buffer.toString("utf8");
+
+  // Remove script, style, noscript, svg blocks (including their contents)
+  const cleaned = html
+    .replace(/<script[\s>][\s\S]*?<\/script\s*>/gi, " ")
+    .replace(/<style[\s>][\s\S]*?<\/style\s*>/gi, " ")
+    .replace(/<noscript[\s>][\s\S]*?<\/noscript\s*>/gi, " ")
+    .replace(/<svg[\s>][\s\S]*?<\/svg\s*>/gi, " ");
+
+  // Strip all remaining HTML/XML tags
+  const textOnly = cleaned.replace(/<[^>]*>/g, " ");
+
+  // Decode common HTML entities
+  const decoded = textOnly
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#039;/g, "'")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&#(\d+);/g, (_, d) => String.fromCharCode(Number(d)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCharCode(parseInt(h, 16)));
+
+  return normalizeText(decoded);
 }

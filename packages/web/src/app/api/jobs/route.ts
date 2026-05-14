@@ -48,9 +48,12 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  if (file.size > 1024 * 1024 * 1024) {
+  // 100 MB limit for all file types — prevents worker OOM crashes from
+  // large XHTML/HTML files that balloon during DOM/text parsing.
+  const maxBytes = 100 * 1024 * 1024;
+  if (file.size > maxBytes) {
     return NextResponse.json(
-      { error: "File must be under 1GB" },
+      { error: "File must be under 100 MB" },
       { status: 400 },
     );
   }
