@@ -113,10 +113,6 @@ export function createPostgresStore(): JobStore {
         );
 
         if (result.rows.length > 0) {
-          await client.query(
-            `UPDATE jobs SET state = 'pending' WHERE id = $1`,
-            [result.rows[0].id],
-          );
           return rowToJob(result.rows[0]);
         }
         return null;
