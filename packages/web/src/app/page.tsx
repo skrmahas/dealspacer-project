@@ -88,6 +88,9 @@ export default function Home() {
   const [polling, setPolling] = useState(false);
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const startedAtRef = useRef<number>(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragError, setDragError] = useState(false);
+  const dragCounterRef = useRef(0);
 
   const shareUrl = useMemo(() => {
     if (!job?.jobId) return null;
@@ -134,6 +137,58 @@ export default function Home() {
       }
     }, 1200);
   }, [stopPolling]);
+
+  // ── Drag-and-drop handlers ────────────────────────────────────────────
+
+  const handleDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current++;
+    if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
+      setIsDragging(true);
+      setDragError(false);
+    }
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current--;
+    if (dragCounterRef.current <= 0) {
+      dragCounterRef.current = 0;
+      setIsDragging(false);
+      setDragError(false);
+    }
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    dragCounterRef.current = 0;
+
+    const droppedFile = e.dataTransfer.files?.[0];
+    if (!droppedFile) return;
+
+    const valid = ACCEPTED_EXTENSIONS.some((ext) =>
+      droppedFile.name.toLowerCase().endsWith(ext),
+    );
+    if (!valid) {
+      setDragError(true);
+      setTimeout(() => setDragError(false), 2500);
+      return;
+    }
+
+    setFile(droppedFile);
+    setPipelineError(null);
+  }, []);
+
+  // ── Upload ──────────────────────────────────────────────────────────────
 
   const onUpload = useCallback(async () => {
     if (!file) return;
@@ -189,7 +244,25 @@ export default function Home() {
           </p>
         </section>
 
-        <section style={{ background: "#ffffff", border: "1px solid #dae2eb", borderRadius: 16, padding: 20, display: "grid", gap: 16 }}>
+        <section
+          onDragEnter={handleDragEnter}
+          onDragLeave={handleDragLeave}
+          onDragOver={handleDragOver}
+          onDrop={handleDrop}
+          style={{
+            background: isDragging ? "#e8f4fd" : dragError ? "#fff6f5" : "#ffffff",
+            border: dragError
+              ? "2px dashed #e8887a"
+              : isDragging
+                ? "2px dashed #0b7ea4"
+                : "1px solid #dae2eb",
+            borderRadius: 16,
+            padding: 20,
+            display: "grid",
+            gap: 16,
+            transition: "background 0.15s, border 0.15s",
+          }}
+        >
           <div style={{ display: "grid", gap: 10 }}>
             <label style={{ display: "grid", gap: 6, color: "#1f2a37", fontSize: 14 }}>
               Document
@@ -200,7 +273,17 @@ export default function Home() {
                 style={{ border: "1px solid #cfd8e3", borderRadius: 10, padding: "10px 12px", background: "#f9fbfd" }}
               />
             </label>
-            <p style={{ margin: 0, color: "#6e7d90", fontSize: 13 }}>{file ? file.name : "No file selected"} · Max 1GB</p>
+            <p style={{ margin: 0, color: "#6e7d90", fontSize: 13 }}>{file ? file.name : "No file selected"} · Max 1GB · Drop zone</p>
+            {isDragging && !dragError && (
+              <p style={{ margin: 0, color: "#0b5974", fontSize: 13, fontWeight: 600 }}>
+                Drop your file here
+              </p>
+            )}
+            {dragError && (
+              <p style={{ margin: 0, color: "#8f2f23", fontSize: 13, fontWeight: 600 }}>
+                Only PDF, CSV, and HTML files are accepted
+              </p>
+            )}
           </div>
 
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
