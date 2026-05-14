@@ -69,6 +69,7 @@ export async function parsePdf(buffer: Buffer): Promise<string> {
 }
 
 const DEFAULT_BATCH_SIZE = 8;
+const DEFAULT_OCR_PAGE_TIMEOUT_MS = 30000;
 
 function getBatchSize(): number {
   const env = process.env.WORKER_PDF_BATCH_SIZE;
@@ -77,6 +78,15 @@ function getBatchSize(): number {
     if (!isNaN(parsed) && parsed > 0) return parsed;
   }
   return DEFAULT_BATCH_SIZE;
+}
+
+function getOcrPageTimeoutMs(): number {
+  const env = process.env.OCR_PAGE_TIMEOUT_MS;
+  if (env) {
+    const parsed = parseInt(env, 10);
+    if (!isNaN(parsed) && parsed > 0) return parsed;
+  }
+  return DEFAULT_OCR_PAGE_TIMEOUT_MS;
 }
 
 async function extractPdfText(buffer: Buffer): Promise<string> {
@@ -130,6 +140,7 @@ async function ocrPdf(buffer: Buffer): Promise<string> {
     const pages = screenshots?.pages ?? [];
     const pageTexts: (string | null)[] = new Array(pages.length).fill(null);
     const batchSize = getBatchSize();
+    const ocrTimeoutMs = getOcrPageTimeoutMs();
     let processedCount = 0;
 
     for (let start = 0; start < pages.length; start += batchSize) {
@@ -141,9 +152,22 @@ async function ocrPdf(buffer: Buffer): Promise<string> {
         if (!page.data) continue;
         batch.push(
           (async (idx: number) => {
-            const result = await recognize(Buffer.from(page.data!), "eng+est+lav+lit");
-            if (hasUsableText(result.data.text)) {
-              pageTexts[idx] = result.data.text;
+            try {
+              const result = await Promise.race([
+                recognize(Buffer.from(page.data!), "eng+est+lav+lit"),
+                new Promise<never>((_, reject) =>
+                  setTimeout(() => reject(new Error("OCR_TIMEOUT")), ocrTimeoutMs),
+                ),
+              ]);
+              if (hasUsableText(result.data.text)) {
+                pageTexts[idx] = result.data.text;
+              }
+            } catch (err) {
+              if (err instanceof Error && err.message === "OCR_TIMEOUT") {
+                console.warn(`[parser] OCR page ${idx + 1} timed out after ${ocrTimeoutMs}ms, skipping`);
+                return;
+              }
+              throw err;
             }
           })(i),
         );
