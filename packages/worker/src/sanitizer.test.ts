@@ -1,0 +1,202 @@
+import { describe, it, expect } from "vitest";
+import { sanitizeExtractedData } from "./sanitizer.js";
+import type { ExtractedData } from "@bei/shared";
+
+function baseData(overrides?: Partial<ExtractedData>): ExtractedData {
+  return {
+    metadata: { companyName: "Test Co", reportPeriod: "2024", sourceLanguage: "en" },
+    metrics: [
+      { label: "Revenue", value: 1000000, unit: "EUR" },
+      { label: "EBITDA", value: 500000, unit: "EUR" },
+    ],
+    narratives: [
+      { section: "executive_summary", text: "Strong quarter with revenue growth of 15% year-on-year. Operating margins improved across all segments." },
+    ],
+    sentiment: { managementTone: "positive", outlook: "Continued growth expected.", riskFactors: ["Market volatility"] },
+    ...overrides,
+  };
+}
+
+describe("sanitizeExtractedData", () => {
+  it("passes through clean data unchanged", () => {
+    const input = baseData();
+    const { data, warnings } = sanitizeExtractedData(input);
+
+    expect(data.metrics).toHaveLength(2);
+    expect(data.revenueBreakdown).toBeUndefined();
+    expect(warnings.duplicateLabels).toHaveLength(0);
+    expect(warnings.droppedNullMetrics).toBe(0);
+    expect(warnings.revenueBreakdownDropped).toBe(false);
+  });
+
+  describe("duplicate labels", () => {
+    it("drops exact duplicate labels (case-insensitive)", () => {
+      const input = baseData({
+        metrics: [
+          { label: "Revenue", value: 100, unit: "EUR" },
+          { label: "revenue", value: 110, unit: "EUR" },
+          { label: "EBITDA", value: 50, unit: "EUR" },
+        ],
+      });
+
+      const { data, warnings } = sanitizeExtractedData(input);
+      expect(data.metrics).toHaveLength(2);
+      expect(warnings.duplicateLabels).toContain("revenue");
+    });
+  });
+
+  describe("null metrics", () => {
+    it("drops metrics with null value and no unit", () => {
+      const input = baseData({
+        metrics: [
+          { label: "Revenue", value: 100, unit: "EUR" },
+          { label: "Some Figure", value: null },
+        ],
+      });
+
+      const { data, warnings } = sanitizeExtractedData(input);
+      expect(data.metrics).toHaveLength(1);
+      expect(warnings.droppedNullMetrics).toBe(1);
+    });
+
+    it("keeps metrics with null value but has a unit", () => {
+      const input = baseData({
+        metrics: [
+          { label: "Revenue", value: 100, unit: "EUR" },
+          { label: "Dividend", value: null, unit: "EUR" },
+        ],
+      });
+
+      const { data, warnings } = sanitizeExtractedData(input);
+      expect(data.metrics).toHaveLength(2);
+      expect(warnings.droppedNullMetrics).toBe(0);
+    });
+  });
+
+  describe("revenue breakdown", () => {
+    it("drops breakdown with 0 segments", () => {
+      const input = baseData({
+        revenueBreakdown: { bySegment: [] },
+      });
+
+      const { data, warnings } = sanitizeExtractedData(input);
+      expect(data.revenueBreakdown).toBeUndefined();
+      expect(warnings.revenueBreakdownDropped).toBe(true);
+    });
+
+    it("drops breakdown with 1 segment", () => {
+      const input = baseData({
+        revenueBreakdown: { bySegment: [{ name: "Ferries", value: 100 }] },
+      });
+
+      const { data, warnings } = sanitizeExtractedData(input);
+      expect(data.revenueBreakdown).toBeUndefined();
+      expect(warnings.revenueBreakdownDropped).toBe(true);
+    });
+
+    it("keeps breakdown with 2+ segments", () => {
+      const input = baseData({
+        revenueBreakdown: {
+          bySegment: [
+            { name: "Ferries", value: 100 },
+            { name: "Cargo", value: 50 },
+          ],
+        },
+      });
+
+      const { data, warnings } = sanitizeExtractedData(input);
+      expect(data.revenueBreakdown).toBeDefined();
+      expect(warnings.revenueBreakdownDropped).toBe(false);
+    });
+  });
+
+  describe("profitability trends", () => {
+    it("drops trends with <2 periods", () => {
+      const input = baseData({
+        profitabilityTrends: {
+          periods: ["2024"],
+          revenue: [100],
+        },
+      });
+
+      const { data, warnings } = sanitizeExtractedData(input);
+      expect(data.profitabilityTrends).toBeUndefined();
+      expect(warnings.profitabilityTrendsDropped).toBe(true);
+    });
+
+    it("keeps trends with 2+ periods", () => {
+      const input = baseData({
+        profitabilityTrends: {
+          periods: ["2024", "2025"],
+          revenue: [100, 120],
+        },
+      });
+
+      const { data, warnings } = sanitizeExtractedData(input);
+      expect(data.profitabilityTrends).toBeDefined();
+      expect(warnings.profitabilityTrendsDropped).toBe(false);
+    });
+  });
+
+  describe("implausible YoY detection", () => {
+    it("detects YoY changes >500%", () => {
+      const input = baseData({
+        profitabilityTrends: {
+          periods: ["2024", "2025"],
+          revenue: [10, 1000], // +9900% — from 10 to 1000
+        },
+      });
+
+      const { warnings } = sanitizeExtractedData(input);
+      expect(warnings.implausibleYoYCount).toBeGreaterThanOrEqual(1);
+    });
+
+    it("detects YoY changes <−500%", () => {
+      const input = baseData({
+        profitabilityTrends: {
+          periods: ["2024", "2025"],
+          revenue: [1000, 10], // −99%
+        },
+      });
+
+      const { warnings } = sanitizeExtractedData(input);
+      // -99% is within ±500% so this should NOT trigger
+      expect(warnings.implausibleYoYCount).toBe(0);
+    });
+
+    it("passes normal YoY changes", () => {
+      const input = baseData({
+        profitabilityTrends: {
+          periods: ["2024", "2025"],
+          revenue: [100, 120], // +20%
+        },
+      });
+
+      const { warnings } = sanitizeExtractedData(input);
+      expect(warnings.implausibleYoYCount).toBe(0);
+    });
+  });
+
+  describe("integration: multiple issues", () => {
+    it("handles duplicates + null metrics + broken sections in one pass", () => {
+      const input = baseData({
+        metrics: [
+          { label: "Revenue", value: 100, unit: "EUR" },
+          { label: "REVENUE", value: 110, unit: "EUR" },
+          { label: "Garbage", value: null },
+          { label: "EBITDA", value: 50, unit: "EUR" },
+        ],
+        revenueBreakdown: { bySegment: [{ name: "Only", value: 100 }] },
+        profitabilityTrends: { periods: ["2024"], revenue: [100] },
+      });
+
+      const { data, warnings } = sanitizeExtractedData(input);
+
+      expect(data.metrics).toHaveLength(2);
+      expect(warnings.duplicateLabels).toContain("REVENUE");
+      expect(warnings.droppedNullMetrics).toBe(1);
+      expect(warnings.revenueBreakdownDropped).toBe(true);
+      expect(warnings.profitabilityTrendsDropped).toBe(true);
+    });
+  });
+});

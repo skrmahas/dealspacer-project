@@ -1,6 +1,7 @@
 import type { Job, JobStore, ExtractedData } from "@bei/shared";
 import { classifyDocument } from "./classifier.js";
 import { deduplicateMetrics } from "./deduplicator.js";
+import { sanitizeExtractedData } from "./sanitizer.js";
 
 export async function processJob(
   job: Job,
@@ -40,15 +41,26 @@ export async function processJob(
     }
     extracted.metrics = dedupedMetrics;
 
+    // Sanitize: validate structural coherence, drop broken sections
+    const { data: sanitized, warnings } = sanitizeExtractedData(extracted);
+    if (warnings.duplicateLabels.length > 0) {
+      log(`Sanitizer: ${warnings.duplicateLabels.length} duplicate label(s) dropped`);
+    }
+    if (warnings.droppedNullMetrics > 0) {
+      log(`Sanitizer: ${warnings.droppedNullMetrics} null-value metric(s) dropped`);
+    }
+    if (warnings.revenueBreakdownDropped) log("Sanitizer: revenue breakdown dropped");
+    if (warnings.profitabilityTrendsDropped) log("Sanitizer: profitability trends dropped");
+
     // Detect non-financial uploads: no metrics and no meaningful narratives
-    const hasMetrics = extracted.metrics.length > 0;
-    const hasMeaningfulNarratives = extracted.narratives.some((n) => n.text.length > 50);
+    const hasMetrics = sanitized.metrics.length > 0;
+    const hasMeaningfulNarratives = sanitized.narratives.some((n) => n.text.length > 50);
     if (!hasMetrics && !hasMeaningfulNarratives) {
       throw new Error("No financial data found in this document");
     }
 
     await store.updateJob(job.id, { state: "translating" });
-    const translated = await translateExtractedData(extracted, job.outputLanguage, store);
+    const translated = await translateExtractedData(sanitized, job.outputLanguage, store);
     log("Translation complete");
 
     await store.updateJob(job.id, { state: "assembling" });
