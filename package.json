@@ -7,6 +7,10 @@
   "workspaces": [
     "packages/*"
   ],
+  "scripts": {
+    "build": "npm run build --workspace=@bei/web",
+    "start": "npm run start --workspace=@bei/web"
+  },
   "devDependencies": {
     "jsdom": "^29.1.1"
   }
