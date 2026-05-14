@@ -2,7 +2,8 @@
 
 import { useState, useCallback, useRef } from "react";
 
-type JobState = "pending" | "parsing" | "extracting" | "assembling" | "complete" | "failed";
+type JobState = "pending" | "parsing" | "extracting" | "translating" | "assembling" | "complete" | "failed";
+type OutputLanguage = "en" | "et" | "lv" | "lt";
 const ACCEPTED_EXTENSIONS = [".pdf", ".csv", ".html", ".htm"];
 
 interface JobInfo {
@@ -21,6 +22,8 @@ function StatusEmoji({ state }: { state: JobState }) {
       return "🔍";
     case "extracting":
       return "🤖";
+    case "translating":
+      return "🌐";
     case "assembling":
       return "📄";
     case "complete":
@@ -106,6 +109,7 @@ function ExtractionSummary({ extractedJson }: { extractedJson: string }) {
 
 export default function Home() {
   const [file, setFile] = useState<File | null>(null);
+  const [outputLanguage, setOutputLanguage] = useState<OutputLanguage>("en");
   const [uploading, setUploading] = useState(false);
   const [job, setJob] = useState<JobInfo | null>(null);
   const pollingRef = useRef<ReturnType<typeof setInterval>>();
@@ -136,6 +140,7 @@ export default function Home() {
     try {
       const formData = new FormData();
       formData.set("file", file);
+      formData.set("outputLanguage", outputLanguage);
 
       const res = await fetch("/api/jobs", {
         method: "POST",
@@ -156,7 +161,7 @@ export default function Home() {
     } finally {
       setUploading(false);
     }
-  }, [file, startPolling]);
+  }, [file, outputLanguage, startPolling]);
 
   return (
     <main
@@ -191,6 +196,21 @@ export default function Home() {
         <p style={{ color: "#999", fontSize: 14, margin: "8px 0" }}>
           {file ? file.name : "No file selected"}
         </p>
+        <label style={{ display: "block", marginBottom: 16 }}>
+          <span style={{ display: "block", fontSize: 14, color: "#555", marginBottom: 6 }}>
+            Output language
+          </span>
+          <select
+            value={outputLanguage}
+            onChange={(e) => setOutputLanguage(e.target.value as OutputLanguage)}
+            style={{ padding: "10px 12px", borderRadius: 6, border: "1px solid #ccc", minWidth: 220 }}
+          >
+            <option value="en">English</option>
+            <option value="et">Estonian</option>
+            <option value="lv">Latvian</option>
+            <option value="lt">Lithuanian</option>
+          </select>
+        </label>
         <button
           onClick={handleUpload}
           disabled={!file || uploading}

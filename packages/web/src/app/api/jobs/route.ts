@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { saveFile } from "@/lib/file-store";
-import { createPostgresStore } from "@bei/shared";
+import { createPostgresStore, type OutputLanguage } from "@bei/shared";
 
 const ACCEPTED_EXTENSIONS = new Set([".pdf", ".csv", ".html", ".htm"]);
 const ACCEPTED_MIME_TYPES = new Set([
@@ -11,10 +11,15 @@ const ACCEPTED_MIME_TYPES = new Set([
   "application/xhtml+xml",
   "",
 ]);
+const OUTPUT_LANGUAGES = new Set<OutputLanguage>(["en", "et", "lv", "lt"]);
 
 export async function POST(request: NextRequest) {
   const formData = await request.formData();
   const file = formData.get("file");
+  const outputLanguageValue = formData.get("outputLanguage");
+  const outputLanguage = typeof outputLanguageValue === "string" && OUTPUT_LANGUAGES.has(outputLanguageValue as OutputLanguage)
+    ? outputLanguageValue as OutputLanguage
+    : "en";
 
   if (!file || !(file instanceof File)) {
     return NextResponse.json({ error: "No file provided" }, { status: 400 });
@@ -39,7 +44,7 @@ export async function POST(request: NextRequest) {
   const store = createPostgresStore();
   const buffer = Buffer.from(await file.arrayBuffer());
   console.log("Creating job for:", file.name, "size:", buffer.length);
-  const job = await store.createJob({ originalFilename: file.name });
+  const job = await store.createJob({ originalFilename: file.name, outputLanguage });
   console.log("Job created:", job.id);
   await saveFile(job.id, buffer);
   console.log("File saved for job:", job.id);

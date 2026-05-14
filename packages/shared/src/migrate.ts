@@ -9,12 +9,18 @@ async function migrate() {
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         state TEXT NOT NULL DEFAULT 'pending',
         original_filename TEXT NOT NULL,
+        output_language TEXT NOT NULL DEFAULT 'en',
         extracted_text TEXT,
         extracted_json TEXT,
         error TEXT,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
+    `);
+
+    await client.query(`
+      ALTER TABLE jobs
+      ADD COLUMN IF NOT EXISTS output_language TEXT NOT NULL DEFAULT 'en';
     `);
 
     await client.query(`
@@ -25,7 +31,18 @@ async function migrate() {
       CREATE INDEX IF NOT EXISTS idx_jobs_created_at ON jobs(created_at);
     `);
 
-    console.log("Migration complete: jobs table ready.");
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS translation_cache (
+        source_text TEXT PRIMARY KEY,
+        et TEXT,
+        lv TEXT,
+        lt TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `);
+
+    console.log("Migration complete: jobs and translation cache ready.");
   } finally {
     client.release();
     await closePool();

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { startWorker } from "./worker.js";
-import type { Job, JobState, JobStore } from "@bei/shared";
+import type { Job, JobState, JobStore, TranslationCacheEntry } from "@bei/shared";
 
 function createMockStore(jobs: Job[] = []) {
   const map = new Map(jobs.map((j) => [j.id, j]));
@@ -23,6 +23,10 @@ function createMockStore(jobs: Job[] = []) {
     async getJob() {
       throw new Error("not used");
     },
+    async getCachedTranslations(_sourceTexts: string[]) {
+      return new Map<string, TranslationCacheEntry>();
+    },
+    async saveCachedTranslations(_entries: TranslationCacheEntry[]) {},
   } satisfies JobStore;
 }
 
@@ -40,6 +44,7 @@ describe("startWorker", () => {
       id: "job-1",
       state: "pending",
       originalFilename: "report.pdf",
+      outputLanguage: "en",
       extractedText: null,
       extractedJson: null,
       error: null,
@@ -89,6 +94,7 @@ describe("startWorker", () => {
       id: "job-1",
       state: "pending",
       originalFilename: "a.pdf",
+      outputLanguage: "en",
       extractedText: null,
       extractedJson: null,
       error: null,
@@ -99,6 +105,7 @@ describe("startWorker", () => {
       id: "job-2",
       state: "pending",
       originalFilename: "b.pdf",
+      outputLanguage: "en",
       extractedText: null,
       extractedJson: null,
       error: null,

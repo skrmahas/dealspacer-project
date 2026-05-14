@@ -1,5 +1,5 @@
 import puppeteer, { Browser, Page } from "puppeteer";
-import type { ExtractedData, ExtractedMetric } from "@bei/shared";
+import type { ExtractedData, ExtractedMetric, OutputLanguage } from "@bei/shared";
 import { renderAllCharts, type ChartImages } from "./chart-renderer.js";
 
 // ── HTML Template ───────────────────────────────────────────────────────────
@@ -18,7 +18,135 @@ function formatMetricRow(m: ExtractedMetric): string {
     </tr>`;
 }
 
+const LABELS: Record<OutputLanguage, {
+  earningsReport: string;
+  generatedOn: string;
+  automatedReport: string;
+  executiveSummary: string;
+  keyMetricsDashboard: string;
+  metric: string;
+  value: string;
+  trend: string;
+  yoyChange: string;
+  revenueBySegment: string;
+  revenueByGeography: string;
+  revenueBreakdown: string;
+  revenueBreakdownChart: string;
+  revenueDonutChart: string;
+  profitabilityTrends: string;
+  profitabilityTrendsChart: string;
+  businessHighlights: string;
+  sentimentAnalysis: string;
+  managementTone: string;
+  outlook: string;
+  riskFactors: string;
+  aiDisclaimer: string;
+  disclaimerText: string;
+}> = {
+  en: {
+    earningsReport: "Earnings Report",
+    generatedOn: "Generated on",
+    automatedReport: "Automated Financial Analysis Report",
+    executiveSummary: "Executive Summary",
+    keyMetricsDashboard: "Key Metrics Dashboard",
+    metric: "Metric",
+    value: "Value",
+    trend: "Trend",
+    yoyChange: "YoY Change",
+    revenueBySegment: "Revenue by Segment",
+    revenueByGeography: "Revenue by Geography",
+    revenueBreakdown: "Revenue Breakdown",
+    revenueBreakdownChart: "Revenue Breakdown Chart",
+    revenueDonutChart: "Revenue Donut Chart",
+    profitabilityTrends: "Profitability Trends",
+    profitabilityTrendsChart: "Profitability Trends Chart",
+    businessHighlights: "Business & Segment Highlights",
+    sentimentAnalysis: "Sentiment Analysis",
+    managementTone: "Management Tone",
+    outlook: "Outlook",
+    riskFactors: "Risk Factors",
+    aiDisclaimer: "AI-Generated Disclaimer",
+    disclaimerText: "This report was automatically produced using artificial intelligence (GPT-4o) based on the uploaded document. While every effort has been made to ensure accuracy, the information may contain errors or omissions. This report does not constitute financial advice, investment recommendation, or an offer to buy or sell any security. Always verify figures against the original source document and consult a qualified financial professional before making investment decisions.",
+  },
+  et: {
+    earningsReport: "Tulemuste aruanne",
+    generatedOn: "Koostatud",
+    automatedReport: "Automaatne finantsanalüüsi aruanne",
+    executiveSummary: "Kokkuvõte",
+    keyMetricsDashboard: "Peamised finantsnäitajad",
+    metric: "Näitaja",
+    value: "Väärtus",
+    trend: "Trend",
+    yoyChange: "Aastane muutus",
+    revenueBySegment: "Käive segmentide lõikes",
+    revenueByGeography: "Käive geograafia lõikes",
+    revenueBreakdown: "Käibe jaotus",
+    revenueBreakdownChart: "Käibe jaotuse graafik",
+    revenueDonutChart: "Käibe sektordiagramm",
+    profitabilityTrends: "Kasumlikkuse trendid",
+    profitabilityTrendsChart: "Kasumlikkuse trendide graafik",
+    businessHighlights: "Äri- ja segmentide ülevaade",
+    sentimentAnalysis: "Hoiaku analüüs",
+    managementTone: "Juhtkonna hoiak",
+    outlook: "Väljavaade",
+    riskFactors: "Riskitegurid",
+    aiDisclaimer: "AI loodud lahtiütlus",
+    disclaimerText: "See aruanne koostati automaatselt tehisintellekti (GPT-4o) abil üles laaditud dokumendi põhjal. Kuigi täpsuse tagamiseks on tehtud pingutusi, võib teave sisaldada vigu või puudusi. See aruanne ei ole finantsnõuanne, investeerimissoovitus ega pakkumine väärtpabereid osta või müüa. Kontrollige näitajad alati algdokumendist ja konsulteerige enne investeerimisotsuseid kvalifitseeritud spetsialistiga.",
+  },
+  lv: {
+    earningsReport: "Peļņas pārskats",
+    generatedOn: "Sagatavots",
+    automatedReport: "Automatizēts finanšu analīzes pārskats",
+    executiveSummary: "Kopsavilkums",
+    keyMetricsDashboard: "Galvenie finanšu rādītāji",
+    metric: "Rādītājs",
+    value: "Vērtība",
+    trend: "Tendence",
+    yoyChange: "Izmaiņas pret iepriekšējo gadu",
+    revenueBySegment: "Ieņēmumi pa segmentiem",
+    revenueByGeography: "Ieņēmumi pa ģeogrāfiju",
+    revenueBreakdown: "Ieņēmumu sadalījums",
+    revenueBreakdownChart: "Ieņēmumu sadalījuma diagramma",
+    revenueDonutChart: "Ieņēmumu apļa diagramma",
+    profitabilityTrends: "Rentabilitātes tendences",
+    profitabilityTrendsChart: "Rentabilitātes tendenču diagramma",
+    businessHighlights: "Uzņēmējdarbības un segmentu pārskats",
+    sentimentAnalysis: "Noskaņojuma analīze",
+    managementTone: "Vadības tonis",
+    outlook: "Perspektīva",
+    riskFactors: "Riska faktori",
+    aiDisclaimer: "MI ģenerēta atruna",
+    disclaimerText: "Šis pārskats tika automātiski sagatavots ar mākslīgā intelekta (GPT-4o) palīdzību, pamatojoties uz augšupielādēto dokumentu. Lai gan ir pieliktas pūles precizitātes nodrošināšanai, informācijā var būt kļūdas vai izlaidumi. Šis pārskats nav finanšu konsultācija, ieguldījumu ieteikums vai piedāvājums pirkt vai pārdot vērtspapīrus. Vienmēr pārbaudiet skaitļus sākotnējā dokumentā un pirms ieguldījumu lēmumiem konsultējieties ar kvalificētu speciālistu.",
+  },
+  lt: {
+    earningsReport: "Rezultatų ataskaita",
+    generatedOn: "Sugeneruota",
+    automatedReport: "Automatinė finansinės analizės ataskaita",
+    executiveSummary: "Santrauka",
+    keyMetricsDashboard: "Pagrindiniai finansiniai rodikliai",
+    metric: "Rodiklis",
+    value: "Vertė",
+    trend: "Tendencija",
+    yoyChange: "Metinis pokytis",
+    revenueBySegment: "Pajamos pagal segmentą",
+    revenueByGeography: "Pajamos pagal geografiją",
+    revenueBreakdown: "Pajamų pasiskirstymas",
+    revenueBreakdownChart: "Pajamų pasiskirstymo diagrama",
+    revenueDonutChart: "Pajamų žiedinė diagrama",
+    profitabilityTrends: "Pelningumo tendencijos",
+    profitabilityTrendsChart: "Pelningumo tendencijų diagrama",
+    businessHighlights: "Verslo ir segmentų apžvalga",
+    sentimentAnalysis: "Tono analizė",
+    managementTone: "Vadovybės tonas",
+    outlook: "Perspektyva",
+    riskFactors: "Rizikos veiksniai",
+    aiDisclaimer: "DI sugeneruotas atsakomybės apribojimas",
+    disclaimerText: "Ši ataskaita buvo automatiškai parengta naudojant dirbtinį intelektą (GPT-4o), remiantis įkeltu dokumentu. Nors buvo stengtasi užtikrinti tikslumą, informacijoje gali būti klaidų ar praleidimų. Ši ataskaita nėra finansinė konsultacija, investavimo rekomendacija ar pasiūlymas pirkti arba parduoti vertybinius popierius. Visada patikrinkite skaičius pradiniame dokumente ir prieš priimdami investicinius sprendimus pasitarkite su kvalifikuotu specialistu.",
+  },
+};
+
 function buildHtml(data: ExtractedData, charts: ChartImages): string {
+  const labels = LABELS[data.metadata.outputLanguage ?? "en"];
   const companyName = data.metadata.companyName || "Company Report";
   const reportPeriod = data.metadata.reportPeriod || "";
   const title = [companyName, reportPeriod].filter(Boolean).join(" — ");
@@ -44,7 +172,7 @@ function buildHtml(data: ExtractedData, charts: ChartImages): string {
     const text = (execSummary?.text ?? "") + (mgmtCommentary?.text ?? "");
     sections.push(`
       <section id="executive-summary">
-        <h2>Executive Summary</h2>
+        <h2>${escapeHtml(labels.executiveSummary)}</h2>
         ${text
           .split("\n")
           .filter((p) => p.trim())
@@ -57,8 +185,8 @@ function buildHtml(data: ExtractedData, charts: ChartImages): string {
   if (data.metrics.length > 0) {
     const sparklineAvailable = charts.sparklines.size > 0;
     const headerCols = sparklineAvailable
-      ? `<th>Metric</th><th>Value</th><th>Trend</th><th>YoY Change</th>`
-      : `<th>Metric</th><th>Value</th>`;
+      ? `<th>${escapeHtml(labels.metric)}</th><th>${escapeHtml(labels.value)}</th><th>${escapeHtml(labels.trend)}</th><th>${escapeHtml(labels.yoyChange)}</th>`
+      : `<th>${escapeHtml(labels.metric)}</th><th>${escapeHtml(labels.value)}</th>`;
 
     const metricRows = data.metrics
       .map((m) => {
@@ -79,7 +207,7 @@ function buildHtml(data: ExtractedData, charts: ChartImages): string {
 
     sections.push(`
       <section id="metrics-dashboard">
-        <h2>Key Metrics Dashboard</h2>
+        <h2>${escapeHtml(labels.keyMetricsDashboard)}</h2>
         <table>
           <thead>
             <tr>${headerCols}</tr>
@@ -96,16 +224,16 @@ function buildHtml(data: ExtractedData, charts: ChartImages): string {
   if (hasRevenueChart) {
     const chartTitle =
       data.revenueBreakdown?.bySegment
-        ? "Revenue by Segment"
+        ? labels.revenueBySegment
         : data.revenueBreakdown?.byGeography
-          ? "Revenue by Geography"
-          : "Revenue Breakdown";
+          ? labels.revenueByGeography
+          : labels.revenueBreakdown;
     sections.push(`
       <section id="revenue-breakdown">
         <h2>${escapeHtml(chartTitle)}</h2>
         <div class="chart-row">
-          ${charts.revenueBarChart ? `<div class="chart-container"><img src="${charts.revenueBarChart}" alt="Revenue Breakdown Chart" /></div>` : ""}
-          ${charts.revenueDonutChart ? `<div class="chart-container"><img src="${charts.revenueDonutChart}" alt="Revenue Donut Chart" /></div>` : ""}
+          ${charts.revenueBarChart ? `<div class="chart-container"><img src="${charts.revenueBarChart}" alt="${escapeHtml(labels.revenueBreakdownChart)}" /></div>` : ""}
+          ${charts.revenueDonutChart ? `<div class="chart-container"><img src="${charts.revenueDonutChart}" alt="${escapeHtml(labels.revenueDonutChart)}" /></div>` : ""}
         </div>
       </section>`);
   }
@@ -114,9 +242,9 @@ function buildHtml(data: ExtractedData, charts: ChartImages): string {
   if (charts.profitabilityChart) {
     sections.push(`
       <section id="profitability-trends">
-        <h2>Profitability Trends</h2>
+        <h2>${escapeHtml(labels.profitabilityTrends)}</h2>
         <div class="chart-container chart-full">
-          <img src="${charts.profitabilityChart}" alt="Profitability Trends Chart" />
+          <img src="${charts.profitabilityChart}" alt="${escapeHtml(labels.profitabilityTrendsChart)}" />
         </div>
       </section>`);
   }
@@ -132,7 +260,7 @@ function buildHtml(data: ExtractedData, charts: ChartImages): string {
     const text = (businessOverview?.text ?? "") + (segmentPerf?.text ?? "");
     sections.push(`
       <section id="business-highlights">
-        <h2>Business &amp; Segment Highlights</h2>
+        <h2>${escapeHtml(labels.businessHighlights)}</h2>
         ${text
           .split("\n")
           .filter((p) => p.trim())
@@ -154,16 +282,16 @@ function buildHtml(data: ExtractedData, charts: ChartImages): string {
         : "";
     sections.push(`
       <section id="sentiment-analysis">
-        <h2>Sentiment Analysis</h2>
+        <h2>${escapeHtml(labels.sentimentAnalysis)}</h2>
         ${
           sentiment.managementTone
-            ? `<p><strong>Management Tone:</strong> <span class="tone tone-${sentiment.managementTone.replace(/\s+/g, "-")}">${escapeHtml(sentiment.managementTone)}</span></p>`
+            ? `<p><strong>${escapeHtml(labels.managementTone)}:</strong> <span class="tone tone-${sentiment.managementTone.replace(/\s+/g, "-")}">${escapeHtml(sentiment.managementTone)}</span></p>`
             : ""
         }
-        ${sentiment.outlook ? `<p><strong>Outlook:</strong> ${escapeHtml(sentiment.outlook)}</p>` : ""}
+        ${sentiment.outlook ? `<p><strong>${escapeHtml(labels.outlook)}:</strong> ${escapeHtml(sentiment.outlook)}</p>` : ""}
         ${
           sentiment.riskFactors.length > 0
-            ? `<p><strong>Risk Factors:</strong></p>${riskItems}`
+            ? `<p><strong>${escapeHtml(labels.riskFactors)}:</strong></p>${riskItems}`
             : ""
         }
       </section>`);
@@ -176,7 +304,7 @@ function buildHtml(data: ExtractedData, charts: ChartImages): string {
   if (outlookNarrative) {
     sections.push(`
       <section id="outlook">
-        <h2>Outlook</h2>
+        <h2>${escapeHtml(labels.outlook)}</h2>
         ${outlookNarrative.text
           .split("\n")
           .filter((p) => p.trim())
@@ -201,6 +329,9 @@ function buildHtml(data: ExtractedData, charts: ChartImages): string {
       font-size: 11pt;
       color: #1a1a1a;
       line-height: 1.6;
+      font-variant-ligatures: none;
+      -webkit-font-variant-ligatures: none;
+      font-feature-settings: "liga" 0, "clig" 0;
     }
 
     /* Cover page */
@@ -360,11 +491,11 @@ function buildHtml(data: ExtractedData, charts: ChartImages): string {
   <!-- Cover -->
   <div class="cover">
     <h1>${escapeHtml(companyName)}</h1>
-    <div class="subtitle">Earnings Report — ${escapeHtml(reportPeriod)}</div>
-    <div class="date">Generated on ${new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}</div>
+    <div class="subtitle">${escapeHtml(labels.earningsReport)} — ${escapeHtml(reportPeriod)}</div>
+    <div class="date">${escapeHtml(labels.generatedOn)} ${new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}</div>
     <div class="generated-date">
       <p>Baltic Earnings Intelligence</p>
-      <p>Automated Financial Analysis Report</p>
+      <p>${escapeHtml(labels.automatedReport)}</p>
     </div>
   </div>
 
@@ -372,7 +503,7 @@ function buildHtml(data: ExtractedData, charts: ChartImages): string {
 
   <!-- Disclaimer -->
   <div class="disclaimer">
-    <p><strong>AI-Generated Disclaimer:</strong> This report was automatically produced using artificial intelligence (GPT-4o) based on the uploaded document. While every effort has been made to ensure accuracy, the information may contain errors or omissions. This report does not constitute financial advice, investment recommendation, or an offer to buy or sell any security. Always verify figures against the original source document and consult a qualified financial professional before making investment decisions.</p>
+    <p><strong>${escapeHtml(labels.aiDisclaimer)}:</strong> ${escapeHtml(labels.disclaimerText)}</p>
     <p>Baltic Earnings Intelligence — ${new Date().toISOString().split("T")[0]}</p>
   </div>
 </body>
