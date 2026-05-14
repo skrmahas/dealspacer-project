@@ -1,4 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import {
+  PRODUCTION_ACCESS_CODE_MISSING_MESSAGE,
+  resolveExpectedAccessCode,
+} from "@/lib/access-code";
 
 const ACCESS_COOKIE_NAME = "bei_access";
 const ACCESS_COOKIE_VALUE = "granted";
@@ -14,7 +18,11 @@ export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => ({} as { code?: string; next?: string }));
   const code = (body.code ?? "").trim();
   const next = normalizedPath(body.next ?? "/");
-  const expected = (process.env.BEI_ACCESS_CODE ?? "dealspacer").trim();
+  const expected = resolveExpectedAccessCode();
+
+  if (!expected) {
+    return NextResponse.json({ error: PRODUCTION_ACCESS_CODE_MISSING_MESSAGE }, { status: 500 });
+  }
 
   if (!code || code !== expected) {
     return NextResponse.json({ error: "Invalid access code." }, { status: 401 });

@@ -1,7 +1,9 @@
 "use client";
 
+import React from "react";
 import { Suspense, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { ACCESS_REQUEST_TIMEOUT_MS } from "@/lib/access-timeout";
 
 function AccessForm() {
   const router = useRouter();
@@ -24,11 +26,14 @@ function AccessForm() {
 
     setSubmitting(true);
     setError(null);
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), ACCESS_REQUEST_TIMEOUT_MS);
     try {
       const response = await fetch("/api/access", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ code, next: nextPath }),
+        signal: controller.signal,
       });
       const payload = await response.json();
 
@@ -39,9 +44,14 @@ function AccessForm() {
 
       router.push(payload.next || "/");
       router.refresh();
-    } catch {
-      setError("Could not verify access code.");
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") {
+        setError("Request timed out. Please try again.");
+      } else {
+        setError("Could not verify access code.");
+      }
     } finally {
+      window.clearTimeout(timeoutId);
       setSubmitting(false);
     }
   }
