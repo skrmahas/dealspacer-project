@@ -61,6 +61,17 @@ export async function parsePdf(buffer: Buffer): Promise<string> {
   return ocrPdf(buffer);
 }
 
+const DEFAULT_BATCH_SIZE = 8;
+
+function getBatchSize(): number {
+  const env = process.env.WORKER_PDF_BATCH_SIZE;
+  if (env) {
+    const parsed = parseInt(env, 10);
+    if (!isNaN(parsed) && parsed > 0) return parsed;
+  }
+  return DEFAULT_BATCH_SIZE;
+}
+
 async function extractPdfText(buffer: Buffer): Promise<string> {
   const data = new Uint8Array(buffer);
   const doc = await pdfjsLib.getDocument({
@@ -68,14 +79,37 @@ async function extractPdfText(buffer: Buffer): Promise<string> {
     standardFontDataUrl,
   }).promise;
 
-  const texts: string[] = [];
-  for (let i = 1; i <= doc.numPages; i++) {
-    const page = await doc.getPage(i);
-    const content = await page.getTextContent();
-    const pageText = content.items
-      .map((item) => ("str" in item ? item.str : ""))
-      .join(" ");
-    texts.push(pageText);
+  const batchSize = getBatchSize();
+  const numPages = doc.numPages;
+  const texts: string[] = new Array(numPages);
+  let processedCount = 0;
+
+  // Process pages in parallel batches
+  for (let start = 1; start <= numPages; start += batchSize) {
+    const end = Math.min(start + batchSize, numPages + 1);
+    const batch: Promise<void>[] = [];
+
+    for (let i = start; i < end; i++) {
+      batch.push(
+        (async (pageNum: number) => {
+          const page = await doc.getPage(pageNum);
+          const content = await page.getTextContent();
+          const pageText = content.items
+            .map((item) => ("str" in item ? item.str : ""))
+            .join(" ");
+          texts[pageNum - 1] = pageText;
+          // Release page resources
+          page.cleanup();
+        })(i),
+      );
+    }
+
+    await Promise.all(batch);
+    processedCount = end - 1;
+    if (numPages > batchSize) {
+      const pct = Math.round((processedCount / numPages) * 100);
+      console.log(`[parser] Processed ${processedCount}/${numPages} pages (${pct}%)`);
+    }
   }
 
   await doc.destroy();
@@ -86,15 +120,37 @@ async function ocrPdf(buffer: Buffer): Promise<string> {
   const parser = new PDFParse({ data: new Uint8Array(buffer) });
   try {
     const screenshots = await parser.getScreenshot({ scale: 2, imageBuffer: true, imageDataUrl: false });
-    const pageTexts: string[] = [];
+    const pages = screenshots?.pages ?? [];
+    const pageTexts: (string | null)[] = new Array(pages.length).fill(null);
+    const batchSize = getBatchSize();
+    let processedCount = 0;
 
-    for (const page of screenshots?.pages ?? []) {
-      if (!page.data) continue;
-      const result = await recognize(Buffer.from(page.data), "eng+est+lav+lit");
-      if (hasUsableText(result.data.text)) pageTexts.push(result.data.text);
+    for (let start = 0; start < pages.length; start += batchSize) {
+      const end = Math.min(start + batchSize, pages.length);
+      const batch: Promise<void>[] = [];
+
+      for (let i = start; i < end; i++) {
+        const page = pages[i];
+        if (!page.data) continue;
+        batch.push(
+          (async (idx: number) => {
+            const result = await recognize(Buffer.from(page.data!), "eng+est+lav+lit");
+            if (hasUsableText(result.data.text)) {
+              pageTexts[idx] = result.data.text;
+            }
+          })(i),
+        );
+      }
+
+      await Promise.all(batch);
+      processedCount = end;
+      if (pages.length > batchSize) {
+        const pct = Math.round((processedCount / pages.length) * 100);
+        console.log(`[parser] OCR processed ${processedCount}/${pages.length} pages (${pct}%)`);
+      }
     }
 
-    const text = pageTexts.join("\n\n");
+    const text = pageTexts.filter((t): t is string => t !== null).join("\n\n");
     if (!hasUsableText(text)) throw new Error(NO_FINANCIAL_DATA_MESSAGE);
     return text;
   } finally {
