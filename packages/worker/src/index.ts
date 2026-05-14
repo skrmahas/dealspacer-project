@@ -26,6 +26,26 @@ const DEFAULT_STALE_JOB_SWEEP_INTERVAL_MS = 30_000;
 const DEFAULT_STALE_JOB_THRESHOLD_MS = 30 * 60 * 1000;
 const BROWSER_HEALTH_CHECK_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 
+function formatMemoryMb(bytes: number): string {
+  return (bytes / (1024 * 1024)).toFixed(0);
+}
+
+function logMemoryUsage(): void {
+  const mem = process.memoryUsage();
+  const rssMb = formatMemoryMb(mem.rss);
+  const heapTotalMb = formatMemoryMb(mem.heapTotal);
+  const heapUsedMb = formatMemoryMb(mem.heapUsed);
+  console.log(`[worker] Memory: RSS=${rssMb} MB, heap=${heapUsedMb}/${heapTotalMb} MB`);
+
+  const maxRssMbRaw = process.env.WORKER_MAX_RSS_MB;
+  if (maxRssMbRaw) {
+    const maxRssMb = Number(maxRssMbRaw);
+    if (Number.isFinite(maxRssMb) && mem.rss > maxRssMb * 1024 * 1024) {
+      console.warn(`[worker] WARNING: RSS (${rssMb} MB) exceeds threshold (${maxRssMb} MB)`);
+    }
+  }
+}
+
 function readPositiveMsEnv(name: string, fallback: number): number {
   const raw = process.env[name];
   if (!raw) return fallback;
@@ -54,7 +74,11 @@ healthCheckTimer = setInterval(async () => {
 const stopWorker = startWorker({
   store,
   processJob: async (job, store) => {
-    await processJob(job, store, readFile, parseDocument, extractFromText, translateExtractedData, assemblePdf, saveReport);
+    try {
+      await processJob(job, store, readFile, parseDocument, extractFromText, translateExtractedData, assemblePdf, saveReport);
+    } finally {
+      logMemoryUsage();
+    }
   },
   pollIntervalMs: readPositiveMsEnv("WORKER_POLL_INTERVAL_MS", DEFAULT_POLL_INTERVAL_MS),
   staleJobSweepIntervalMs: readPositiveMsEnv("STALE_JOB_SWEEP_INTERVAL_MS", DEFAULT_STALE_JOB_SWEEP_INTERVAL_MS),
