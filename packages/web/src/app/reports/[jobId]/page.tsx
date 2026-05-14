@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ReportSummary } from "@/components/report-summary";
 import type { JobState } from "@bei/shared";
 
 type JobInfo = {
@@ -113,11 +112,21 @@ export default function SharedReportPage({ params }: { params: { jobId: string }
               )}
               {job.state === "complete" && (
                 <>
-                  {job.extractedJson && <ReportSummary extractedJson={job.extractedJson} />}
+                  <iframe
+                    src={reportUrl}
+                    title="Generated Report PDF"
+                    style={{
+                      width: "100%",
+                      height: "85vh",
+                      border: "1px solid #d5e0eb",
+                      borderRadius: 10,
+                    }}
+                  />
                   <a
                     href={reportUrl}
+                    download
                     style={{
-                      marginTop: 8,
+                      marginTop: 12,
                       width: "fit-content",
                       textDecoration: "none",
                       padding: "10px 16px",
