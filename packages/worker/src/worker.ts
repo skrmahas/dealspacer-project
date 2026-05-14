@@ -1,5 +1,4 @@
-import type { Job } from "@bei/shared";
-import type { JobStore } from "./store.js";
+import type { Job, JobStore } from "@bei/shared";
 
 export interface WorkerConfig {
   store: JobStore;

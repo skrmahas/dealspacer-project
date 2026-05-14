@@ -12,7 +12,9 @@
   },
   "dependencies": {
     "@bei/shared": "*",
-    "pdfjs-dist": "^4.10.38"
+    "openai": "^6.37.0",
+    "pdfjs-dist": "^4.10.38",
+    "puppeteer": "^24.43.1"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

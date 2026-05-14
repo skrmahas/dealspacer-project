@@ -1,0 +1,17 @@
+{
+  "metadata": {
+    "companyName": "Small Company OÜ",
+    "reportPeriod": "FY 2023",
+    "sourceLanguage": "en"
+  },
+  "metrics": [
+    { "label": "Revenue", "value": 500000, "unit": "EUR" },
+    { "label": "Net Profit", "value": 42000, "unit": "EUR" }
+  ],
+  "narratives": [],
+  "sentiment": {
+    "managementTone": "",
+    "outlook": "",
+    "riskFactors": []
+  }
+}

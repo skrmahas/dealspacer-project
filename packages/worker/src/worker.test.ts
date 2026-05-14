@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { startWorker } from "./worker.js";
-import type { Job, JobState } from "@bei/shared";
-import type { JobStore } from "./store.js";
+import type { Job, JobState, JobStore } from "@bei/shared";
 
 function createMockStore(jobs: Job[] = []) {
   const map = new Map(jobs.map((j) => [j.id, j]));
@@ -42,6 +41,7 @@ describe("startWorker", () => {
       state: "pending",
       originalFilename: "report.pdf",
       extractedText: null,
+      extractedJson: null,
       error: null,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -90,6 +90,7 @@ describe("startWorker", () => {
       state: "pending",
       originalFilename: "a.pdf",
       extractedText: null,
+      extractedJson: null,
       error: null,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -99,6 +100,7 @@ describe("startWorker", () => {
       state: "pending",
       originalFilename: "b.pdf",
       extractedText: null,
+      extractedJson: null,
       error: null,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
