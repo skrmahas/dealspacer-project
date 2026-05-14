@@ -45,11 +45,21 @@ async function migrate() {
     console.log("Migration complete: jobs and translation cache ready.");
   } finally {
     client.release();
-    await closePool();
   }
 }
 
-migrate().catch((err) => {
-  console.error("Migration failed:", err);
-  process.exit(1);
-});
+// Exported for programmatic use (does NOT close the pool)
+export async function runMigrations(): Promise<void> {
+  await migrate();
+}
+
+// Standalone CLI usage
+const isMain = process.argv[1]?.includes("migrate");
+if (isMain) {
+  migrate()
+    .then(() => closePool())
+    .catch((err) => {
+      console.error("Migration failed:", err);
+      process.exit(1);
+    });
+}

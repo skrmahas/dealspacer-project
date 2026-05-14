@@ -12,8 +12,9 @@ import { translateExtractedData } from "./translator.js";
 import { assemblePdf } from "./assembler.js";
 import { processJob } from "./orchestrator.js";
 import { startWorker } from "./worker.js";
-import { createPostgresStore, createEnvFileStore } from "@bei/shared";
+import { createPostgresStore, createEnvFileStore, runMigrations } from "@bei/shared";
 
+await runMigrations();
 const store = createPostgresStore();
 const { readFile, saveReport } = createEnvFileStore({
   defaultDataDir: resolve(__dirname, "..", "..", "data"),

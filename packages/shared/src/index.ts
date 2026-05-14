@@ -1,8 +1,8 @@
 export { createPostgresStore } from "./pg-store";
 export { getPool, closePool } from "./db";
-export { createFileStore } from "./file-store";
-export { createEnvFileStore } from "./file-store";
+export { createFileStore, createEnvFileStore } from "./file-store";
 export type { FileStore, EnvFileStoreOptions } from "./file-store";
+export { runMigrations } from "./migrate";
 
 export type JobState = "pending" | "parsing" | "extracting" | "translating" | "assembling" | "complete" | "failed";
 export type OutputLanguage = "en" | "et" | "lv" | "lt";
