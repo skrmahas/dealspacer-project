@@ -155,18 +155,31 @@ export function createPostgresStore(): JobStore {
       if (entries.length === 0) return;
 
       await withClient(async (client) => {
-        for (const entry of entries) {
-          await client.query(
-            `INSERT INTO translation_cache (source_text, et, lv, lt)
-             VALUES ($1, $2, $3, $4)
-             ON CONFLICT (source_text) DO UPDATE SET
-               et = COALESCE(EXCLUDED.et, translation_cache.et),
-               lv = COALESCE(EXCLUDED.lv, translation_cache.lv),
-               lt = COALESCE(EXCLUDED.lt, translation_cache.lt),
-               updated_at = NOW()`,
-            [entry.sourceText, entry.et ?? null, entry.lv ?? null, entry.lt ?? null],
+        // Batch all entries into a single multi-row INSERT to reduce DB roundtrips
+        const params: unknown[] = [];
+        const placeholders: string[] = [];
+
+        for (let i = 0; i < entries.length; i++) {
+          const base = i * 4;
+          placeholders.push(`($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4})`);
+          params.push(
+            entries[i].sourceText,
+            entries[i].et ?? null,
+            entries[i].lv ?? null,
+            entries[i].lt ?? null,
           );
         }
+
+        await client.query(
+          `INSERT INTO translation_cache (source_text, et, lv, lt)
+           VALUES ${placeholders.join(", ")}
+           ON CONFLICT (source_text) DO UPDATE SET
+             et = COALESCE(EXCLUDED.et, translation_cache.et),
+             lv = COALESCE(EXCLUDED.lv, translation_cache.lv),
+             lt = COALESCE(EXCLUDED.lt, translation_cache.lt),
+             updated_at = NOW()`,
+          params,
+        );
       });
     },
   };
