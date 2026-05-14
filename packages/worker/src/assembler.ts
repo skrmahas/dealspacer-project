@@ -1,3 +1,4 @@
+import { execFile } from "node:child_process";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -660,6 +661,80 @@ export async function closeBrowser(): Promise<void> {
   }
 }
 
+export async function warmBrowser(): Promise<void> {
+  if (!browser || !browser.isConnected()) {
+    console.log("[assembler] Warming Puppeteer browser...");
+    const start = Date.now();
+    await getBrowser();
+    console.log(`[assembler] Browser warm in ${Date.now() - start}ms`);
+  }
+}
+
+export async function checkBrowserHealth(): Promise<boolean> {
+  if (!browser || !browser.isConnected()) {
+    return false;
+  }
+  try {
+    const page = await browser.newPage();
+    await page.close();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function maybeCompressPdf(pdfBuffer: Buffer): Promise<Buffer> {
+  const gsPath = process.env.GHOSTSCRIPT_PATH?.trim();
+  if (!gsPath) return pdfBuffer;
+
+  const inputPath = path.join(os.tmpdir(), `bei-pdf-in-${Date.now()}.pdf`);
+  const outputPath = path.join(os.tmpdir(), `bei-pdf-out-${Date.now()}.pdf`);
+
+  try {
+    await fs.writeFile(inputPath, pdfBuffer);
+
+    await new Promise<void>((resolve, reject) => {
+      execFile(gsPath, [
+        "-sDEVICE=pdfwrite",
+        "-dCompatibilityLevel=1.4",
+        "-dPDFSETTINGS=/ebook",
+        "-dNOPAUSE",
+        "-dQUIET",
+        "-dBATCH",
+        `-sOutputFile=${outputPath}`,
+        inputPath,
+      ], (error) => {
+        if (error) reject(error);
+        else resolve();
+      });
+    });
+
+    const compressed = await fs.readFile(outputPath);
+    if (compressed.length > 0 && compressed.length < pdfBuffer.length) {
+      console.log(`[assembler] PDF compressed: ${(pdfBuffer.length / 1024).toFixed(0)}KB → ${(compressed.length / 1024).toFixed(0)}KB (${((1 - compressed.length / pdfBuffer.length) * 100).toFixed(0)}% reduction)`);
+      return compressed;
+    }
+    return pdfBuffer;
+  } catch (err) {
+    console.warn("[assembler] Ghostscript compression failed, using original PDF:", err instanceof Error ? err.message : err);
+    return pdfBuffer;
+  } finally {
+    await fs.unlink(inputPath).catch(() => {});
+    await fs.unlink(outputPath).catch(() => {});
+  }
+}
+
+function getPdfScale(): number {
+  const raw = process.env.PUPPETEER_PDF_SCALE;
+  if (!raw) return 1.0;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed <= 0 || parsed > 2) {
+    console.warn(`PUPPETEER_PDF_SCALE must be between 0 and 2. Using default 1.0.`);
+    return 1.0;
+  }
+  return parsed;
+}
+
 export async function assemblePdf(data: ExtractedData): Promise<Buffer> {
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "bei-charts-"));
   try {
@@ -677,12 +752,16 @@ export async function assemblePdf(data: ExtractedData): Promise<Buffer> {
         waitUntil: "load",
         timeout: 30000,
       });
+      const scale = getPdfScale();
       const pdf = await page.pdf({
         format: "A4",
         printBackground: true,
+        preferCSSPageSize: true,
+        scale,
         margin: { top: "2cm", right: "2.2cm", bottom: "2cm", left: "2.2cm" },
       });
-      return Buffer.from(pdf);
+      const result = Buffer.from(pdf);
+      return maybeCompressPdf(result);
     } finally {
       await page.close();
     }
