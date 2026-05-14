@@ -10,6 +10,7 @@ type JobInfo = {
   jobId: string;
   state: JobState;
   originalFilename?: string;
+  extractedText?: string;
   extractedJson?: string;
   error?: string;
 };

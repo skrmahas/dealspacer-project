@@ -12,14 +12,24 @@ export async function GET(
     return NextResponse.json({ error: "Job not found" }, { status: 404 });
   }
 
-  return NextResponse.json({
+  const base = {
     jobId: job.id,
     state: job.state,
     originalFilename: job.originalFilename,
-    extractedText: job.extractedText,
-    extractedJson: job.extractedJson,
     error: job.error,
     createdAt: job.createdAt,
     updatedAt: job.updatedAt,
-  });
+  };
+
+  // Only include large payload fields when the job has reached a terminal state.
+  // During active processing, these are empty anyway and waste polling bandwidth.
+  if (job.state === "complete" || job.state === "failed") {
+    return NextResponse.json({
+      ...base,
+      extractedText: job.extractedText,
+      extractedJson: job.extractedJson,
+    });
+  }
+
+  return NextResponse.json(base);
 }
