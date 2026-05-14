@@ -3,7 +3,7 @@ import path from "node:path";
 
 const DATA_DIR = process.env.DATA_DIR
   ? path.resolve(process.env.DATA_DIR)
-  : path.resolve(process.cwd(), "data");
+  : path.resolve(import.meta.dirname, "..", "..", "data");
 
 async function ensureDir() {
   await fs.mkdir(DATA_DIR, { recursive: true });

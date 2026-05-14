@@ -2,9 +2,9 @@ import dotenv from "dotenv";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
-// Load .env from project root (packages/worker/ → ../../.env)
+// Load .env from packages/worker/
 const __dirname = dirname(fileURLToPath(import.meta.url));
-dotenv.config({ path: resolve(__dirname, "..", "..", "..", ".env") });
+dotenv.config({ path: resolve(__dirname, "..", ".env") });
 
 import { readFile, saveReport } from "./file-store.js";
 import { parseDocument } from "./parser.js";
