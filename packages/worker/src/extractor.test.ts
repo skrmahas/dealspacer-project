@@ -41,6 +41,17 @@ const validExtraction = {
     outlook: "Management expects continued recovery in passenger numbers through 2024.",
     riskFactors: ["Fuel price volatility", "Geopolitical uncertainty in the Baltic Sea region"],
   },
+  revenueBreakdown: {
+    bySegment: [
+      { name: "Passenger Ferries", value: 145200000 },
+      { name: "Cargo Shipping", value: 38500000 },
+    ],
+  },
+  profitabilityTrends: {
+    periods: ["Q3 2023", "Q4 2023", "Q1 2024"],
+    revenue: [220000000, 205000000, 210400000],
+    ebitda: [55000000, 46000000, 48700000],
+  },
 };
 
 const emptyExtraction = {
@@ -48,6 +59,8 @@ const emptyExtraction = {
   metrics: [],
   narratives: [],
   sentiment: { managementTone: "", outlook: "", riskFactors: [] },
+  revenueBreakdown: {},
+  profitabilityTrends: { periods: [], revenue: [], ebitda: [], netProfit: [] },
 };
 
 describe("extractFromText", () => {
@@ -85,6 +98,10 @@ describe("extractFromText", () => {
     expect(result.narratives[0].section).toBe("executive_summary");
     expect(result.sentiment.managementTone).toBe("positive");
     expect(result.sentiment.riskFactors).toHaveLength(2);
+    expect(result.revenueBreakdown?.bySegment).toHaveLength(2);
+    expect(result.revenueBreakdown?.bySegment?.[0].name).toBe("Passenger Ferries");
+    expect(result.profitabilityTrends?.periods).toHaveLength(3);
+    expect(result.profitabilityTrends?.revenue).toHaveLength(3);
   });
 
   it("handles empty extraction (non-financial document)", async () => {

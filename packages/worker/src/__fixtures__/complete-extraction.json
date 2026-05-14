@@ -35,5 +35,25 @@
       "Regulatory changes in EU maritime emissions standards",
       "Competition from low-cost airlines on key routes"
     ]
+  },
+  "revenueBreakdown": {
+    "bySegment": [
+      { "name": "Passenger Ferries", "value": 145200000 },
+      { "name": "Cargo Shipping", "value": 38500000 },
+      { "name": "Onboard Retail", "value": 18700000 },
+      { "name": "Hotels & Other", "value": 8000000 }
+    ],
+    "byGeography": [
+      { "name": "Estonia-Finland", "value": 126200000 },
+      { "name": "Estonia-Sweden", "value": 42100000 },
+      { "name": "Latvia-Sweden", "value": 29500000 },
+      { "name": "Other Routes", "value": 12600000 }
+    ]
+  },
+  "profitabilityTrends": {
+    "periods": ["Q2 2023", "Q3 2023", "Q4 2023", "Q1 2024"],
+    "revenue": [195000000, 220000000, 205000000, 210400000],
+    "ebitda": [42000000, 55000000, 46000000, 48700000],
+    "netProfit": [8500000, 18000000, 11000000, 12300000]
   }
 }

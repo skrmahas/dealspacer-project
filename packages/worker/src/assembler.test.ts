@@ -154,4 +154,53 @@ describe("assemblePdf", () => {
     },
     30000,
   );
+
+  it(
+    "includes Revenue Breakdown section with charts",
+    async () => {
+      const data = readFixture(completeFixturePath);
+      const pdf = await assemblePdf(data);
+      const text = await extractPdfText(pdf);
+
+      expect(text).toContain("Revenue by Segment");
+    },
+    30000,
+  );
+
+  it(
+    "includes Profitability Trends section",
+    async () => {
+      const data = readFixture(completeFixturePath);
+      const pdf = await assemblePdf(data);
+      const text = await extractPdfText(pdf);
+
+      expect(text).toContain("Profitability Trends");
+    },
+    30000,
+  );
+
+  it(
+    "omits Revenue Breakdown when revenueBreakdown data missing",
+    async () => {
+      const data = readFixture(minimalFixturePath);
+      const pdf = await assemblePdf(data);
+      const text = await extractPdfText(pdf);
+
+      expect(text).not.toContain("Revenue by Segment");
+      expect(text).not.toContain("Revenue by Geography");
+    },
+    30000,
+  );
+
+  it(
+    "omits Profitability Trends when trend data is insufficient",
+    async () => {
+      const data = readFixture(minimalFixturePath);
+      const pdf = await assemblePdf(data);
+      const text = await extractPdfText(pdf);
+
+      expect(text).not.toContain("Profitability Trends");
+    },
+    30000,
+  );
 });

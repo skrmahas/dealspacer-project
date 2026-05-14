@@ -26,6 +26,18 @@ Extract the following from the provided document text into a JSON object. Follow
    - outlook: a 1-2 sentence summary of forward-looking statements, translated to English
    - riskFactors: array of strings, each a concise risk factor mentioned
 
+5. revenueBreakdown: { bySegment?, byGeography? }
+   - bySegment: array of { name, value } — revenue broken down by business segment (e.g. "Passenger Ferries", "Cargo")
+   - byGeography: array of { name, value } — revenue broken down by geography (e.g. "Estonia-Finland", "Latvia-Sweden")
+   - values should sum approximately to total revenue
+   - Omit this section entirely if no breakdown is found
+
+6. profitabilityTrends: { periods, revenue?, ebitda?, netProfit? }
+   - periods: array of period labels (e.g. ["Q2 2023", "Q3 2023", "Q4 2023", "Q1 2024"])
+   - revenue/ebitda/netProfit: arrays of numbers (or null if not reported for a period), same length as periods
+   - Extract multi-period data from comparative tables or prior-year comparisons
+   - Omit fields whose data is not available; omit section entirely if less than 2 periods found
+
 IMPORTANT:
 - Translate all text to English
 - DO NOT fabricate numbers. If a metric is not clearly present, do not include it.

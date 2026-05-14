@@ -48,6 +48,18 @@ export interface ExtractedSentiment {
   riskFactors: string[];
 }
 
+export interface RevenueBreakdown {
+  bySegment?: { name: string; value: number }[];
+  byGeography?: { name: string; value: number }[];
+}
+
+export interface ProfitabilityTrends {
+  periods: string[];
+  revenue?: (number | null)[];
+  ebitda?: (number | null)[];
+  netProfit?: (number | null)[];
+}
+
 export interface ExtractedData {
   metadata: {
     companyName: string;
@@ -57,4 +69,6 @@ export interface ExtractedData {
   metrics: ExtractedMetric[];
   narratives: ExtractedNarrative[];
   sentiment: ExtractedSentiment;
+  revenueBreakdown?: RevenueBreakdown;
+  profitabilityTrends?: ProfitabilityTrends;
 }

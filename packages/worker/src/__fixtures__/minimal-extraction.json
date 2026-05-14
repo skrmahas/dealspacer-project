@@ -13,5 +13,7 @@
     "managementTone": "",
     "outlook": "",
     "riskFactors": []
-  }
+  },
+  "revenueBreakdown": {},
+  "profitabilityTrends": { "periods": [], "revenue": [], "ebitda": [], "netProfit": [] }
 }

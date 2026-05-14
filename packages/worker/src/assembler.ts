@@ -1,5 +1,6 @@
 import puppeteer, { Browser, Page } from "puppeteer";
 import type { ExtractedData, ExtractedMetric } from "@bei/shared";
+import { renderAllCharts, type ChartImages } from "./chart-renderer.js";
 
 // ── HTML Template ───────────────────────────────────────────────────────────
 
@@ -17,12 +18,20 @@ function formatMetricRow(m: ExtractedMetric): string {
     </tr>`;
 }
 
-function buildHtml(data: ExtractedData): string {
+function buildHtml(data: ExtractedData, charts: ChartImages): string {
   const companyName = data.metadata.companyName || "Company Report";
   const reportPeriod = data.metadata.reportPeriod || "";
   const title = [companyName, reportPeriod].filter(Boolean).join(" — ");
 
   const sections: string[] = [];
+
+  // YoY change helper
+  function yoyBadge(change: number | null | undefined): string {
+    if (change == null) return "";
+    const cls = change >= 0 ? "yoy-up" : "yoy-down";
+    const arrow = change >= 0 ? "▲" : "▼";
+    return `<span class="yoy-badge ${cls}">${arrow} ${Math.abs(change).toFixed(1)}% YoY</span>`;
+  }
 
   // Executive Summary (from narratives)
   const execSummary = data.narratives.find(
@@ -46,20 +55,69 @@ function buildHtml(data: ExtractedData): string {
 
   // Key Metrics Dashboard
   if (data.metrics.length > 0) {
+    const sparklineAvailable = charts.sparklines.size > 0;
+    const headerCols = sparklineAvailable
+      ? `<th>Metric</th><th>Value</th><th>Trend</th><th>YoY Change</th>`
+      : `<th>Metric</th><th>Value</th>`;
+
+    const metricRows = data.metrics
+      .map((m) => {
+        const sparkline = charts.sparklines.get(m.label);
+        const yoy = charts.yoyChanges.get(m.label);
+        if (sparklineAvailable) {
+          return `
+            <tr>
+              <td class="label">${escapeHtml(m.label)}</td>
+              <td class="value">${escapeHtml(formatMetricValue(m))}</td>
+              <td class="sparkline-cell">${sparkline ? `<img src="${sparkline}" alt="sparkline" class="sparkline" />` : "—"}</td>
+              <td class="yoy-cell">${yoyBadge(yoy)}</td>
+            </tr>`;
+        }
+        return formatMetricRow(m);
+      })
+      .join("\n");
+
     sections.push(`
       <section id="metrics-dashboard">
         <h2>Key Metrics Dashboard</h2>
         <table>
           <thead>
-            <tr>
-              <th>Metric</th>
-              <th>Value</th>
-            </tr>
+            <tr>${headerCols}</tr>
           </thead>
           <tbody>
-            ${data.metrics.map(formatMetricRow).join("\n")}
+            ${metricRows}
           </tbody>
         </table>
+      </section>`);
+  }
+
+  // Revenue Breakdown — charts
+  const hasRevenueChart = charts.revenueBarChart || charts.revenueDonutChart;
+  if (hasRevenueChart) {
+    const chartTitle =
+      data.revenueBreakdown?.bySegment
+        ? "Revenue by Segment"
+        : data.revenueBreakdown?.byGeography
+          ? "Revenue by Geography"
+          : "Revenue Breakdown";
+    sections.push(`
+      <section id="revenue-breakdown">
+        <h2>${escapeHtml(chartTitle)}</h2>
+        <div class="chart-row">
+          ${charts.revenueBarChart ? `<div class="chart-container"><img src="${charts.revenueBarChart}" alt="Revenue Breakdown Chart" /></div>` : ""}
+          ${charts.revenueDonutChart ? `<div class="chart-container"><img src="${charts.revenueDonutChart}" alt="Revenue Donut Chart" /></div>` : ""}
+        </div>
+      </section>`);
+  }
+
+  // Profitability Trends — chart
+  if (charts.profitabilityChart) {
+    sections.push(`
+      <section id="profitability-trends">
+        <h2>Profitability Trends</h2>
+        <div class="chart-container chart-full">
+          <img src="${charts.profitabilityChart}" alt="Profitability Trends Chart" />
+        </div>
       </section>`);
   }
 
@@ -246,6 +304,56 @@ function buildHtml(data: ExtractedData): string {
     .disclaimer p {
       margin-bottom: 2pt;
     }
+
+    /* Charts */
+    .chart-row {
+      display: flex;
+      gap: 16pt;
+      justify-content: center;
+    }
+    .chart-container {
+      text-align: center;
+      margin-bottom: 12pt;
+    }
+    .chart-container img {
+      max-width: 100%;
+      height: auto;
+    }
+    .chart-full img {
+      max-width: 100%;
+      height: auto;
+    }
+
+    /* Sparklines */
+    .sparkline-cell {
+      text-align: center;
+      vertical-align: middle;
+    }
+    img.sparkline {
+      width: 120pt;
+      height: 22pt;
+      vertical-align: middle;
+    }
+
+    /* YoY badges */
+    .yoy-cell {
+      text-align: right;
+      white-space: nowrap;
+    }
+    .yoy-badge {
+      font-size: 9pt;
+      font-weight: 600;
+      padding: 2pt 6pt;
+      border-radius: 3pt;
+    }
+    .yoy-up {
+      color: #1a7a2e;
+      background: #e8f5e9;
+    }
+    .yoy-down {
+      color: #c0392b;
+      background: #fdecea;
+    }
   </style>
 </head>
 <body>
@@ -304,7 +412,12 @@ export async function closeBrowser(): Promise<void> {
 }
 
 export async function assemblePdf(data: ExtractedData): Promise<Buffer> {
-  const html = buildHtml(data);
+  const charts = await renderAllCharts(
+    data.metrics,
+    data.revenueBreakdown,
+    data.profitabilityTrends,
+  );
+  const html = buildHtml(data, charts);
   const b = await getBrowser();
   const page: Page = await b.newPage();
   try {
