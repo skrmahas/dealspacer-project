@@ -93,3 +93,43 @@ body {
   background: var(--color-bg);
   color: var(--color-text);
 }
+
+/*
+ * Tailwind's `preflight` is disabled (so the legacy inline-styled pages
+ * keep their look), but we still need the few resets that every Tailwind
+ * utility silently assumes. Without these, classes like `border` only emit
+ * `border-width` while the default `border-style: none` keeps the border
+ * invisible.
+ */
+*,
+::before,
+::after {
+  border-width: 0;
+  border-style: solid;
+  border-color: hsl(var(--border));
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  margin: 0;
+  font-size: inherit;
+  font-weight: inherit;
+}
+
+p {
+  margin: 0;
+}
+
+a {
+  color: inherit;
+  text-decoration: inherit;
+}
+
+button {
+  background-color: transparent;
+  background-image: none;
+}
