@@ -67,6 +67,7 @@ export interface ExtractedSentiment {
   managementTone: string;
   outlook: string;
   riskFactors: string[];
+  guidanceDirection?: "raised" | "maintained" | "lowered" | null;
 }
 
 export interface RevenueBreakdown {
@@ -79,6 +80,7 @@ export interface ProfitabilityTrends {
   revenue?: (number | null)[];
   ebitda?: (number | null)[];
   netProfit?: (number | null)[];
+  freeCashFlow?: (number | null)[];
 }
 
 export interface ExtractedData {
@@ -152,6 +154,8 @@ export interface ReportWithPreview extends Report {
   previewRevenue?: number | null;
   previewEbitda?: number | null;
   previewNetProfit?: number | null;
+  previewFcf?: number | null;
+  previewGuidanceSentiment?: string | null;
 }
 
 export interface CreateReportInput {

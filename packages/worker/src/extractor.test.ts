@@ -59,6 +59,7 @@ const validExtraction = {
     managementTone: "positive",
     outlook: "Management expects continued recovery in passenger numbers through 2024.",
     riskFactors: ["Fuel price volatility", "Geopolitical uncertainty in the Baltic Sea region"],
+    guidanceDirection: "maintained",
   },
   revenueBreakdown: {
     bySegment: [
@@ -70,6 +71,7 @@ const validExtraction = {
     periods: ["Q3 2023", "Q4 2023", "Q1 2024"],
     revenue: [220000000, 205000000, 210400000],
     ebitda: [55000000, 46000000, 48700000],
+    freeCashFlow: [32000000, 28000000, 31000000],
   },
 };
 

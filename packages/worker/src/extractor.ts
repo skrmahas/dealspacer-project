@@ -4,6 +4,11 @@ import { deduplicateMetrics, normalizeLabel } from "./deduplicator.js";
 
 const SYSTEM_PROMPT = `You are a financial document extraction specialist focused on Baltic company financial and business documents.
 
+PRIMARY EXTRACTION TARGETS (most important — must extract if present):
+1. Revenue — from Income Statement
+2. Free Cash Flow (FCF) — from Cash Flow Statement (operating cash flow - CAPEX)
+3. Guidance Sentiment — forward-looking management statements about future performance
+
 Extract the following from the provided document text into a JSON object. Follow these rules strictly:
 
 1. metadata: { companyName, reportPeriod, sourceLanguage }
@@ -12,7 +17,16 @@ Extract the following from the provided document text into a JSON object. Follow
    - sourceLanguage: one of "et", "lv", "lt", or "en"
 
 2. metrics: an array of { label, value, unit?, period? }
-   - Extract ALL financial figures: revenue, EBITDA, net profit, operating profit, investment (CAPEX), assets, equity, liabilities, cash flow, EPS, dividends, financial targets, projections, budget figures, etc.
+   - Extract ALL financial figures, with special attention to the PRIMARY TARGETS:
+   - Revenue (total operating revenue / income)
+   - Free Cash Flow (FCF): operating cash flow minus CAPEX. Look for "free cash flow",
+     "FCF", "net cash from operating activities" and "capital expenditures" / "CAPEX".
+     If both operating cash flow and CAPEX are present, compute FCF = OCF - CAPEX.
+     If only operating cash flow is present, extract it and note unit.
+   - EBITDA (operating profit + depreciation + amortization)
+   - Net Profit (bottom-line net income / profit for the period)
+   - Other figures: operating profit, investment (CAPEX), assets, equity, liabilities,
+     cash flow, EPS, dividends, financial targets, projections, budget figures, etc.
    - Include both historical results AND forward-looking targets/projections. Mark targets with period like "2026 target", "2029 plan".
    - value must be a number (use null if value is mentioned but unclear)
    - unit should be the stated unit (e.g. "EUR", "EUR m", "EUR bn", "thousand EUR")
@@ -24,10 +38,14 @@ Extract the following from the provided document text into a JSON object. Follow
    - Include sections even for strategy documents, annual reports, and investor presentations
    - Only include sections that have meaningful content in the document
 
-4. sentiment: { managementTone, outlook, riskFactors }
+4. sentiment: { managementTone, outlook, riskFactors, guidanceDirection? }
    - managementTone: one of "very positive", "positive", "neutral", "cautious", "negative"
    - outlook: a 1-2 sentence summary of forward-looking statements, translated to English
    - riskFactors: array of strings, each a concise risk factor mentioned
+   - guidanceDirection: one of "raised" | "maintained" | "lowered" | null
+     Determined from forward-looking statements: is management raising,
+     maintaining, or lowering earnings/revenue guidance vs prior expectations?
+     null if no guidance statement is found.
 
 5. revenueBreakdown: { bySegment?, byGeography? }
    - bySegment: array of { name, value } — revenue broken down by business segment
@@ -35,9 +53,10 @@ Extract the following from the provided document text into a JSON object. Follow
    - values should sum approximately to total revenue
    - Omit this section entirely if no breakdown is found
 
-6. profitabilityTrends: { periods, revenue?, ebitda?, netProfit? }
+6. profitabilityTrends: { periods, revenue?, ebitda?, netProfit?, freeCashFlow? }
    - periods: array of period labels
-   - revenue/ebitda/netProfit: arrays of numbers (or null if not reported for a period), same length as periods
+   - revenue/ebitda/netProfit/freeCashFlow: arrays of numbers (or null if not reported for a period), same length as periods
+   - freeCashFlow: extract multi-period FCF data from comparative tables or multi-year projections
    - Extract multi-period data from comparative tables, prior-year comparisons, OR multi-year plan projections
    - For strategic plans, extract target years as periods (e.g. "2026", "2027", "2028", "2029")
    - Omit fields whose data is not available; omit section entirely if less than 2 periods found
@@ -60,6 +79,12 @@ BALTIC CONTEXT:
 
 const METRICS_PROMPT = `You are a financial data extraction specialist. Extract metadata and all financial metrics from the document.
 
+PRIMARY TARGETS (most important):
+1. Revenue — total operating revenue / income
+2. Free Cash Flow (FCF) — operating cash flow minus CAPEX. Look for "free cash flow",
+   "FCF", "net cash from operating activities" and "capital expenditures" / "CAPEX".
+   If both OCF and CAPEX are present, compute FCF = OCF - CAPEX.
+
 Return a JSON object with:
 1. metadata: { companyName, reportPeriod, sourceLanguage }
    - companyName: the legal entity name as it appears in the document (include legal form: AS, OU, OÜ, SIA, UAB, AB)
@@ -67,7 +92,7 @@ Return a JSON object with:
    - sourceLanguage: one of "et", "lv", "lt", or "en"
 
 2. metrics: array of { label, value, unit?, period? }
-   - Extract ALL financial figures: revenue, EBITDA, net profit, operating profit, CAPEX, assets, equity, liabilities, cash flow, EPS, dividends, targets, projections
+   - Extract ALL financial figures: revenue, Free Cash Flow (FCF = OCF - CAPEX), EBITDA, net profit, operating profit, CAPEX, assets, equity, liabilities, cash flow, EPS, dividends, targets, projections
    - Include historical AND forward-looking targets. Mark targets with period like "2026 target"
    - value must be a number (null if unclear). unit: "EUR", "EUR m", "EUR bn", "thousand EUR"
    - Translate labels to English; DO NOT fabricate numbers
@@ -84,9 +109,10 @@ Return a JSON object with:
    - byGeography: array of { name, value } — revenue by geography
    - Omit entirely if no breakdown found
 
-2. profitabilityTrends: { periods, revenue?, ebitda?, netProfit? }
+2. profitabilityTrends: { periods, revenue?, ebitda?, netProfit?, freeCashFlow? }
    - periods: array of period labels (e.g. "Q3 2023", "Q4 2023", "Q1 2024" or "2026", "2027", "2028")
-   - revenue/ebitda/netProfit: arrays of numbers (null if not reported for a period)
+   - revenue/ebitda/netProfit/freeCashFlow: arrays of numbers (null if not reported for a period)
+   - freeCashFlow: multi-period FCF data if available
    - Extract from comparative tables, prior-year comparisons, or multi-year projections
    - Omit section entirely if fewer than 2 periods found
 
@@ -100,10 +126,12 @@ Return a JSON object with:
    - text: 1-3 concise paragraphs per section, translated to English, summarizing key points
    - Only include sections with meaningful content
 
-2. sentiment: { managementTone, outlook, riskFactors }
+2. sentiment: { managementTone, outlook, riskFactors, guidanceDirection? }
    - managementTone: "very positive", "positive", "neutral", "cautious", or "negative"
    - outlook: 1-2 sentence summary of forward-looking statements in English
    - riskFactors: array of concise risk factor strings
+   - guidanceDirection: "raised" | "maintained" | "lowered" | null
+     Is management raising, maintaining, or lowering guidance vs prior?
 
 Translate to English. DO NOT fabricate. Output ONLY the JSON object, no markdown.`;
 
@@ -539,6 +567,7 @@ function mergeExtractions(results: ExtractedData[]): ExtractedData {
   const revenueByPeriod = new Map<string, number | null>();
   const ebitdaByPeriod = new Map<string, number | null>();
   const netProfitByPeriod = new Map<string, number | null>();
+  const freeCashFlowByPeriod = new Map<string, number | null>();
 
   for (const r of results) {
     const trends = r.profitabilityTrends;
@@ -558,6 +587,9 @@ function mergeExtractions(results: ExtractedData[]): ExtractedData {
       if (trends.netProfit && trends.netProfit[i] != null) {
         netProfitByPeriod.set(period, trends.netProfit[i]);
       }
+      if (trends.freeCashFlow && trends.freeCashFlow[i] != null) {
+        freeCashFlowByPeriod.set(period, trends.freeCashFlow[i]);
+      }
     }
   }
 
@@ -572,6 +604,9 @@ function mergeExtractions(results: ExtractedData[]): ExtractedData {
   }
   if (netProfitByPeriod.size > 0) {
     profitabilityTrends.netProfit = periods.map((p) => netProfitByPeriod.get(p) ?? null);
+  }
+  if (freeCashFlowByPeriod.size > 0) {
+    profitabilityTrends.freeCashFlow = periods.map((p) => freeCashFlowByPeriod.get(p) ?? null);
   }
 
   return { metadata, metrics, narratives, sentiment, revenueBreakdown, profitabilityTrends };

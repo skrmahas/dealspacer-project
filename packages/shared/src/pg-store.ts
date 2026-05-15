@@ -340,6 +340,8 @@ function rowToReportWithPreview(row: Record<string, unknown>): ReportWithPreview
     previewRevenue: findMetricValue(snapshot, "revenue"),
     previewEbitda: findMetricValue(snapshot, "ebitda"),
     previewNetProfit: findMetricValue(snapshot, "net profit"),
+    previewFcf: findMetricValue(snapshot, "free cash flow") ?? findMetricValue(snapshot, "fcf"),
+    previewGuidanceSentiment: snapshot?.sentiment?.guidanceDirection ?? null,
   };
 }
 
