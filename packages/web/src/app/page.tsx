@@ -99,6 +99,7 @@ export default function Home() {
   const [isDragging, setIsDragging] = useState(false);
   const [dragError, setDragError] = useState(false);
   const dragCounterRef = useRef(0);
+  const abortUploadRef = useRef<(() => void) | null>(null);
   const [elapsed, setElapsed] = useState<string | null>(null);
   const elapsedTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -236,10 +237,14 @@ export default function Home() {
       form.set("file", file);
       form.set("outputLanguage", outputLanguage);
 
+      abortUploadRef.current = null;
       const created = await uploadFileWithProgress(
         "/api/jobs",
         form,
         (progress) => setUploadProgress(progress),
+        200,
+        undefined,
+        abortUploadRef,
       );
 
       setJob({ jobId: created.jobId, state: created.state as JobState });
@@ -364,6 +369,30 @@ export default function Home() {
                 ? "Uploading..."
                 : "Start Pipeline"}
           </button>
+
+          {uploading && abortUploadRef.current && (
+            <button
+              type="button"
+              onClick={() => {
+                abortUploadRef.current?.();
+                setUploading(false);
+                setUploadProgress(null);
+                setPipelineError("Upload cancelled.");
+              }}
+              style={{
+                border: "1px solid var(--color-error-text)",
+                borderRadius: 10,
+                padding: "8px 14px",
+                background: "transparent",
+                color: "var(--color-error-text)",
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              Cancel
+            </button>
+          )}
 
           {uploading && uploadProgress && (
             <div style={{ marginTop: 8 }}>

@@ -19,19 +19,22 @@ export interface UploadError {
 
 export type XHRFactory = () => XMLHttpRequest;
 
+export type AbortFn = () => void;
+
 export function uploadFileWithProgress(
   url: string,
   formData: FormData,
   onProgress: (progress: UploadProgress) => void,
   throttleMs = 200,
   xhrFactory?: XHRFactory,
+  abortRef?: { current: AbortFn | null },
 ): Promise<UploadResult> {
   const hasUpload =
     typeof XMLHttpRequest !== "undefined" &&
     "upload" in XMLHttpRequest.prototype;
 
   if (hasUpload) {
-    return uploadWithXHR(url, formData, onProgress, throttleMs, xhrFactory);
+    return uploadWithXHR(url, formData, onProgress, throttleMs, xhrFactory, abortRef);
   }
   return uploadWithFetch(url, formData);
 }
@@ -42,10 +45,18 @@ function uploadWithXHR(
   onProgress: (progress: UploadProgress) => void,
   throttleMs: number,
   xhrFactory?: XHRFactory,
+  abortRef?: { current: AbortFn | null },
 ): Promise<UploadResult> {
   return new Promise((resolve, reject) => {
     const xhr = xhrFactory ? xhrFactory() : new XMLHttpRequest();
     let lastEmit = 0;
+
+    // Expose abort function to caller
+    if (abortRef) {
+      abortRef.current = () => {
+        try { xhr.abort(); } catch { /* ignore */ }
+      };
+    }
 
     xhr.upload.addEventListener("progress", (event) => {
       if (!event.lengthComputable) return;
