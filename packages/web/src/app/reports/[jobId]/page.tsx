@@ -103,35 +103,35 @@ export default function SharedReportPage({ params }: { params: { jobId: string }
         minHeight: "100vh",
         margin: 0,
         padding: "36px 20px 48px",
-        background: "radial-gradient(circle at 8% 0%, #e9f4ff 0%, #f5f7fb 42%, #eef2f8 100%)",
+        background: "radial-gradient(circle at 8% 0%, var(--color-gradient-start) 0%, var(--color-gradient-mid) 42%, var(--color-gradient-end) 100%)",
         fontFamily: "\"Avenir Next\", \"Trebuchet MS\", \"Segoe UI\", sans-serif",
       }}
     >
       <div style={{ maxWidth: 980, margin: "0 auto", display: "grid", gap: 20 }}>
-        <section style={{ background: "#ffffff", border: "1px solid #d5e0eb", borderRadius: 16, padding: 20 }}>
-          <h1 style={{ margin: 0, color: "#0f2e52", fontSize: 28 }}>Shared Report</h1>
-          <p style={{ margin: "10px 0 0", color: "#54657b", fontSize: 15 }}>
+        <section style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: 16, padding: 20 }}>
+          <h1 style={{ margin: 0, color: "var(--color-heading)", fontSize: 28 }}>Shared Report</h1>
+          <p style={{ margin: "10px 0 0", color: "var(--color-text-muted)", fontSize: 15 }}>
             Job ID: <code>{params.jobId}</code>
           </p>
         </section>
 
-        <section style={{ background: "#ffffff", border: "1px solid #d5e0eb", borderRadius: 16, padding: 20 }}>
+        <section style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: 16, padding: 20 }}>
           {loading && <p style={{ margin: 0, color: "#55677d" }}>Loading report status...</p>}
           {!loading && job && (
             <div style={{ display: "grid", gap: 12 }}>
-              <p style={{ margin: 0, color: "#2c4f6e", fontWeight: 700 }}>
+              <p style={{ margin: 0, color: "var(--color-heading)", fontWeight: 700 }}>
                 Status: {job.state === "assembling" ? "rendering" : job.state}
                 {elapsed && job.state !== "complete" && job.state !== "failed" && (
                   <span style={{ marginLeft: 10, color: "#6e7d90", fontWeight: 400, fontSize: 13 }}>{elapsed}</span>
                 )}
               </p>
               {job.state !== "complete" && !error && (
-                <p style={{ margin: 0, color: "#54657b" }}>
+                <p style={{ margin: 0, color: "var(--color-text-muted)" }}>
                   Report generation is still in progress. This page auto-refreshes.
                 </p>
               )}
               {error && (
-                <div style={{ borderRadius: 10, border: "1px solid #ffd4cf", background: "#fff6f5", color: "#8f2f23", padding: 12, fontSize: 14 }}>
+                <div style={{ borderRadius: 10, border: "1px solid var(--color-error-border)", background: "var(--color-error-bg)", color: "var(--color-error-text)", padding: 12, fontSize: 14 }}>
                   {error}
                 </div>
               )}
@@ -143,7 +143,7 @@ export default function SharedReportPage({ params }: { params: { jobId: string }
                     style={{
                       width: "100%",
                       height: "85vh",
-                      border: "1px solid #d5e0eb",
+                      border: "1px solid var(--color-border)",
                       borderRadius: 10,
                     }}
                   />
@@ -156,7 +156,7 @@ export default function SharedReportPage({ params }: { params: { jobId: string }
                       textDecoration: "none",
                       padding: "10px 16px",
                       borderRadius: 10,
-                      background: "#165f83",
+                      background: "var(--color-accent-dark)",
                       color: "#fff",
                       fontWeight: 700,
                     }}

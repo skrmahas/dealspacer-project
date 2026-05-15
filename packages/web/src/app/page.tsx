@@ -55,7 +55,7 @@ function ProgressTracker({ state }: { state: JobState }) {
                 style={{
                   height: 10,
                   borderRadius: 999,
-                  background: complete ? "#1c7c54" : active ? "#0b7ea4" : "#d4dbe4",
+                  background: complete ? "var(--color-success)" : active ? "var(--color-accent)" : "#d4dbe4",
                 }}
               />
               <span style={{ fontSize: 12, color: complete || active ? "#244762" : "#728197", fontWeight: complete || active ? 600 : 500 }}>
@@ -258,14 +258,14 @@ export default function Home() {
         minHeight: "100vh",
         margin: 0,
         padding: "36px 20px 48px",
-        background: "radial-gradient(circle at 8% 0%, #ffe8d6 0%, #f4f8fb 42%, #eef2f8 100%)",
+        background: "radial-gradient(circle at 8% 0%, var(--color-gradient-start) 0%, var(--color-gradient-mid) 42%, var(--color-gradient-end) 100%)",
         fontFamily: "\"Avenir Next\", \"Trebuchet MS\", \"Segoe UI\", sans-serif",
       }}
     >
       <div style={{ maxWidth: 980, margin: "0 auto", display: "grid", gap: 20 }}>
-        <section style={{ background: "#ffffffd9", backdropFilter: "blur(6px)", border: "1px solid #dae2eb", borderRadius: 16, padding: 20 }}>
-          <h1 style={{ margin: 0, fontSize: 32, color: "#0f2e52", letterSpacing: 0.2 }}>Baltic Earnings Intelligence</h1>
-          <p style={{ margin: "10px 0 0", color: "#566579", fontSize: 15 }}>
+        <section style={{ background: "var(--color-bg-tint)", backdropFilter: "blur(6px)", border: "1px solid var(--color-border)", borderRadius: 16, padding: 20 }}>
+          <h1 style={{ margin: 0, fontSize: 32, color: "var(--color-heading)", letterSpacing: 0.2 }}>Baltic Earnings Intelligence</h1>
+          <p style={{ margin: "10px 0 0", color: "var(--color-text-muted)", fontSize: 15 }}>
             Upload Baltic earnings reports and generate shareable localized PDF summaries.
           </p>
         </section>
@@ -276,11 +276,11 @@ export default function Home() {
           onDragOver={handleDragOver}
           onDrop={handleDrop}
           style={{
-            background: isDragging ? "#e8f4fd" : dragError ? "#fff6f5" : "#ffffff",
+            background: isDragging ? "#e8f4fd" : dragError ? "var(--color-error-bg)" : "#ffffff",
             border: dragError
               ? "2px dashed #e8887a"
               : isDragging
-                ? "2px dashed #0b7ea4"
+                ? "2px dashed var(--color-accent)"
                 : "1px solid #dae2eb",
             borderRadius: 16,
             padding: 20,
@@ -290,7 +290,7 @@ export default function Home() {
           }}
         >
           <div style={{ display: "grid", gap: 10 }}>
-            <label style={{ display: "grid", gap: 6, color: "#1f2a37", fontSize: 14 }}>
+            <label style={{ display: "grid", gap: 6, color: "var(--color-text)", fontSize: 14 }}>
               Document
               <input
                 type="file"
@@ -306,7 +306,7 @@ export default function Home() {
               </p>
             )}
             {dragError && (
-              <p style={{ margin: 0, color: "#8f2f23", fontSize: 13, fontWeight: 600 }}>
+              <p style={{ margin: 0, color: "var(--color-error-text)", fontSize: 13, fontWeight: 600 }}>
                 Only PDF, CSV, and HTML files are accepted
               </p>
             )}
@@ -326,7 +326,7 @@ export default function Home() {
                 style={{
                   borderRadius: 999,
                   padding: "8px 14px",
-                  border: outputLanguage === option.value ? "1px solid #0b7ea4" : "1px solid #cfd8e3",
+                  border: outputLanguage === option.value ? "1px solid var(--color-accent)" : "1px solid #cfd8e3",
                   background: outputLanguage === option.value ? "#e8f7fc" : "#f7f9fc",
                   color: outputLanguage === option.value ? "#0b5974" : "#4f5f73",
                   fontWeight: 600,
@@ -345,7 +345,7 @@ export default function Home() {
               border: "none",
               borderRadius: 12,
               padding: "12px 18px",
-              background: !file || uploading ? "#a7b6c8" : "linear-gradient(90deg, #0b7ea4, #145f82)",
+              background: !file || uploading ? "#a7b6c8" : "linear-gradient(90deg, var(--color-accent), var(--color-accent-dark))",
               color: "#fff",
               fontSize: 15,
               fontWeight: 700,
@@ -374,7 +374,7 @@ export default function Home() {
                   style={{
                     height: "100%",
                     borderRadius: 999,
-                    background: "linear-gradient(90deg, #0b7ea4, #145f82)",
+                    background: "linear-gradient(90deg, var(--color-accent), var(--color-accent-dark))",
                     width: `${Math.round((uploadProgress.loaded / uploadProgress.total) * 100)}%`,
                     transition: "width 150ms ease-out",
                   }}
@@ -388,9 +388,9 @@ export default function Home() {
         </section>
 
         {job && (
-          <section style={{ background: "#ffffff", border: "1px solid #dae2eb", borderRadius: 16, padding: 20 }}>
+          <section style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: 16, padding: 20 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-              <h2 style={{ margin: 0, color: "#0f2e52", fontSize: 20 }}>Pipeline Status</h2>
+              <h2 style={{ margin: 0, color: "var(--color-heading)", fontSize: 20 }}>Pipeline Status</h2>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 {elapsed && (job.state !== "complete" && job.state !== "failed") && (
                   <span style={{ color: "#6e7d90", fontSize: 13 }}>{elapsed}</span>
@@ -406,7 +406,7 @@ export default function Home() {
             {polling && <PollingSkeleton />}
 
             {(pipelineError || (job.state === "failed" && job.error)) && (
-              <div style={{ marginTop: 14, borderRadius: 10, border: "1px solid #ffd4cf", background: "#fff6f5", color: "#8f2f23", padding: 12, fontSize: 14 }}>
+              <div style={{ marginTop: 14, borderRadius: 10, border: "1px solid var(--color-error-border)", background: "var(--color-error-bg)", color: "var(--color-error-text)", padding: 12, fontSize: 14 }}>
                 {pipelineError || describeFailure(job.error)}
               </div>
             )}
