@@ -120,12 +120,15 @@ export default function LandingPage() {
             alignItems: "center",
             gap: 12,
             flexWrap: "wrap",
-            paddingBottom: 12,
+            paddingBottom: 8,
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div style={{ width: 11, height: 11, borderRadius: 999, background: "#6b89ff" }} />
-            <strong style={{ fontSize: 19, color: "#0f2e52", letterSpacing: 0 }}>DealSpacer</strong>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <img
+              src="/dealspacers-logo.svg"
+              alt="DealSpacer"
+              style={{ width: 170, height: "auto", display: "block" }}
+            />
           </div>
           <a
             href="#access"
