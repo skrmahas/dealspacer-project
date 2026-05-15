@@ -7,7 +7,7 @@ async function readPublicAsset(filename: string): Promise<Buffer> {
 }
 
 export async function GET() {
-  const logo = await readPublicAsset("dealspacers-logo.svg");
+  const logo = await readPublicAsset("dealspacer-logo.svg");
 
   return new NextResponse(new Uint8Array(logo), {
     status: 200,

@@ -19,7 +19,7 @@
   --color-error-bg: #fff6f5;
   --color-error-border: #ffd4cf;
   --color-error-text: #8f2f23;
-  --color-gradient-start: #ffe8d6;
+  --color-gradient-start: #d6e8ff;
   --color-gradient-mid: #f4f8fb;
   --color-gradient-end: #eef2f8;
 
@@ -54,8 +54,8 @@
     --color-text: #d4d9e0;
     --color-text-muted: #8895a7;
     --color-heading: #c8d6e5;
-    --color-accent: #5b9fe8;
-    --color-accent-dark: #3d82d0;
+    --color-accent: #2b79db;
+    --color-accent-dark: #1a5ca8;
     --color-success: #3ca374;
     --color-error-bg: #2d1f1e;
     --color-error-border: #5c3835;
@@ -70,8 +70,8 @@
     --card-foreground: 220 19% 85%;
     --popover: 222 12% 15%;
     --popover-foreground: 220 19% 85%;
-    --primary: 210 75% 63%;
-    --primary-foreground: 222 47% 11%;
+    --primary: 211 71% 51%;
+    --primary-foreground: 210 40% 98%;
     --secondary: 222 10% 20%;
     --secondary-foreground: 210 40% 98%;
     --muted: 222 10% 20%;
@@ -82,7 +82,7 @@
     --destructive-foreground: 210 40% 98%;
     --border: 219 12% 23%;
     --input: 219 12% 23%;
-    --ring: 210 75% 63%;
+    --ring: 211 71% 51%;
   }
 }
 
@@ -132,4 +132,92 @@ a {
 button {
   background-color: transparent;
   background-image: none;
+}
+
+/* Landing page atmosphere */
+.landing-grain {
+  opacity: 0.045;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+.landing-aurora {
+  background:
+    radial-gradient(ellipse 80% 50% at 12% -10%, rgba(90, 143, 143, 0.22), transparent 55%),
+    radial-gradient(ellipse 60% 45% at 88% 8%, rgba(43, 121, 219, 0.14), transparent 50%),
+    radial-gradient(ellipse 50% 40% at 50% 100%, rgba(30, 45, 70, 0.5), transparent 60%);
+}
+
+@keyframes bei-pulse-stage {
+  0% { opacity: 0.45; }
+  50% { opacity: 1; }
+  100% { opacity: 0.45; }
+}
+
+.upload-pulse-stage {
+  animation: bei-pulse-stage 1.4s ease-in-out infinite;
+}
+
+.upload-pulse-bg {
+  background: linear-gradient(90deg, #1e2733 20%, #2a3544 50%, #1e2733 80%);
+  background-size: 220% 100%;
+  animation: bei-pulse-stage 1.4s ease-in-out infinite;
+}
+
+/* Access page — single restrained backdrop (no grid / stacked auroras) */
+.access-page-atmosphere {
+  background:
+    radial-gradient(ellipse 100% 55% at 50% -15%, rgba(43, 121, 219, 0.09), transparent 52%),
+    radial-gradient(ellipse 45% 40% at 92% 18%, rgba(90, 143, 143, 0.055), transparent 58%),
+    radial-gradient(ellipse 50% 45% at 8% 92%, rgba(26, 92, 168, 0.045), transparent 55%),
+    radial-gradient(ellipse 95% 80% at 50% 115%, rgba(8, 12, 20, 0.55), transparent 58%),
+    radial-gradient(ellipse 85% 75% at 50% 50%, transparent 35%, rgba(4, 6, 10, 0.72) 100%),
+    linear-gradient(168deg, #0b0f16 0%, #080b10 38%, #06090e 100%);
+}
+
+.access-page-grain {
+  opacity: 0.032;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.72' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+.access-panel-glow {
+  background: radial-gradient(ellipse 90% 70% at 50% 0%, rgba(43, 121, 219, 0.12), transparent 65%);
+}
+
+.access-input-glow {
+  box-shadow:
+    0 0 0 1px rgba(43, 121, 219, 0.15),
+    0 0 24px -4px rgba(43, 121, 219, 0.2);
+}
+
+.access-corner {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border-color: rgba(90, 143, 143, 0.55);
+  border-style: solid;
+  pointer-events: none;
+}
+
+.access-corner-tl {
+  top: 10px;
+  left: 10px;
+  border-width: 1px 0 0 1px;
+}
+
+.access-corner-tr {
+  top: 10px;
+  right: 10px;
+  border-width: 1px 1px 0 0;
+}
+
+.access-corner-bl {
+  bottom: 10px;
+  left: 10px;
+  border-width: 0 0 1px 1px;
+}
+
+.access-corner-br {
+  bottom: 10px;
+  right: 10px;
+  border-width: 0 1px 1px 0;
 }

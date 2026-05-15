@@ -40,11 +40,22 @@ export function createPostgresStore(): JobStore {
   return {
     async createJob(input: CreateJobInput): Promise<Job> {
       return withClient(async (client) => {
+        const columns = ["original_filename", "output_language", "company_id"];
+        const values: unknown[] = [
+          input.originalFilename,
+          input.outputLanguage ?? "en",
+          input.companyId ?? null,
+        ];
+        if (input.id) {
+          columns.unshift("id");
+          values.unshift(input.id);
+        }
+        const placeholders = columns.map((_, i) => `$${i + 1}`).join(", ");
         const result = await client.query(
-          `INSERT INTO jobs (original_filename, output_language, company_id)
-           VALUES ($1, $2, $3)
+          `INSERT INTO jobs (${columns.join(", ")})
+           VALUES (${placeholders})
            RETURNING *`,
-          [input.originalFilename, input.outputLanguage ?? "en", input.companyId ?? null],
+          values,
         );
         return rowToJob(result.rows[0]);
       });

@@ -121,17 +121,19 @@ describe("GET /api/jobs/:id", () => {
 describe("POST /api/jobs", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockCreateJob.mockResolvedValue({
-      id: "job-upload",
+    // The route now pre-generates the job id and inserts it explicitly, so
+    // the mock must echo whichever id the route picked.
+    mockCreateJob.mockImplementation(async (input) => ({
+      id: input.id ?? "job-upload",
       state: "pending",
-      originalFilename: "report.pdf",
-      outputLanguage: "en",
+      originalFilename: input.originalFilename,
+      outputLanguage: input.outputLanguage ?? "en",
       extractedText: null,
       extractedJson: null,
       error: null,
       createdAt: "2024-01-01",
       updatedAt: "2024-01-01",
-    });
+    }));
     mockSaveFile.mockResolvedValue(undefined);
   });
 
@@ -166,11 +168,52 @@ describe("POST /api/jobs", () => {
     const body = await response.json();
 
     expect(response.status).toBe(201);
-    expect(body.jobId).toBe("job-upload");
-    expect(mockSaveFile).toHaveBeenCalledWith("job-upload", expect.any(Buffer));
+    expect(body.jobId).toBeTypeOf("string");
+    expect(mockSaveFile).toHaveBeenCalledWith(body.jobId, expect.any(Buffer));
   });
 
-  it("marks the job failed when file storage fails", async () => {
+  // Regression test for the race condition that caused
+  // "FAILED: The specified key does not exist." on large uploads:
+  // the upload route MUST call saveFile before createJob, so the
+  // worker's pollNextPending cannot claim the job before its file
+  // is in storage.
+  it("uploads the file to storage before persisting the job row", async () => {
+    const callOrder: string[] = [];
+
+    mockSaveFile.mockImplementationOnce(async () => {
+      callOrder.push("saveFile");
+    });
+    mockCreateJob.mockImplementationOnce(async (input) => {
+      callOrder.push("createJob");
+      return {
+        id: input.id,
+        state: "pending",
+        originalFilename: input.originalFilename,
+        outputLanguage: input.outputLanguage ?? "en",
+        extractedText: null,
+        extractedJson: null,
+        error: null,
+        createdAt: "2024-01-01",
+        updatedAt: "2024-01-01",
+      };
+    });
+
+    const formData = new FormData();
+    formData.set("file", new File([Buffer.from("%PDF-1.4\n")], "report.pdf", { type: "application/pdf" }));
+
+    const response = await createJob(requestWithFormData(formData));
+    const body = await response.json();
+
+    expect(response.status).toBe(201);
+    expect(callOrder).toEqual(["saveFile", "createJob"]);
+    // The pre-generated id used for saveFile must equal the one inserted.
+    const saveFileId = mockSaveFile.mock.calls[0][0];
+    const createJobId = mockCreateJob.mock.calls[0][0].id;
+    expect(saveFileId).toBe(createJobId);
+    expect(body.jobId).toBe(saveFileId);
+  });
+
+  it("returns 500 without creating a job row when file storage fails", async () => {
     mockSaveFile.mockRejectedValueOnce(new Error("S3 unavailable"));
 
     const formData = new FormData();
@@ -181,9 +224,9 @@ describe("POST /api/jobs", () => {
 
     expect(response.status).toBe(500);
     expect(body.error).toBe("File upload failed");
-    expect(mockUpdateJob).toHaveBeenCalledWith("job-upload", {
-      state: "failed",
-      error: "File upload failed: S3 unavailable",
-    });
+    // No orphan job row: createJob must not have run, and there's nothing to
+    // mark as failed.
+    expect(mockCreateJob).not.toHaveBeenCalled();
+    expect(mockUpdateJob).not.toHaveBeenCalled();
   });
 });

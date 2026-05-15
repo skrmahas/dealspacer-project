@@ -145,13 +145,14 @@ const DEFAULT_MAX_RETRIES = 3;
 const DEFAULT_RETRY_BASE_DELAY_MS = 1000;
 const DEFAULT_RETRY_MAX_DELAY_MS = 30000;
 const DEFAULT_CHUNK_TOKENS = 15000;
+const DEFAULT_INTER_CHUNK_DELAY_MS = 0;
 
 export type OpenAIClient = Pick<OpenAI, "chat">;
 
 let client: OpenAIClient | null = null;
 
 function getModel(): string {
-  return (process.env.OPENAI_MODEL?.trim() || "gpt-4o");
+  return (process.env.OPENAI_MODEL?.trim() || "gpt-4o-mini");
 }
 
 function getClient(): OpenAIClient {
@@ -178,6 +179,8 @@ interface ChunkConfig {
   retryBaseDelayMs: number;
   retryMaxDelayMs: number;
   chunkTokens: number;
+  /** Pause between chunk requests (smooths RPM when concurrency is low). */
+  interChunkDelayMs: number;
 }
 
 function getChunkConfig(): ChunkConfig {
@@ -189,6 +192,7 @@ function getChunkConfig(): ChunkConfig {
   const retryBaseDelayMs = readPositiveEnv("RETRY_BASE_DELAY_MS", DEFAULT_RETRY_BASE_DELAY_MS);
   const retryMaxDelayMs = readPositiveEnv("RETRY_MAX_DELAY_MS", DEFAULT_RETRY_MAX_DELAY_MS);
   const chunkTokens = readPositiveEnv("EXTRACTION_CHUNK_TOKENS", DEFAULT_CHUNK_TOKENS);
+  const interChunkDelayMs = readNonNegativeEnv("EXTRACTION_INTER_CHUNK_DELAY_MS", DEFAULT_INTER_CHUNK_DELAY_MS);
 
   // Token-aware sizing: ~4 chars per token for English financial text.
   // EXTRACTION_CHUNK_TOKENS sets a token budget; effective size is capped by EXTRACTION_CHUNK_SIZE.
@@ -201,7 +205,17 @@ function getChunkConfig(): ChunkConfig {
   // Ensure overlap < chunkSize
   const effectiveOverlap = Math.min(overlap, Math.floor(chunkSize * 0.2));
 
-  return { threshold, chunkSize: effectiveChunkSize, overlap: effectiveOverlap, maxConcurrency, maxRetries, retryBaseDelayMs, retryMaxDelayMs, chunkTokens };
+  return {
+    threshold,
+    chunkSize: effectiveChunkSize,
+    overlap: effectiveOverlap,
+    maxConcurrency,
+    maxRetries,
+    retryBaseDelayMs,
+    retryMaxDelayMs,
+    chunkTokens,
+    interChunkDelayMs,
+  };
 }
 
 function readPositiveEnv(name: string, fallback: number): number {
@@ -265,6 +279,21 @@ function getRetryDelay(attempt: number, baseMs: number, maxMs: number): number {
   return Math.round(base + jitter);
 }
 
+/** Use OpenAI `retry-after` (seconds) when present so we don't retry too soon on 429. */
+function getRetryDelayForError(error: unknown, attempt: number, baseMs: number, maxMs: number): number {
+  const backoff = getRetryDelay(attempt, baseMs, maxMs);
+  if (typeof error !== "object" || error === null) return backoff;
+  const rec = error as Record<string, unknown>;
+  if (rec.status !== 429) return backoff;
+  const headers = rec.headers as { get?: (name: string) => string | null } | undefined;
+  const raw = headers?.get?.("retry-after");
+  if (!raw) return backoff;
+  const seconds = Number(raw);
+  if (!Number.isFinite(seconds) || seconds <= 0) return backoff;
+  const fromHeader = Math.ceil(seconds * 1000);
+  return Math.min(Math.max(backoff, fromHeader), 600_000);
+}
+
 async function callExtract(text: string, openai: OpenAIClient): Promise<ExtractedData> {
   const response = await openai.chat.completions.create({
     model: getModel(),
@@ -303,7 +332,7 @@ async function callExtractWithRetry(
       lastError = error;
 
       if (attempt < maxRetries && isRetryableError(error)) {
-        const delay = getRetryDelay(attempt, retryBaseDelayMs, retryMaxDelayMs);
+        const delay = getRetryDelayForError(error, attempt, retryBaseDelayMs, retryMaxDelayMs);
         const label = chunkLabel || "extraction";
         const reason = error instanceof Error ? error.message.slice(0, 80) : String(error).slice(0, 80);
         console.log(`[extractor] ${label}: attempt ${attempt + 1}/${maxRetries + 1} failed (${reason}), retrying in ${delay}ms...`);
@@ -357,7 +386,7 @@ async function callTargetedExtract(
       return result;
     } catch (error) {
       if (attempt < maxRetries && isRetryableError(error)) {
-        const delay = getRetryDelay(attempt, retryBaseDelayMs, retryMaxDelayMs);
+        const delay = getRetryDelayForError(error, attempt, retryBaseDelayMs, retryMaxDelayMs);
         const reason = error instanceof Error ? error.message.slice(0, 80) : String(error).slice(0, 80);
         console.log(`[extractor] Stage ${stageName}: attempt ${attempt + 1}/${maxRetries + 1} failed (${reason}), retrying in ${delay}ms...`);
         await new Promise((resolve) => setTimeout(resolve, delay));
@@ -416,7 +445,7 @@ async function targetedExtract(
   if (stages.needsTrends) stagesToRun.push("trends");
   if (stages.needsNarratives) stagesToRun.push("narratives");
 
-  console.log(`[extractor] Targeted extraction: running stages [${stagesToRun.join(", ")}]`);
+  console.log(`[extractor] Targeted extraction: running stages [${stagesToRun.join(", ")}]${stages.needsTrends && stages.needsNarratives ? " (trends+narratives parallel)" : ""}`);
   const t0 = Date.now();
 
   // Stage 1: Metrics + Metadata (always)
@@ -431,8 +460,9 @@ async function targetedExtract(
     sentiment: { managementTone: "", outlook: "", riskFactors: [] },
   };
 
-  // Stage 2: Trends + Breakdowns (conditional)
-  if (stages.needsTrends) {
+  // Stages 2–3 are independent (disjoint JSON fields); run in parallel when both are needed.
+  async function runTrendsStage(): Promise<void> {
+    if (!stages.needsTrends) return;
     try {
       const trendsResult = await callTargetedExtract(
         text, openai, TRENDS_PROMPT, "trends", maxRetries, retryBaseDelayMs, retryMaxDelayMs,
@@ -451,8 +481,8 @@ async function targetedExtract(
     }
   }
 
-  // Stage 3: Narratives + Sentiment (conditional)
-  if (stages.needsNarratives) {
+  async function runNarrativesStage(): Promise<void> {
+    if (!stages.needsNarratives) return;
     try {
       const narrativeResult = await callTargetedExtract(
         text, openai, NARRATIVES_PROMPT, "narratives", maxRetries, retryBaseDelayMs, retryMaxDelayMs,
@@ -466,6 +496,13 @@ async function targetedExtract(
     } catch (err) {
       console.warn(`[extractor] Stage narratives failed (non-fatal):`, err instanceof Error ? err.message : err);
     }
+  }
+
+  if (stages.needsTrends && stages.needsNarratives) {
+    await Promise.all([runTrendsStage(), runNarrativesStage()]);
+  } else {
+    await runTrendsStage();
+    await runNarrativesStage();
   }
 
   const totalMs = Date.now() - t0;
@@ -634,7 +671,9 @@ export async function extractFromText(
   // Large document: chunk and parallelize
   const chunks = chunkText(text, config.chunkSize, config.overlap);
   console.log(`[extractor] Chunked extraction: ${chunks.length} chunks (${text.length} chars total)`);
-  console.log(`[extractor] Extraction config: threshold=${config.threshold}, chunkSize=${config.chunkSize}, overlap=${config.overlap}, concurrency=${config.maxConcurrency}, retries=${config.maxRetries}`);
+  console.log(
+    `[extractor] Extraction config: threshold=${config.threshold}, chunkSize=${config.chunkSize}, overlap=${config.overlap}, concurrency=${config.maxConcurrency}, retries=${config.maxRetries}, interChunkDelayMs=${config.interChunkDelayMs}`,
+  );
   const extractionStart = Date.now();
 
   // Process chunks in parallel with concurrency limit
@@ -686,6 +725,9 @@ export async function extractFromText(
         while (queue.length > 0) {
           const index = queue.shift()!;
           await processChunk(index);
+          if (config.interChunkDelayMs > 0 && queue.length > 0) {
+            await new Promise((resolve) => setTimeout(resolve, config.interChunkDelayMs));
+          }
         }
       })(),
     );

@@ -22,6 +22,11 @@ export interface Job {
 }
 
 export type CreateJobInput = Pick<Job, "originalFilename"> & {
+  // Optional caller-supplied id. When provided, the caller is responsible for
+  // ensuring the underlying file is already in storage — this is how the
+  // upload pipeline avoids the worker racing pollNextPending against an
+  // in-flight S3 PutObject.
+  id?: string;
   outputLanguage?: OutputLanguage;
   companyId?: string | null;
 };

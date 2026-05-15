@@ -18,6 +18,10 @@ vi.mock("next/navigation", () => ({
   }),
 }));
 
+vi.mock("@/components/deal-spacer-logo", () => ({
+  DealSpacerLogoLink: () => React.createElement("a", { href: "/" }, "DealSpacer"),
+}));
+
 describe("AccessForm", () => {
   beforeEach(() => {
     vi.useFakeTimers();

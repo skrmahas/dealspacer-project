@@ -15,11 +15,10 @@ import {
   Plus,
   Wallet,
 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TrendLineChart, type TrendSeries } from "@/components/charts/trend-line-chart";
 import { DonutChart, type DonutSegment } from "@/components/charts/donut-chart";
+import { DealSpacerLogoLink } from "@/components/deal-spacer-logo";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 interface Company {
@@ -93,10 +92,16 @@ const METRIC_COLORS: Record<string, string> = {
   fcf: "#a855f7",
 };
 
+const EXCHANGE_ACCENT: Record<string, string> = {
+  "Nasdaq Tallinn": "#4a7ab8",
+  "Nasdaq Riga": "#9e4a5a",
+  "Nasdaq Vilnius": "#8a9e4a",
+};
+
 const GUIDANCE_STYLES: Record<string, string> = {
-  raised: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
-  maintained: "bg-amber-500/15 text-amber-700 dark:text-amber-300",
-  lowered: "bg-red-500/15 text-red-700 dark:text-red-300",
+  raised: "border border-emerald-500/35 bg-emerald-500/10 text-emerald-200",
+  maintained: "border border-amber-400/35 bg-amber-500/10 text-amber-100",
+  lowered: "border border-red-500/35 bg-red-500/10 text-red-200",
 };
 
 function fmtCurrency(val: number | null | undefined): string {
@@ -123,6 +128,48 @@ function getMetric(report: Report | undefined, key: "revenue" | "ebitda" | "netP
   if (key === "ebitda") return report.previewEbitda;
   if (key === "netProfit") return report.previewNetProfit;
   return report.previewFcf;
+}
+
+function BeiShell({ children }: { children: React.ReactNode }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.35 }}
+      className={cn(
+        "relative min-h-screen",
+        "bg-[#080b10] text-[#e8ecf2]",
+        "font-[family-name:var(--font-body)]",
+      )}
+    >
+      <div className="landing-grain pointer-events-none fixed inset-0 z-[1]" aria-hidden />
+      <div className="landing-aurora pointer-events-none fixed inset-0 z-0 opacity-70" aria-hidden />
+      <div className="relative z-10">{children}</div>
+    </motion.div>
+  );
+}
+
+function DashboardSection({
+  title,
+  eyebrow,
+  children,
+}: {
+  title: string;
+  eyebrow?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="relative overflow-hidden border border-[#2a3544] bg-[#0c1018]/90">
+      <span className="pointer-events-none absolute -left-px -top-px block size-2 border-l border-t border-[#2b79db]" aria-hidden />
+      <div className="border-b border-[#1e2733] px-5 py-4">
+        {eyebrow && (
+          <p className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.2em] text-[#5a8f8f]">{eyebrow}</p>
+        )}
+        <h2 className="font-[family-name:var(--font-display)] text-lg font-medium tracking-tight text-[#f4f6f9]">{title}</h2>
+      </div>
+      <div className="p-5">{children}</div>
+    </section>
+  );
 }
 
 export default function CompanyAnalyticsDashboardPage() {
@@ -272,39 +319,75 @@ export default function CompanyAnalyticsDashboardPage() {
 
   if (loading) {
     return (
-      <div className="grid min-h-screen place-items-center px-6 text-muted-foreground">
-        Loading...
-      </div>
+      <BeiShell>
+        <div className="grid min-h-screen place-items-center px-6">
+          <div className="text-center">
+            <p className="font-[family-name:var(--font-mono)] text-[11px] uppercase tracking-[0.26em] text-[#6b7d92]">
+              Loading company...
+            </p>
+            <div className="mt-4 mx-auto h-px w-16 bg-[#2b79db]/40" />
+          </div>
+        </div>
+      </BeiShell>
     );
   }
 
   if (error) {
     return (
-      <div className="grid min-h-screen place-items-center gap-3 px-6 text-center">
-        <p className="text-destructive">{error}</p>
-        <Link href="/companies" className="font-semibold text-primary hover:underline">
-          Back to directory
-        </Link>
-      </div>
+      <BeiShell>
+        <div className="grid min-h-screen place-items-center gap-4 px-6 text-center">
+          <div className="max-w-md border border-[#9e4a5a]/40 bg-[#9e4a5a]/10 px-6 py-5">
+            <p className="text-sm text-[#e8a0a8]">{error}</p>
+            <Link
+              href="/companies"
+              className="mt-4 inline-flex font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.14em] text-[#2b79db] transition hover:text-[#63a6f5]"
+            >
+              Back to directory
+            </Link>
+          </div>
+        </div>
+      </BeiShell>
     );
   }
 
   if (notFound || !company) {
     return (
-      <div className="grid min-h-screen place-items-center gap-2 px-6 text-center">
-        <Building2 className="size-10 text-muted-foreground" />
-        <h2 className="text-2xl font-semibold tracking-tight">Company not found</h2>
-        <p className="text-muted-foreground">The company &quot;{slug}&quot; does not exist in our directory.</p>
-        <Link href="/companies" className="mt-2 font-semibold text-primary hover:underline">
-          Back to directory
-        </Link>
-      </div>
+      <BeiShell>
+        <div className="grid min-h-screen place-items-center gap-4 px-6 text-center">
+          <Building2 className="mx-auto size-10 text-[#5a8f8f]" />
+          <h2 className="font-[family-name:var(--font-display)] text-2xl font-medium text-[#f4f6f9]">
+            Company not found
+          </h2>
+          <p className="max-w-md text-pretty text-sm text-[#8b9aad]">
+            The company &quot;{slug}&quot; does not exist in our Baltic directory yet.
+          </p>
+          <Link
+            href="/companies"
+            className="mt-2 inline-flex items-center gap-2 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.14em] text-[#6b7d92] transition hover:text-[#2b79db]"
+          >
+            <ArrowLeft className="size-3.5" aria-hidden /> Back to directory
+          </Link>
+        </div>
+      </BeiShell>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 lg:px-8">
+    <BeiShell>
+      <header className="sticky top-0 z-30 border-b border-[#2b79db]/12 bg-[#080b10]/90 px-4 py-3 backdrop-blur-md sm:px-6">
+        <div className="mx-auto flex w-full max-w-6xl items-center gap-4">
+          <DealSpacerLogoLink className="shrink-0 text-[#6b7d92] hover:text-[#f4f6f9]" />
+          <span className="font-[family-name:var(--font-mono)] text-[10px] text-[#3d4d62]">/</span>
+          <Link
+            href="/companies"
+            className="shrink-0 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.12em] text-[#5a8f8f] transition hover:text-[#2b79db]"
+          >
+            Catalog
+          </Link>
+        </div>
+      </header>
+
+      <main className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-8 lg:py-12">
         <CompanyHeader company={company} reportCount={reports.length} />
 
         {reports.length === 0 ? (
@@ -313,33 +396,27 @@ export default function CompanyAnalyticsDashboardPage() {
           <motion.div
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.45, ease: "easeOut" }}
+            transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
             className="flex flex-col gap-6"
           >
             <KpiCardsRow cards={kpiCards} year={latest?.fiscalYear ?? null} />
 
-            <Card className="rounded-2xl bg-gradient-to-b from-white to-zinc-50 dark:from-zinc-900/40 dark:to-zinc-900/10">
-              <CardHeader>
-                <CardTitle className="text-lg">Performance trends</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {trendData.labels.length >= 1 ? (
-                  <TrendLineChart labels={trendData.labels} series={trendData.series} />
-                ) : (
-                  <p className="text-sm text-muted-foreground">Not enough data to plot trends.</p>
-                )}
-              </CardContent>
-            </Card>
+            <DashboardSection title="Performance trends" eyebrow="Historical series">
+              {trendData.labels.length >= 1 ? (
+                <TrendLineChart
+                  labels={trendData.labels}
+                  series={trendData.series}
+                  surface="beiDark"
+                />
+              ) : (
+                <p className="text-sm text-[#8b9aad]">Not enough data to plot trends.</p>
+              )}
+            </DashboardSection>
 
             {donutSegments.length > 0 && (
-              <Card className="rounded-2xl bg-gradient-to-b from-white to-zinc-50 dark:from-zinc-900/40 dark:to-zinc-900/10">
-                <CardHeader>
-                  <CardTitle className="text-lg">Revenue breakdown</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <DonutChart segments={donutSegments} title="Revenue breakdown" />
-                </CardContent>
-              </Card>
+              <DashboardSection title="Revenue breakdown" eyebrow="Latest filing">
+                <DonutChart segments={donutSegments} title="Revenue breakdown" surface="beiDark" />
+              </DashboardSection>
             )}
 
             <SentimentTimeline reports={[...sortedByYear].reverse()} />
@@ -352,38 +429,62 @@ export default function CompanyAnalyticsDashboardPage() {
             />
           </motion.div>
         )}
-      </div>
-    </div>
+      </main>
+    </BeiShell>
   );
 }
 
 function CompanyHeader({ company, reportCount }: { company: Company; reportCount: number }) {
+  const accent = EXCHANGE_ACCENT[company.exchange] ?? "#5a8f8f";
   return (
-    <div className="mb-8 flex flex-wrap items-start gap-4">
+    <div className="mb-10 flex flex-wrap items-start gap-4 lg:gap-6">
       <Link
         href="/companies"
         aria-label="Back to catalog"
-        className="mt-1 inline-flex size-9 items-center justify-center rounded-xl border border-zinc-200 text-muted-foreground transition-colors hover:bg-muted dark:border-white/10"
+        className="mt-1 inline-flex size-10 shrink-0 items-center justify-center border border-[#2a3544] bg-[#080b10] text-[#8b9aad] transition-colors hover:border-[#2b79db]/35 hover:bg-[#0f141c] hover:text-[#2b79db]"
       >
         <ArrowLeft className="size-4" />
       </Link>
-      <div className="flex-1 min-w-[200px]">
-        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{company.name}</h1>
-        <div className="mt-2 flex flex-wrap items-center gap-2">
-          {company.ticker && (
-            <span className="text-sm font-semibold text-muted-foreground">{company.ticker}</span>
-          )}
-          <Badge variant="secondary" className="rounded-full">
-            {company.exchange}
-          </Badge>
-          <span className="text-xs text-muted-foreground">
-            {reportCount} report{reportCount !== 1 ? "s" : ""}
-          </span>
+      <div className="min-w-[200px] flex-1">
+        <div
+          className="border-l-[3px] pl-5"
+          style={{ borderLeftColor: accent }}
+        >
+          <p className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.2em] text-[#5a8f8f]">
+            Issuer snapshot
+          </p>
+          <h1 className="mt-2 font-[family-name:var(--font-display)] text-[clamp(1.75rem,4vw,2.75rem)] font-medium leading-[1.05] tracking-tight text-[#f4f6f9]">
+            {company.name}
+          </h1>
+          <div className="mt-4 flex flex-wrap items-center gap-2 gap-y-2">
+            {company.ticker && (
+              <span className="inline-flex items-center justify-center border border-[#2a3544] bg-[#080b10] px-2.5 py-1 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.1em] text-[#2b79db]">
+                {company.ticker}
+              </span>
+            )}
+            <span
+              className="inline-flex items-center gap-2 border border-[#2a3544] bg-[#0c1018] px-3 py-1 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.12em] text-[#8b9aad]"
+            >
+              <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-current opacity-70" />
+              {company.exchange}
+            </span>
+            {company.sector && (
+              <span className="hidden font-[family-name:var(--font-body)] text-sm text-[#6b7d92] sm:inline">
+                · {company.sector}
+              </span>
+            )}
+          </div>
+          <p className="mt-3 font-[family-name:var(--font-mono)] text-[11px] tabular-nums text-[#6b7d92]">
+            {reportCount} report{reportCount !== 1 ? "s" : ""} indexed
+          </p>
         </div>
       </div>
-      <Button asChild className="rounded-xl">
+      <Button
+        asChild
+        className="h-11 shrink-0 rounded-none border-0 bg-[#2b79db] px-5 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.12em] text-white hover:bg-[#3d8de8]"
+      >
         <Link href={`/upload?company=${company.slug}`}>
-          <Plus className="size-4" />
+          <Plus className="size-3.5" />
           Add Report
         </Link>
       </Button>
@@ -395,53 +496,48 @@ function KpiCardsRow({
   cards,
   year,
 }: {
-  cards: { key: string; label: string; value: number | null | undefined; prev: number | null | undefined; accent: string }[];
+  cards: {
+    key: string;
+    label: string;
+    value: number | null | undefined;
+    prev: number | null | undefined;
+    accent: string;
+  }[];
   year: number | null;
 }) {
   return (
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="grid gap-px border border-[#2a3544] bg-[#2a3544] sm:grid-cols-2 lg:grid-cols-4">
       {cards.map((c) => {
         const delta = yoyDelta(c.value, c.prev);
         const up = delta != null && delta >= 0;
         return (
-          <Card
-            key={c.key}
-            className="relative overflow-hidden rounded-2xl bg-gradient-to-b from-white to-zinc-50 shadow-zinc-950/5 dark:from-zinc-900/40 dark:to-zinc-900/10"
-          >
+          <div key={c.key} className="relative overflow-hidden bg-[#0c1018] px-5 py-4">
             <span
               aria-hidden
-              className="absolute inset-x-0 top-0 h-0.5"
+              className="absolute inset-x-0 top-0 h-[2px]"
               style={{ background: c.accent }}
             />
-            <CardHeader className="pb-2">
-              <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                {c.label}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-0">
-              <div className="text-2xl font-semibold tracking-tight">
-                {fmtCurrency(c.value)}
-              </div>
-              <div className="mt-1 flex items-center gap-2 text-xs">
-                {delta == null ? (
-                  <span className="text-muted-foreground">No prior data</span>
-                ) : (
-                  <span
-                    className={cn(
-                      "inline-flex items-center gap-0.5 font-semibold",
-                      up ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400",
-                    )}
-                  >
-                    {up ? <ArrowUp className="size-3" /> : <ArrowDown className="size-3" />}
-                    {fmtPct(delta)}
-                  </span>
-                )}
-                {year != null && (
-                  <span className="text-muted-foreground">FY {year}</span>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+            <p className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.16em] text-[#6b7d92]">{c.label}</p>
+            <div className="mt-3 font-[family-name:var(--font-display)] text-2xl font-medium tabular-nums tracking-tight text-[#f4f6f9] sm:text-[1.65rem]">
+              {fmtCurrency(c.value)}
+            </div>
+            <div className="mt-2 flex flex-wrap items-center gap-2 font-[family-name:var(--font-mono)] text-[11px]">
+              {delta == null ? (
+                <span className="text-[#6b7d92]">No prior period</span>
+              ) : (
+                <span
+                  className={cn(
+                    "inline-flex items-center gap-1 font-semibold",
+                    up ? "text-emerald-400/95" : "text-red-300/95",
+                  )}
+                >
+                  {up ? <ArrowUp className="size-3" aria-hidden /> : <ArrowDown className="size-3" aria-hidden />}
+                  {fmtPct(delta)}
+                </span>
+              )}
+              {year != null && <span className="text-[#5a8f8f]">FY {year}</span>}
+            </div>
+          </div>
         );
       })}
     </div>
@@ -452,43 +548,37 @@ function SentimentTimeline({ reports }: { reports: Report[] }) {
   const items = reports.filter((r) => r.extractedJsonSnapshot?.sentiment);
   if (items.length === 0) return null;
   return (
-    <Card className="rounded-2xl bg-gradient-to-b from-white to-zinc-50 dark:from-zinc-900/40 dark:to-zinc-900/10">
-      <CardHeader>
-        <CardTitle className="text-lg">Sentiment timeline</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {items.map((r) => {
-            const s = r.extractedJsonSnapshot?.sentiment;
-            const tone = s?.managementTone ?? "—";
-            const direction = s?.guidanceDirection ?? null;
-            return (
-              <li
-                key={r.id}
-                className="flex flex-col gap-2 rounded-xl border border-zinc-200 bg-background/60 p-3 dark:border-white/10"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-muted-foreground">
-                    FY {r.fiscalYear} · {REPORT_TYPE_LABEL[r.reportType] ?? r.reportType}
+    <DashboardSection title="Sentiment timeline" eyebrow="Narrative signals">
+      <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {items.map((r) => {
+          const s = r.extractedJsonSnapshot?.sentiment;
+          const tone = s?.managementTone ?? "—";
+          const direction = s?.guidanceDirection ?? null;
+          return (
+            <li key={r.id} className="flex flex-col gap-2 border border-[#2a3544] bg-[#080b10]/85 p-4">
+              <div className="flex items-start justify-between gap-2">
+                <span className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.1em] text-[#6b7d92]">
+                  FY {r.fiscalYear}
+                  {" · "}
+                  {REPORT_TYPE_LABEL[r.reportType] ?? r.reportType}
+                </span>
+                {direction && (
+                  <span
+                    className={cn(
+                      "shrink-0 rounded-none px-2 py-0.5 font-[family-name:var(--font-mono)] text-[9px] font-semibold uppercase tracking-[0.08em]",
+                      GUIDANCE_STYLES[direction] ?? "border border-[#2a3544] text-[#8b9aad]",
+                    )}
+                  >
+                    {direction}
                   </span>
-                  {direction && (
-                    <span
-                      className={cn(
-                        "rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase",
-                        GUIDANCE_STYLES[direction] ?? "bg-muted text-muted-foreground",
-                      )}
-                    >
-                      {direction}
-                    </span>
-                  )}
-                </div>
-                <p className="text-sm text-foreground line-clamp-3">{tone}</p>
-              </li>
-            );
-          })}
-        </ul>
-      </CardContent>
-    </Card>
+                )}
+              </div>
+              <p className="text-sm leading-relaxed text-[#c5d0de] line-clamp-4">{tone}</p>
+            </li>
+          );
+        })}
+      </ul>
+    </DashboardSection>
   );
 }
 
@@ -504,68 +594,79 @@ function ReportsTable({
   onCompare: () => void;
 }) {
   return (
-    <Card className="rounded-2xl bg-gradient-to-b from-white to-zinc-50 dark:from-zinc-900/40 dark:to-zinc-900/10">
-      <CardHeader className="flex flex-row items-center justify-between gap-3 space-y-0">
-        <CardTitle className="text-lg">Reports</CardTitle>
-        {selected.size === 2 && (
-          <Button onClick={onCompare} className="rounded-xl">
+    <DashboardSection title="Reports">
+      <div className="mb-5 flex justify-end">
+        {selected.size === 2 ? (
+          <Button
+            onClick={onCompare}
+            variant="outline"
+            className="h-10 rounded-none border-[#3d4d62] bg-[#2b79db]/10 px-4 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.12em] text-[#e8ecf2] hover:border-[#2b79db]/40 hover:bg-[#2b79db]/20"
+          >
             <ExternalLink className="size-3.5" />
             Compare Selected
           </Button>
+        ) : (
+          <p className="max-w-xs text-right font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.12em] text-[#6b7d92]">
+            Pick two filings to compare
+          </p>
         )}
-      </CardHeader>
-      <CardContent className="overflow-x-auto pt-0">
-        <table className="min-w-full text-sm">
+      </div>
+      <div className="overflow-x-auto -mx-1">
+        <table className="min-w-full border-collapse text-sm">
           <thead>
-            <tr className="text-left text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-              <th className="w-10 py-2"></th>
-              <th className="py-2 pr-3">Year</th>
-              <th className="py-2 pr-3">Type</th>
-              <th className="py-2 pr-3">Revenue</th>
-              <th className="py-2 pr-3">EBITDA</th>
-              <th className="py-2 pr-3">Net Profit</th>
-              <th className="py-2 pr-3">Date</th>
-              <th className="py-2">Actions</th>
+            <tr className="font-[family-name:var(--font-mono)] text-left text-[10px] uppercase tracking-[0.14em] text-[#6b7d92]">
+              <th className="w-10 pb-3 pr-2" />
+              <th className="pb-3 pr-3 font-medium">Year</th>
+              <th className="pb-3 pr-3 font-medium">Type</th>
+              <th className="pb-3 pr-3 font-medium">Revenue</th>
+              <th className="pb-3 pr-3 font-medium">EBITDA</th>
+              <th className="pb-3 pr-3 font-medium">Net Profit</th>
+              <th className="pb-3 pr-3 font-medium">Date</th>
+              <th className="pb-3 font-medium">Actions</th>
             </tr>
           </thead>
           <tbody>
             {reports.map((r) => (
-              <tr
-                key={r.id}
-                className="border-t border-zinc-200/70 dark:border-white/10"
-              >
-                <td className="py-3 pr-2">
+              <tr key={r.id} className="border-t border-[#2a3544]">
+                <td className="py-3.5 pr-2 align-middle">
                   <input
                     type="checkbox"
                     checked={selected.has(r.id)}
                     onChange={() => onToggle(r.id)}
-                    className="size-4 cursor-pointer accent-primary"
+                    className="size-[15px] cursor-pointer accent-[#2b79db]"
                     aria-label={`Select report ${r.fiscalYear} ${REPORT_TYPE_LABEL[r.reportType] ?? r.reportType}`}
                   />
                 </td>
-                <td className="py-3 pr-3 font-semibold">{r.fiscalYear}</td>
-                <td className="py-3 pr-3 text-muted-foreground">
+                <td className="py-3.5 pr-3 align-middle font-[family-name:var(--font-display)] text-base font-medium text-[#f4f6f9]">
+                  {r.fiscalYear}
+                </td>
+                <td className="py-3.5 pr-3 align-middle font-[family-name:var(--font-mono)] text-xs text-[#8b9aad]">
                   {REPORT_TYPE_LABEL[r.reportType] ?? r.reportType}
                 </td>
-                <td className="py-3 pr-3 font-semibold">{fmtCurrency(r.previewRevenue)}</td>
-                <td className="py-3 pr-3 font-semibold">{fmtCurrency(r.previewEbitda)}</td>
-                <td className="py-3 pr-3 font-semibold">{fmtCurrency(r.previewNetProfit)}</td>
-                <td className="py-3 pr-3 text-xs text-muted-foreground">
+                <td className="py-3.5 pr-3 align-middle font-[family-name:var(--font-mono)] text-[13px] tabular-nums text-[#e8ecf2]">
+                  {fmtCurrency(r.previewRevenue)}
+                </td>
+                <td className="py-3.5 pr-3 align-middle font-[family-name:var(--font-mono)] text-[13px] tabular-nums text-[#e8ecf2]">
+                  {fmtCurrency(r.previewEbitda)}
+                </td>
+                <td className="py-3.5 pr-3 align-middle font-[family-name:var(--font-mono)] text-[13px] tabular-nums text-[#e8ecf2]">
+                  {fmtCurrency(r.previewNetProfit)}
+                </td>
+                <td className="py-3.5 pr-3 align-middle font-[family-name:var(--font-mono)] text-[11px] tabular-nums text-[#6b7d92]">
                   {new Date(r.createdAt).toLocaleDateString()}
                 </td>
-                <td className="flex items-center gap-3 py-3">
-                  {r.jobId && (
+                <td className="flex flex-wrap items-center gap-x-4 gap-y-2 py-3.5 align-middle font-[family-name:var(--font-mono)] text-[11px] font-medium">
+                  {r.jobId ? (
                     <a
                       href={`/api/jobs/${r.jobId}/download`}
-                      className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
+                      className="inline-flex items-center gap-1 text-[#2b79db] transition hover:text-[#8ec0f5]"
                     >
-                      <Download className="size-3" /> PDF
+                      <Download className="size-3 shrink-0" /> PDF
                     </a>
+                  ) : (
+                    <span className="text-[#5a6980]/80">PDF</span>
                   )}
-                  <Link
-                    href={`/reports/${r.id}`}
-                    className="text-xs font-semibold text-primary hover:underline"
-                  >
+                  <Link href={`/reports/${r.id}`} className="text-[#2b79db] transition hover:text-[#8ec0f5]">
                     View
                   </Link>
                 </td>
@@ -573,29 +674,33 @@ function ReportsTable({
             ))}
           </tbody>
         </table>
-      </CardContent>
-    </Card>
+      </div>
+    </DashboardSection>
   );
 }
 
 function EmptyState({ companyName, slug }: { companyName: string; slug: string }) {
   return (
-    <Card className="rounded-2xl bg-gradient-to-b from-white to-zinc-50 dark:from-zinc-900/40 dark:to-zinc-900/10">
-      <CardContent className="flex flex-col items-center gap-3 px-6 py-16 text-center">
-        <div className="grid size-14 place-items-center rounded-2xl border border-zinc-200 bg-background text-muted-foreground dark:border-white/10">
-          <FileText className="size-6" />
-        </div>
-        <h2 className="text-xl font-semibold tracking-tight">No reports yet for {companyName}</h2>
-        <p className="max-w-md text-balance text-sm text-muted-foreground">
-          Add the first report to populate metrics, trends, and sentiment for this company.
-        </p>
-        <Button asChild className="mt-2 rounded-xl">
-          <Link href={`/upload?company=${slug}`}>
-            <Wallet className="size-4" />
-            Add First Report
-          </Link>
-        </Button>
-      </CardContent>
-    </Card>
+    <div className="relative border border-[#2a3544] bg-[#0c1018]/90 px-6 py-14 text-center lg:py-16">
+      <span className="pointer-events-none absolute -left-px -top-px block size-2 border-l border-t border-[#2b79db]" aria-hidden />
+      <div className="mx-auto mb-6 grid size-14 place-items-center border border-[#2a3544] bg-[#080b10] text-[#5a8f8f]">
+        <FileText className="size-6" />
+      </div>
+      <h2 className="font-[family-name:var(--font-display)] text-xl font-medium tracking-tight text-[#f4f6f9]">
+        No reports yet for {companyName}
+      </h2>
+      <p className="mx-auto mt-3 max-w-md text-pretty text-sm leading-relaxed text-[#8b9aad]">
+        Add the first report to populate metrics, trends, and sentiment for this company.
+      </p>
+      <Button
+        asChild
+        className="mt-7 h-11 rounded-none border-0 bg-[#2b79db] px-6 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.12em] text-white hover:bg-[#3d8de8]"
+      >
+        <Link href={`/upload?company=${slug}`}>
+          <Wallet className="size-4" />
+          Add First Report
+        </Link>
+      </Button>
+    </div>
   );
 }

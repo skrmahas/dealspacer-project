@@ -15,6 +15,7 @@
  *   --wait          Wait for all jobs to complete (default: false)
  */
 
+import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { createPostgresStore, createCompanyStore, createAutoFileStore, runMigrations } from "@bei/shared";
@@ -131,14 +132,17 @@ async function main() {
         const lang = (entry.output_language || "en") as OutputLanguage;
         const filePath = path.join(opts.dir, entry.file);
 
-        // Upload file to file store
+        // Save the file to storage *before* inserting the jobs row so the
+        // worker poll cannot claim the job before the bytes are available.
         const buffer = await fs.readFile(filePath);
+        const jobId = randomUUID();
+        await fileStore.saveFile(jobId, buffer);
         const job = await jobStore.createJob({
+          id: jobId,
           originalFilename: entry.file,
           outputLanguage: lang,
           companyId: company.id,
         });
-        await fileStore.saveFile(job.id, buffer);
         return job.id;
       }),
     );

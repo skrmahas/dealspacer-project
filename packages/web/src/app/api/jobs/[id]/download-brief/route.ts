@@ -28,7 +28,7 @@ export async function GET(
       status: 200,
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": `inline; filename="${job.originalFilename.replace(/\.(pdf|csv|html|htm|xhtml)$/i, "")}-brief.pdf"`,
+        "Content-Disposition": `attachment; filename="${job.originalFilename.replace(/\.(pdf|csv|html|htm|xhtml)$/i, "")}-brief.pdf"`,
         "Accept-Ranges": "bytes",
         "Content-Length": String(fileBuffer.length),
       },

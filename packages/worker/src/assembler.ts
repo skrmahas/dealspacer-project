@@ -70,7 +70,7 @@ const LABELS: Record<OutputLanguage, {
     outlook: "Outlook",
     riskFactors: "Risk Factors",
     aiDisclaimer: "AI-Generated Disclaimer",
-    disclaimerText: "This report was automatically produced using artificial intelligence (GPT-4o) based on the uploaded document. While every effort has been made to ensure accuracy, the information may contain errors or omissions. This report does not constitute financial advice, investment recommendation, or an offer to buy or sell any security. Always verify figures against the original source document and consult a qualified financial professional before making investment decisions.",
+    disclaimerText: "This report was automatically produced using artificial intelligence (GPT-4o mini) based on the uploaded document. While every effort has been made to ensure accuracy, the information may contain errors or omissions. This report does not constitute financial advice, investment recommendation, or an offer to buy or sell any security. Always verify figures against the original source document and consult a qualified financial professional before making investment decisions.",
   },
   et: {
     earningsReport: "Tulemuste aruanne",
@@ -95,7 +95,7 @@ const LABELS: Record<OutputLanguage, {
     outlook: "Väljavaade",
     riskFactors: "Riskitegurid",
     aiDisclaimer: "AI loodud lahtiütlus",
-    disclaimerText: "See aruanne koostati automaatselt tehisintellekti (GPT-4o) abil üles laaditud dokumendi põhjal. Kuigi täpsuse tagamiseks on tehtud pingutusi, võib teave sisaldada vigu või puudusi. See aruanne ei ole finantsnõuanne, investeerimissoovitus ega pakkumine väärtpabereid osta või müüa. Kontrollige näitajad alati algdokumendist ja konsulteerige enne investeerimisotsuseid kvalifitseeritud spetsialistiga.",
+    disclaimerText: "See aruanne koostati automaatselt tehisintellekti (GPT-4o mini) abil üles laaditud dokumendi põhjal. Kuigi täpsuse tagamiseks on tehtud pingutusi, võib teave sisaldada vigu või puudusi. See aruanne ei ole finantsnõuanne, investeerimissoovitus ega pakkumine väärtpabereid osta või müüa. Kontrollige näitajad alati algdokumendist ja konsulteerige enne investeerimisotsuseid kvalifitseeritud spetsialistiga.",
   },
   lv: {
     earningsReport: "Peļņas pārskats",
@@ -120,7 +120,7 @@ const LABELS: Record<OutputLanguage, {
     outlook: "Perspektīva",
     riskFactors: "Riska faktori",
     aiDisclaimer: "MI ģenerēta atruna",
-    disclaimerText: "Šis pārskats tika automātiski sagatavots ar mākslīgā intelekta (GPT-4o) palīdzību, pamatojoties uz augšupielādēto dokumentu. Lai gan ir pieliktas pūles precizitātes nodrošināšanai, informācijā var būt kļūdas vai izlaidumi. Šis pārskats nav finanšu konsultācija, ieguldījumu ieteikums vai piedāvājums pirkt vai pārdot vērtspapīrus. Vienmēr pārbaudiet skaitļus sākotnējā dokumentā un pirms ieguldījumu lēmumiem konsultējieties ar kvalificētu speciālistu.",
+    disclaimerText: "Šis pārskats tika automātiski sagatavots ar mākslīgā intelekta (GPT-4o mini) palīdzību, pamatojoties uz augšupielādēto dokumentu. Lai gan ir pieliktas pūles precizitātes nodrošināšanai, informācijā var būt kļūdas vai izlaidumi. Šis pārskats nav finanšu konsultācija, ieguldījumu ieteikums vai piedāvājums pirkt vai pārdot vērtspapīrus. Vienmēr pārbaudiet skaitļus sākotnējā dokumentā un pirms ieguldījumu lēmumiem konsultējieties ar kvalificētu speciālistu.",
   },
   lt: {
     earningsReport: "Rezultatų ataskaita",
@@ -145,7 +145,7 @@ const LABELS: Record<OutputLanguage, {
     outlook: "Perspektyva",
     riskFactors: "Rizikos veiksniai",
     aiDisclaimer: "DI sugeneruotas atsakomybės apribojimas",
-    disclaimerText: "Ši ataskaita buvo automatiškai parengta naudojant dirbtinį intelektą (GPT-4o), remiantis įkeltu dokumentu. Nors buvo stengtasi užtikrinti tikslumą, informacijoje gali būti klaidų ar praleidimų. Ši ataskaita nėra finansinė konsultacija, investavimo rekomendacija ar pasiūlymas pirkti arba parduoti vertybinius popierius. Visada patikrinkite skaičius pradiniame dokumente ir prieš priimdami investicinius sprendimus pasitarkite su kvalifikuotu specialistu.",
+    disclaimerText: "Ši ataskaita buvo automatiškai parengta naudojant dirbtinį intelektą (GPT-4o mini), remiantis įkeltu dokumentu. Nors buvo stengtasi užtikrinti tikslumą, informacijoje gali būti klaidų ar praleidimų. Ši ataskaita nėra finansinė konsultacija, investavimo rekomendacija ar pasiūlymas pirkti arba parduoti vertybinius popierius. Visada patikrinkite skaičius pradiniame dokumente ir prieš priimdami investicinius sprendimus pasitarkite su kvalifikuotu specialistu.",
   },
 };
 

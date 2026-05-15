@@ -1,12 +1,25 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Building2,
+  FileUp,
+  KeyRound,
+  Layers,
+} from "lucide-react";
 import { ReportSummary } from "@/components/report-summary";
 import { BriefSummary } from "@/components/brief-summary";
+import { DealSpacerLogoLink } from "@/components/deal-spacer-logo";
 import { ErrorBoundary } from "@/components/error-boundary";
+import { Button } from "@/components/ui/button";
 import { uploadFileWithProgress } from "@/lib/upload-progress";
 import type { UploadProgress } from "@/lib/upload-progress";
+import { cn } from "@/lib/utils";
 import type { JobState, OutputLanguage } from "@bei/shared";
 
 type JobInfo = {
@@ -17,6 +30,7 @@ type JobInfo = {
   extractedJson?: string;
   error?: string;
   createdAt?: string;
+  reportId?: string | null;
 };
 
 const ACCEPTED_EXTENSIONS = [".pdf", ".csv", ".html", ".htm", ".xhtml"];
@@ -27,6 +41,13 @@ const STAGES: { key: JobState; label: string; description: string }[] = [
   { key: "extracting", label: "Extracting", description: "AI analyzing financial data with GPT-4o" },
   { key: "translating", label: "Translating", description: "Translating metrics and narratives" },
   { key: "assembling", label: "Rendering", description: "Generating the final PDF report" },
+];
+
+const LANGUAGE_OPTIONS: { value: OutputLanguage; label: string }[] = [
+  { value: "en", label: "English" },
+  { value: "et", label: "Estonian" },
+  { value: "lv", label: "Latvian" },
+  { value: "lt", label: "Lithuanian" },
 ];
 
 function stageIndex(state: JobState): number {
@@ -43,26 +64,37 @@ function describeFailure(error: string | undefined): string {
   return error;
 }
 
+function formatStateLabel(state: JobState): string {
+  if (state === "assembling") return "Rendering";
+  return state.charAt(0).toUpperCase() + state.slice(1);
+}
+
 function ProgressTracker({ state }: { state: JobState }) {
   const currentIndex = stageIndex(state);
   const activeStage = currentIndex >= 0 && currentIndex < STAGES.length ? STAGES[currentIndex] : null;
+
   return (
-    <div style={{ marginTop: 14 }}>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
+    <div className="mt-5">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-2">
         {STAGES.map((stage, index) => {
           const complete = currentIndex > index || state === "complete";
           const active = currentIndex === index;
           return (
-            <div key={stage.key} style={{ display: "grid", gap: 6 }}>
-              <div
-                className={active ? "pulse-stage" : ""}
-                style={{
-                  height: 10,
-                  borderRadius: 999,
-                  background: complete ? "var(--color-success)" : active ? "var(--color-accent)" : "#d4dbe4",
-                }}
+            <div key={stage.key} className="grid gap-2">
+              <motion.div
+                className={cn(
+                  "h-1.5",
+                  complete && "bg-[#6db88a]",
+                  active && !complete && "upload-pulse-stage bg-[#2b79db]",
+                  !complete && !active && "bg-[#2a3544]",
+                )}
               />
-              <span style={{ fontSize: 12, color: complete || active ? "#244762" : "#728197", fontWeight: complete || active ? 600 : 500 }}>
+              <span
+                className={cn(
+                  "font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.1em]",
+                  complete || active ? "text-[#e8ecf2]" : "text-[#6b7d92]",
+                )}
+              >
                 {stage.label}
               </span>
             </div>
@@ -70,9 +102,7 @@ function ProgressTracker({ state }: { state: JobState }) {
         })}
       </div>
       {activeStage && state !== "complete" && state !== "failed" && (
-        <p style={{ margin: "8px 0 0", fontSize: 13, color: "#6e7d90", fontStyle: "italic" }}>
-          {activeStage.description}
-        </p>
+        <p className="mt-3 text-sm italic text-[#8b9aad]">{activeStage.description}</p>
       )}
     </div>
   );
@@ -80,10 +110,10 @@ function ProgressTracker({ state }: { state: JobState }) {
 
 function PollingSkeleton() {
   return (
-    <div style={{ marginTop: 14, display: "grid", gap: 10 }}>
-      <div className="pulse-bg" style={{ height: 14, borderRadius: 8 }} />
-      <div className="pulse-bg" style={{ height: 14, borderRadius: 8, width: "72%" }} />
-      <div className="pulse-bg" style={{ height: 62, borderRadius: 10 }} />
+    <div className="mt-5 grid gap-2.5">
+      <div className="upload-pulse-bg h-3.5 rounded-none" />
+      <div className="upload-pulse-bg h-3.5 w-[72%] rounded-none" />
+      <div className="upload-pulse-bg h-16 rounded-none" />
     </div>
   );
 }
@@ -133,56 +163,68 @@ export default function Home({ initialCompanySlug }: HomeClientProps) {
     setPolling(false);
   }, []);
 
-  const startPolling = useCallback((jobId: string) => {
-    stopPolling();
-    setPolling(true);
-    startedAtRef.current = Date.now();
-    setElapsed("0s");
-
-    // Update elapsed time every second
-    elapsedTimerRef.current = setInterval(() => {
-      const diff = Date.now() - startedAtRef.current;
-      const secs = Math.floor(diff / 1000);
-      if (secs < 60) {
-        setElapsed(`${secs}s`);
-      } else {
-        const mins = Math.floor(secs / 60);
-        const remainSecs = secs % 60;
-        setElapsed(`${mins}m ${remainSecs}s`);
+  const fetchRecentJobs = useCallback(async () => {
+    try {
+      const res = await fetch("/api/jobs");
+      if (res.ok) {
+        const data = (await res.json()) as JobInfo[];
+        setRecentJobs(data);
       }
-    }, 1000);
+    } catch {
+      // non-critical
+    }
+  }, []);
 
-    pollTimerRef.current = setInterval(async () => {
-      if (Date.now() - startedAtRef.current > MAX_PIPELINE_MS) {
-        stopPolling();
-        setPipelineError("Pipeline timed out before report generation completed.");
-        setJob((prev) => prev ? { ...prev, state: "failed", error: "Pipeline timeout" } : prev);
-        return;
-      }
+  const startPolling = useCallback(
+    (jobId: string) => {
+      stopPolling();
+      setPolling(true);
+      startedAtRef.current = Date.now();
+      setElapsed("0s");
 
-      try {
-        const response = await fetch(`/api/jobs/${jobId}`, { cache: "no-store" });
-        if (!response.ok) return;
-        const data = (await response.json()) as JobInfo;
-        setJob(data);
-        if (data.state === "complete") {
-          setPipelineError(null);
+      elapsedTimerRef.current = setInterval(() => {
+        const diff = Date.now() - startedAtRef.current;
+        const secs = Math.floor(diff / 1000);
+        if (secs < 60) {
+          setElapsed(`${secs}s`);
+        } else {
+          const mins = Math.floor(secs / 60);
+          const remainSecs = secs % 60;
+          setElapsed(`${mins}m ${remainSecs}s`);
+        }
+      }, 1000);
+
+      pollTimerRef.current = setInterval(async () => {
+        if (Date.now() - startedAtRef.current > MAX_PIPELINE_MS) {
           stopPolling();
-          void fetchRecentJobs();
+          setPipelineError("Pipeline timed out before report generation completed.");
+          setJob((prev) => (prev ? { ...prev, state: "failed", error: "Pipeline timeout" } : prev));
           return;
         }
-        if (data.state === "failed") {
-          setPipelineError(describeFailure(data.error));
-          stopPolling();
-          void fetchRecentJobs();
-        }
-      } catch {
-        // Keep polling transient network failures.
-      }
-    }, 1200);
-  }, [stopPolling]);
 
-  // ── Drag-and-drop handlers ────────────────────────────────────────────
+        try {
+          const response = await fetch(`/api/jobs/${jobId}`, { cache: "no-store" });
+          if (!response.ok) return;
+          const data = (await response.json()) as JobInfo;
+          setJob(data);
+          if (data.state === "complete") {
+            setPipelineError(null);
+            stopPolling();
+            void fetchRecentJobs();
+            return;
+          }
+          if (data.state === "failed") {
+            setPipelineError(describeFailure(data.error));
+            stopPolling();
+            void fetchRecentJobs();
+          }
+        } catch {
+          // keep polling
+        }
+      }, 1200);
+    },
+    [stopPolling, fetchRecentJobs],
+  );
 
   const handleDragEnter = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -232,27 +274,12 @@ export default function Home({ initialCompanySlug }: HomeClientProps) {
     setPipelineError(null);
   }, []);
 
-  // ── Upload ──────────────────────────────────────────────────────────────
-
-  const fetchRecentJobs = useCallback(async () => {
-    try {
-      const res = await fetch("/api/jobs");
-      if (res.ok) {
-        const data = await res.json() as JobInfo[];
-        setRecentJobs(data);
-      }
-    } catch {
-      // Silently fail — recent jobs are non-critical
-    }
-  }, []);
-
-  // Fetch company context from query param
   useEffect(() => {
     if (!companySlug) return;
     fetch("/api/companies")
       .then((r) => r.json())
-      .then((companies: any[]) => {
-        const found = companies.find((c: any) => c.slug === companySlug);
+      .then((companies: { id: string; slug: string; name: string }[]) => {
+        const found = companies.find((c) => c.slug === companySlug);
         if (found) {
           setCompanyId(found.id);
           setCompanyName(found.name);
@@ -261,7 +288,6 @@ export default function Home({ initialCompanySlug }: HomeClientProps) {
       .catch(() => {});
   }, [companySlug]);
 
-  // Fetch recent jobs on mount
   useEffect(() => {
     void fetchRecentJobs();
   }, [fetchRecentJobs]);
@@ -305,410 +331,516 @@ export default function Home({ initialCompanySlug }: HomeClientProps) {
       setUploading(false);
       setUploadProgress(null);
     }
-  }, [file, outputLanguage, startPolling]);
+  }, [file, outputLanguage, companyId, startPolling]);
+
+  const showRecent =
+    recentJobs.length > 0 && (!job || job.state === "complete" || job.state === "failed");
 
   return (
     <ErrorBoundary>
-    <main
-      style={{
-        minHeight: "100vh",
-        margin: 0,
-        padding: "36px 20px 48px",
-        background: "radial-gradient(circle at 8% 0%, var(--color-gradient-start) 0%, var(--color-gradient-mid) 42%, var(--color-gradient-end) 100%)",
-        fontFamily: "\"Avenir Next\", \"Trebuchet MS\", \"Segoe UI\", sans-serif",
-      }}
-    >
-      <div style={{ maxWidth: 980, margin: "0 auto", display: "grid", gap: 20 }}>
-        <section style={{ background: "var(--color-bg-tint)", backdropFilter: "blur(6px)", border: "1px solid var(--color-border)", borderRadius: 16, padding: 20 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
-            {process.env.NEXT_PUBLIC_BEI_BRAND_LOGO_URL && (
-              <img
-                src={process.env.NEXT_PUBLIC_BEI_BRAND_LOGO_URL}
-                alt="DealSpacer"
-                style={{ maxHeight: 48, maxWidth: 180, objectFit: "contain" }}
-              />
-            )}
-            <div>
-              <h1 style={{ margin: 0, fontSize: 32, color: "var(--color-heading)", letterSpacing: 0.2 }}>DealSpacer</h1>
-              <p style={{ margin: "10px 0 0", color: "var(--color-text-muted)", fontSize: 15 }}>
-                {companyName ? `Uploading a report for ${companyName}` : "Upload Baltic earnings reports and generate shareable localized PDF summaries."}
-              </p>
-            </div>
-          </div>
-        </section>
+      <div
+        className={cn(
+          "relative min-h-screen bg-[#080b10] text-[#e8ecf2]",
+          "font-[family-name:var(--font-body)]",
+        )}
+      >
+        <div className="landing-grain pointer-events-none fixed inset-0 z-[1]" aria-hidden />
+        <div className="landing-aurora pointer-events-none fixed inset-0 z-0" aria-hidden />
 
-        <section
-          onDragEnter={handleDragEnter}
-          onDragLeave={handleDragLeave}
-          onDragOver={handleDragOver}
-          onDrop={handleDrop}
-          style={{
-            background: isDragging ? "#e8f4fd" : dragError ? "var(--color-error-bg)" : "#ffffff",
-            border: dragError
-              ? "2px dashed #e8887a"
-              : isDragging
-                ? "2px dashed var(--color-accent)"
-                : "1px solid #dae2eb",
-            borderRadius: 16,
-            padding: 20,
-            display: "grid",
-            gap: 16,
-            transition: "background 0.15s, border 0.15s",
-          }}
-        >
-          <div style={{ display: "grid", gap: 10 }}>
-            <label style={{ display: "grid", gap: 6, color: "var(--color-text)", fontSize: 14 }}>
-              Document
-              <input
-                type="file"
-                aria-label="Upload document"
-                accept=".pdf,.csv,.html,.htm,.xhtml,application/pdf,text/csv,text/html,application/xhtml+xml"
-                onChange={(event) => setFile(event.target.files?.[0] ?? null)}
-                style={{ border: "1px solid #cfd8e3", borderRadius: 10, padding: "10px 12px", background: "#f9fbfd" }}
-              />
-            </label>
-            <p style={{ margin: 0, color: "#6e7d90", fontSize: 13 }}>{file ? file.name : "No file selected"} · Max 1GB · Drop zone</p>
-            {isDragging && !dragError && (
-              <p style={{ margin: 0, color: "#0b5974", fontSize: 13, fontWeight: 600 }}>
-                Drop your file here
-              </p>
-            )}
-            {dragError && (
-              <p style={{ margin: 0, color: "var(--color-error-text)", fontSize: 13, fontWeight: 600 }}>
-                Only PDF, CSV, and HTML files are accepted
-              </p>
-            )}
-          </div>
+        <div className="relative z-10 mx-auto max-w-[920px] px-6 py-10 md:px-10 md:py-14">
+          <UploadHeader companyName={companyName} />
 
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            {[
-              { value: "en", label: "English" },
-              { value: "et", label: "Estonian" },
-              { value: "lv", label: "Latvian" },
-              { value: "lt", label: "Lithuanian" },
-            ].map((option) => (
-              <button
-                key={option.value}
-                type="button"
-                aria-pressed={outputLanguage === option.value}
-                onClick={() => setOutputLanguage(option.value as OutputLanguage)}
-                style={{
-                  borderRadius: 999,
-                  padding: "8px 14px",
-                  border: outputLanguage === option.value ? "1px solid var(--color-accent)" : "1px solid #cfd8e3",
-                  background: outputLanguage === option.value ? "#e8f7fc" : "#f7f9fc",
-                  color: outputLanguage === option.value ? "#0b5974" : "#4f5f73",
-                  fontWeight: 600,
-                  cursor: "pointer",
-                }}
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
-
-          <button
-            onClick={onUpload}
-            aria-label={!file ? "Select a file to upload" : uploading ? "Uploading file" : "Start pipeline"}
-            disabled={!file || uploading}
-            style={{
-              border: "none",
-              borderRadius: 12,
-              padding: "12px 18px",
-              background: !file || uploading ? "#a7b6c8" : "linear-gradient(90deg, var(--color-accent), var(--color-accent-dark))",
-              color: "#fff",
-              fontSize: 15,
-              fontWeight: 700,
-              cursor: !file || uploading ? "not-allowed" : "pointer",
-            }}
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+            className="mt-10 grid gap-6"
           >
-            {uploading && uploadProgress
-              ? `Uploading… ${Math.round((uploadProgress.loaded / uploadProgress.total) * 100)}%`
-              : uploading
-                ? "Uploading..."
-                : "Start Pipeline"}
-          </button>
-
-          {uploading && abortUploadRef.current && (
-            <button
-              type="button"
-              onClick={() => {
-                abortUploadRef.current?.();
-                setUploading(false);
-                setUploadProgress(null);
-                setPipelineError("Upload cancelled.");
-              }}
-              style={{
-                border: "1px solid var(--color-error-text)",
-                borderRadius: 10,
-                padding: "8px 14px",
-                background: "transparent",
-                color: "var(--color-error-text)",
-                fontSize: 13,
-                fontWeight: 600,
-                cursor: "pointer",
-              }}
+            <section
+              onDragEnter={handleDragEnter}
+              onDragLeave={handleDragLeave}
+              onDragOver={handleDragOver}
+              onDrop={handleDrop}
+              className={cn(
+                "relative border bg-[#0c1018] p-6 transition-colors md:p-8",
+                dragError && "border-[#9e4a5a]/60 bg-[#9e4a5a]/8",
+                isDragging && !dragError && "border-[#2b79db]/50 bg-[#2b79db]/5",
+                !isDragging && !dragError && "border-[#2a3544]",
+              )}
             >
-              Cancel
-            </button>
-          )}
+              <CornerMarks />
 
-          {uploading && uploadProgress && (
-            <div style={{ marginTop: 8 }}>
-              <div
-                style={{
-                  height: 8,
-                  borderRadius: 999,
-                  background: "#d4dbe4",
-                  overflow: "hidden",
-                }}
-              >
-                <div
-                  className="upload-progress-fill"
-                  style={{
-                    height: "100%",
-                    borderRadius: 999,
-                    background: "linear-gradient(90deg, var(--color-accent), var(--color-accent-dark))",
-                    width: `${Math.round((uploadProgress.loaded / uploadProgress.total) * 100)}%`,
-                    transition: "width 150ms ease-out",
-                  }}
-                />
-              </div>
-              <p style={{ margin: "4px 0 0", fontSize: 12, color: "#6e7d90" }}>
-                {(uploadProgress.loaded / (1024 * 1024)).toFixed(1)} MB / {(uploadProgress.total / (1024 * 1024)).toFixed(1)} MB
-              </p>
-            </div>
-          )}
-        </section>
-
-        {job && (
-          <section style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: 16, padding: 20 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-              <h2 style={{ margin: 0, color: "var(--color-heading)", fontSize: 20 }}>Pipeline Status</h2>
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                {elapsed && (job.state !== "complete" && job.state !== "failed") && (
-                  <span style={{ color: "#6e7d90", fontSize: 13 }}>{elapsed}</span>
-                )}
-                {elapsed && job.state === "complete" && (
-                  <span style={{ color: "#6e7d90", fontSize: 13 }}>Completed in {elapsed}</span>
-                )}
-                {elapsed && job.state === "failed" && (
-                  <span style={{ color: "#6e7d90", fontSize: 13 }}>Failed after {elapsed}</span>
-                )}
-                <span style={{ fontWeight: 700, color: job.state === "failed" ? "#a22e26" : "#28506f" }}>
-                  {job.state === "assembling" ? "Rendering" : job.state[0].toUpperCase() + job.state.slice(1)}
+              <div className="flex items-start gap-4">
+                <span className="flex size-11 shrink-0 items-center justify-center border border-[#2a3544] bg-[#080b10] text-[#2b79db]">
+                  <FileUp className="size-5" strokeWidth={1.5} />
                 </span>
+                <div>
+                  <h2 className="font-[family-name:var(--font-display)] text-xl font-medium text-[#f4f6f9]">
+                    Upload filing
+                  </h2>
+                  <p className="mt-1 text-sm text-[#8b9aad]">
+                    PDF, CSV, or HTML · max 1GB · drag and drop supported
+                  </p>
+                </div>
               </div>
-            </div>
 
-            <ProgressTracker state={job.state} />
+              <label className="mt-6 grid gap-2">
+                <span className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.16em] text-[#5a8f8f]">
+                  Document
+                </span>
+                <input
+                  type="file"
+                  aria-label="Upload document"
+                  accept=".pdf,.csv,.html,.htm,.xhtml,application/pdf,text/csv,text/html,application/xhtml+xml"
+                  onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+                  className="w-full border border-[#2a3544] bg-[#080b10] px-3 py-2.5 text-sm text-[#e8ecf2] file:mr-3 file:border-0 file:bg-[#2b79db]/15 file:px-3 file:py-1 file:font-[family-name:var(--font-mono)] file:text-[10px] file:uppercase file:tracking-wider file:text-[#b8d4f5]"
+                />
+              </label>
 
-            {job.jobId && (
-              <p style={{ margin: "8px 0 0", fontSize: 11, color: "#8899aa" }}>
-                Job ID: {job.jobId}
+              <p className="mt-2 font-[family-name:var(--font-mono)] text-[11px] text-[#6b7d92]">
+                {file ? file.name : "No file selected"}
               </p>
-            )}
 
-            {polling && <PollingSkeleton />}
+              {isDragging && !dragError && (
+                <p className="mt-2 text-sm font-medium text-[#2b79db]">Drop your file here</p>
+              )}
+              {dragError && (
+                <p className="mt-2 text-sm font-medium text-[#e8a0a8]">
+                  Only PDF, CSV, and HTML files are accepted
+                </p>
+              )}
 
-            {(pipelineError || ((job.state === "failed" || job.state === "duplicate") && job.error)) && (
-              <div style={{ marginTop: 14, borderRadius: 10, border: "1px solid var(--color-error-border)", background: "var(--color-error-bg)", color: "var(--color-error-text)", padding: 12, fontSize: 14 }}>
-                {pipelineError || describeFailure(job.error)}
-                {job.state === "duplicate" && (
-                  <div style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    <button onClick={async () => {
-                      try {
-                        const res = await fetch(`/api/reports/by-job/${job.jobId}`);
-                        if (res.ok) {
-                          const report = await res.json();
-                          if (report?.id) router.push(`/reports/${report.id}`);
-                        }
-                      } catch {}
-                    }} style={{ border: "1px solid #a22e26", borderRadius: 6, padding: "6px 12px", background: "transparent", color: "#a22e26", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
-                      View Existing
-                    </button>
-                    <button onClick={async () => {
-                      setRetrying(true);
-                      try {
-                        const res = await fetch(`/api/jobs/${job.jobId}/replace`, { method: "POST" });
-                        if (res.ok) {
-                          const data = await res.json();
-                          if (data.reportId) router.push(`/reports/${data.reportId}`);
-                        }
-                      } catch {} finally { setRetrying(false); }
-                    }} disabled={retrying} style={{ border: "1px solid var(--color-accent)", borderRadius: 6, padding: "6px 12px", background: "transparent", color: "var(--color-accent)", fontSize: 12, fontWeight: 600, cursor: retrying ? "not-allowed" : "pointer" }}>
-                      {retrying ? "Replacing..." : "Replace"}
-                    </button>
-                  </div>
-                )}
+              <div className="mt-6">
+                <span className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.16em] text-[#5a8f8f]">
+                  Output language
+                </span>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {LANGUAGE_OPTIONS.map((option) => {
+                    const active = outputLanguage === option.value;
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        aria-pressed={active}
+                        onClick={() => setOutputLanguage(option.value)}
+                        className={cn(
+                          "border px-3 py-1.5 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.1em] transition",
+                          active
+                            ? "border-[#2b79db]/50 bg-[#2b79db]/12 text-[#b8d4f5]"
+                            : "border-[#2a3544] text-[#6b7d92] hover:border-[#3d4d62] hover:text-[#9aa8bc]",
+                        )}
+                      >
+                        {option.label}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-            )}
 
-            {job.state === "failed" && job.jobId && (
-              <button
-                type="button"
-                disabled={retrying}
-                onClick={async () => {
-                  setRetrying(true);
-                  try {
-                    const res = await fetch(`/api/jobs/${job.jobId}/retry`, { method: "POST" });
-                    if (res.ok) {
-                      const data = await res.json() as JobInfo;
-                      setJob(data);
-                      setPipelineError(null);
-                      startPolling(data.jobId);
-                    }
-                  } catch {
-                    setPipelineError("Retry failed. Please try again.");
-                  } finally {
-                    setRetrying(false);
-                  }
-                }}
-                style={{
-                  marginTop: 8,
-                  border: "1px solid var(--color-accent)",
-                  borderRadius: 8,
-                  padding: "8px 14px",
-                  background: "transparent",
-                  color: "var(--color-accent)",
-                  fontSize: 13,
-                  fontWeight: 600,
-                  cursor: retrying ? "not-allowed" : "pointer",
-                }}
-              >
-                {retrying ? "Retrying..." : "Retry Job"}
-              </button>
-            )}
+              <div className="mt-8 flex flex-wrap items-center gap-3">
+                <Button
+                  onClick={onUpload}
+                  aria-label={!file ? "Select a file to upload" : uploading ? "Uploading file" : "Start pipeline"}
+                  disabled={!file || uploading}
+                  className="h-11 rounded-none border-0 bg-[#2b79db] px-6 font-[family-name:var(--font-mono)] text-[11px] uppercase tracking-[0.12em] text-[#ffffff] hover:bg-[#3d8de8] disabled:bg-[#3d4d62] disabled:text-[#6b7d92]"
+                >
+                  {uploading && uploadProgress
+                    ? `Uploading… ${Math.round((uploadProgress.loaded / uploadProgress.total) * 100)}%`
+                    : uploading
+                      ? "Uploading..."
+                      : "Start Pipeline"}
+                </Button>
 
-            {shareUrl && (
-              <div style={{ marginTop: 14, display: "grid", gap: 8 }}>
-                <p style={{ margin: 0, fontSize: 14, color: "#4d5d70" }}>Shareable report link</p>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <a href={shareUrl} style={{ color: "#0b5974", fontWeight: 700, textDecoration: "none", wordBreak: "break-all", flex: 1 }}>
-                    {shareUrl}
-                  </a>
+                {uploading && abortUploadRef.current && (
                   <button
                     type="button"
+                    onClick={() => {
+                      abortUploadRef.current?.();
+                      setUploading(false);
+                      setUploadProgress(null);
+                      setPipelineError("Upload cancelled.");
+                    }}
+                    className="border border-[#9e4a5a]/50 px-4 py-2.5 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.12em] text-[#e8a0a8] transition hover:bg-[#9e4a5a]/10"
+                  >
+                    Cancel
+                  </button>
+                )}
+              </div>
+
+              {uploading && uploadProgress && (
+                <div className="mt-5">
+                  <div className="h-1.5 overflow-hidden bg-[#2a3544]">
+                    <div
+                      className="h-full bg-gradient-to-r from-[#5a8f8f] to-[#2b79db] transition-[width] duration-150 ease-out"
+                      style={{
+                        width: `${Math.round((uploadProgress.loaded / uploadProgress.total) * 100)}%`,
+                      }}
+                    />
+                  </div>
+                  <p className="mt-2 font-[family-name:var(--font-mono)] text-[11px] text-[#6b7d92]">
+                    {(uploadProgress.loaded / (1024 * 1024)).toFixed(1)} MB /{" "}
+                    {(uploadProgress.total / (1024 * 1024)).toFixed(1)} MB
+                  </p>
+                </div>
+              )}
+            </section>
+
+            {job && (
+              <section className="relative border border-[#2a3544] bg-[#0c1018] p-6 md:p-8">
+                <CornerMarks variant="teal" />
+
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <Layers className="size-5 text-[#5a8f8f]" />
+                    <h2 className="font-[family-name:var(--font-display)] text-xl font-medium text-[#f4f6f9]">
+                      Pipeline Status
+                    </h2>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    {elapsed && job.state !== "complete" && job.state !== "failed" && (
+                      <span className="font-[family-name:var(--font-mono)] text-[11px] text-[#6b7d92]">
+                        {elapsed}
+                      </span>
+                    )}
+                    {elapsed && job.state === "complete" && (
+                      <span className="font-[family-name:var(--font-mono)] text-[11px] text-[#6b7d92]">
+                        Completed in {elapsed}
+                      </span>
+                    )}
+                    {elapsed && job.state === "failed" && (
+                      <span className="font-[family-name:var(--font-mono)] text-[11px] text-[#6b7d92]">
+                        Failed after {elapsed}
+                      </span>
+                    )}
+                    <span
+                      className={cn(
+                        "font-[family-name:var(--font-mono)] text-[11px] font-medium uppercase tracking-[0.12em]",
+                        job.state === "failed" ? "text-[#e8a0a8]" : "text-[#2b79db]",
+                      )}
+                    >
+                      {formatStateLabel(job.state)}
+                    </span>
+                  </div>
+                </div>
+
+                <ProgressTracker state={job.state} />
+
+                {job.jobId && (
+                  <p className="mt-3 font-[family-name:var(--font-mono)] text-[10px] text-[#6b7d92]">
+                    Job ID: {job.jobId}
+                  </p>
+                )}
+
+                {polling && <PollingSkeleton />}
+
+                {(pipelineError || ((job.state === "failed" || job.state === "duplicate") && job.error)) && (
+                  <div className="mt-5 border border-[#9e4a5a]/40 bg-[#9e4a5a]/10 px-4 py-3 text-sm text-[#e8a0a8]">
+                    {pipelineError || describeFailure(job.error)}
+                    {job.state === "duplicate" && (
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        <PipelineActionButton
+                          label="View Existing"
+                          onClick={async () => {
+                            try {
+                              const res = await fetch(`/api/reports/by-job/${job.jobId}`);
+                              if (res.ok) {
+                                const report = await res.json();
+                                if (report?.id) router.push(`/reports/${report.id}`);
+                              }
+                            } catch {}
+                          }}
+                          variant="danger"
+                        />
+                        <PipelineActionButton
+                          label={retrying ? "Replacing..." : "Replace"}
+                          disabled={retrying}
+                          onClick={async () => {
+                            setRetrying(true);
+                            try {
+                              const res = await fetch(`/api/jobs/${job.jobId}/replace`, { method: "POST" });
+                              if (res.ok) {
+                                const data = await res.json();
+                                if (data.reportId) router.push(`/reports/${data.reportId}`);
+                              }
+                            } catch {
+                            } finally {
+                              setRetrying(false);
+                            }
+                          }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {job.state === "failed" && job.jobId && (
+                  <PipelineActionButton
+                    className="mt-4"
+                    label={retrying ? "Retrying..." : "Retry Job"}
+                    disabled={retrying}
                     onClick={async () => {
+                      setRetrying(true);
                       try {
-                        await navigator.clipboard.writeText(window.location.origin + shareUrl);
-                        setCopied(true);
-                        setTimeout(() => setCopied(false), 2000);
+                        const res = await fetch(`/api/jobs/${job.jobId}/retry`, { method: "POST" });
+                        if (res.ok) {
+                          const data = (await res.json()) as JobInfo;
+                          setJob(data);
+                          setPipelineError(null);
+                          startPolling(data.jobId);
+                        }
                       } catch {
-                        // Clipboard API may not be available
+                        setPipelineError("Retry failed. Please try again.");
+                      } finally {
+                        setRetrying(false);
                       }
                     }}
-                    style={{
-                      border: "1px solid var(--color-border)",
-                      borderRadius: 6,
-                      padding: "4px 10px",
-                      background: copied ? "var(--color-success)" : "transparent",
-                      color: copied ? "#fff" : "var(--color-text-muted)",
-                      fontSize: 12,
-                      fontWeight: 600,
-                      cursor: "pointer",
-                      whiteSpace: "nowrap",
-                      flexShrink: 0,
-                    }}
-                  >
-                    {copied ? "Copied!" : "Copy Link"}
-                  </button>
-                </div>
-              </div>
+                  />
+                )}
+
+                {shareUrl && (
+                  <div className="mt-6 grid gap-2">
+                    <p className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.16em] text-[#5a8f8f]">
+                      Shareable report link
+                    </p>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <a
+                        href={shareUrl}
+                        className="min-w-0 flex-1 break-all text-sm font-medium text-[#2b79db] hover:underline"
+                      >
+                        {shareUrl}
+                      </a>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            await navigator.clipboard.writeText(window.location.origin + shareUrl);
+                            setCopied(true);
+                            setTimeout(() => setCopied(false), 2000);
+                          } catch {}
+                        }}
+                        className={cn(
+                          "shrink-0 border px-3 py-1.5 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.1em] transition",
+                          copied
+                            ? "border-[#6db88a]/50 bg-[#6db88a]/15 text-[#6db88a]"
+                            : "border-[#2a3544] text-[#9aa8bc] hover:border-[#3d4d62]",
+                        )}
+                      >
+                        {copied ? "Copied!" : "Copy Link"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {job.state === "complete" && (
+                  <>
+                    <div className="mt-6 grid gap-4">
+                      {job.extractedJson && (
+                        <div className="border border-[#2a3544] bg-[#eef1f5] p-5 text-[#1f2a37]">
+                          <BriefSummary extractedJson={job.extractedJson} />
+                        </div>
+                      )}
+                      {job.extractedJson && (
+                        <div className="border border-[#2a3544] bg-[#eef1f5] p-5 text-[#1f2a37]">
+                          <ReportSummary extractedJson={job.extractedJson} />
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="mt-6 flex flex-wrap gap-3">
+                      <DownloadLink
+                        href={`/api/jobs/${job.jobId}/download`}
+                        aria-label="Download PDF report"
+                        primary
+                        download
+                      >
+                        Download PDF
+                      </DownloadLink>
+                      <DownloadLink
+                        href={`/api/jobs/${job.jobId}/download-brief`}
+                        aria-label="Download executive brief"
+                        download
+                      >
+                        Brief (1-2p)
+                      </DownloadLink>
+                      {shareUrl && (
+                        <DownloadLink href={shareUrl} aria-label="Open shareable report page">
+                          Open Share Page
+                        </DownloadLink>
+                      )}
+                    </div>
+                  </>
+                )}
+              </section>
             )}
 
-            {job.state === "complete" && (
-              <>
-                {job.extractedJson && <BriefSummary extractedJson={job.extractedJson} />}
-                {job.extractedJson && <ReportSummary extractedJson={job.extractedJson} />}
-                <div style={{ marginTop: 16, display: "flex", gap: 10, flexWrap: "wrap" }}>
-                  <a
-                    href={`/api/jobs/${job.jobId}/download`}
-                    aria-label="Download PDF report"
-                    style={{ display: "inline-block", padding: "10px 16px", borderRadius: 10, textDecoration: "none", background: "var(--color-accent-dark)", color: "#fff", fontWeight: 700 }}
-                  >
-                    Download PDF
-                  </a>
-                  <a
-                    href={`/api/jobs/${job.jobId}/download-brief`}
-                    aria-label="Download executive brief"
-                    style={{ display: "inline-block", padding: "10px 16px", borderRadius: 10, textDecoration: "none", border: "1px solid var(--color-accent)", color: "var(--color-accent)", fontWeight: 700, background: "transparent" }}
-                  >
-                    Brief (1-2p)
-                  </a>
-                  {shareUrl && (
-                    <a
-                      href={shareUrl}
-                      aria-label="Open shareable report page"
-                      style={{ display: "inline-block", padding: "10px 16px", borderRadius: 10, textDecoration: "none", border: "1px solid #c8d4e0", color: "#2d4f6d", fontWeight: 700, background: "#f8fbff" }}
+            {showRecent && (
+              <section className="border border-[#2a3544] bg-[#0c1018]/60 p-6 md:p-8">
+                <h2 className="font-[family-name:var(--font-display)] text-lg font-medium text-[#f4f6f9]">
+                  Recent Reports
+                </h2>
+                <ul className="mt-4 grid gap-1">
+                  {recentJobs.slice(0, 8).map((j) => (
+                    <li
+                      key={j.jobId}
+                      className="flex items-center justify-between gap-3 border border-transparent px-3 py-2.5 transition hover:border-[#2a3544] hover:bg-[#080b10]"
                     >
-                      Open Share Page
-                    </a>
-                  )}
-                </div>
-              </>
+                      <div className="flex min-w-0 items-center gap-3">
+                        <span
+                          className={cn(
+                            "font-[family-name:var(--font-mono)] text-[10px] font-medium",
+                            j.state === "complete" && "text-[#6db88a]",
+                            j.state === "failed" && "text-[#e8a0a8]",
+                            j.state !== "complete" && j.state !== "failed" && "text-[#6b7d92]",
+                          )}
+                        >
+                          {j.state === "complete" ? "✓" : j.state === "failed" ? "✗" : "○"}
+                        </span>
+                        <span className="truncate text-sm text-[#c5d0de]">
+                          {j.originalFilename || "Untitled"}
+                        </span>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-4">
+                        <span className="font-[family-name:var(--font-mono)] text-[10px] text-[#6b7d92]">
+                          {new Date(j.createdAt || "").toLocaleDateString()}
+                        </span>
+                        {j.state === "complete" && j.reportId && (
+                          <Link
+                            href={`/reports/${j.reportId}`}
+                            className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.1em] text-[#2b79db] hover:underline"
+                          >
+                            View
+                          </Link>
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </section>
             )}
-          </section>
-        )}
+          </motion.div>
+        </div>
+      </div>
+    </ErrorBoundary>
+  );
+}
+
+function UploadHeader({ companyName }: { companyName: string | null }) {
+  return (
+    <header className="flex flex-wrap items-start justify-between gap-6 border-b border-[#1e2733] pb-8">
+      <div>
+        <DealSpacerLogoLink />
+
+        <h1 className="mt-6 font-[family-name:var(--font-display)] text-[clamp(1.75rem,4vw,2.5rem)] font-medium leading-tight tracking-tight text-[#f4f6f9]">
+          {companyName ? `Report upload · ${companyName}` : "Upload workspace"}
+        </h1>
+        <p className="mt-3 max-w-xl text-pretty text-sm leading-relaxed text-[#8b9aad] md:text-base">
+          {companyName
+            ? `Uploading a report for ${companyName}`
+            : "Upload Baltic earnings reports and generate shareable localized PDF summaries."}
+        </p>
       </div>
 
-      <style jsx>{`
-        @keyframes pulseStage {
-          0% { opacity: 0.55; }
-          50% { opacity: 1; }
-          100% { opacity: 0.55; }
-        }
-        .pulse-stage {
-          animation: pulseStage 1.4s ease-in-out infinite;
-        }
-        .pulse-bg {
-          background: linear-gradient(90deg, #edf2f7 20%, #f8fbff 50%, #edf2f7 80%);
-          background-size: 220% 100%;
-          animation: pulseStage 1.4s ease-in-out infinite;
-        }
-      `}</style>
+      <nav className="flex flex-wrap gap-2 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.12em]">
+        <Link
+          href="/companies"
+          className="inline-flex items-center gap-1.5 border border-[#2a3544] px-3 py-2 text-[#9aa8bc] transition hover:border-[#3d4d62] hover:text-[#e8ecf2]"
+        >
+          <Building2 className="size-3.5" />
+          Catalog
+        </Link>
+        <Link
+          href="/"
+          className="inline-flex items-center gap-1.5 border border-[#2a3544] px-3 py-2 text-[#9aa8bc] transition hover:border-[#3d4d62] hover:text-[#e8ecf2]"
+        >
+          <ArrowLeft className="size-3.5" />
+          Home
+        </Link>
+        <Link
+          href="/access"
+          className="inline-flex items-center gap-1.5 border border-[#2a3544] px-3 py-2 text-[#6b7d92] transition hover:border-[#3d4d62] hover:text-[#e8ecf2]"
+        >
+          <KeyRound className="size-3.5" />
+          Access
+        </Link>
+      </nav>
+    </header>
+  );
+}
 
-      {(recentJobs.length > 0 && (!job || job.state === "complete" || job.state === "failed")) && (
-        <section style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: 16, padding: 20 }}>
-          <h2 style={{ margin: "0 0 12px", color: "var(--color-heading)", fontSize: 18 }}>Recent Reports</h2>
-          <div style={{ display: "grid", gap: 6 }}>
-            {recentJobs.slice(0, 8).map((j) => (
-              <div
-                key={j.jobId}
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  padding: "8px 10px",
-                  borderRadius: 8,
-                  background: "var(--color-bg-tint)",
-                  fontSize: 13,
-                }}
-              >
-                <div style={{ display: "flex", alignItems: "center", gap: 8, overflow: "hidden" }}>
-                  <span style={{ color: j.state === "failed" ? "var(--color-error-text)" : "var(--color-success)", fontWeight: 700, fontSize: 11 }}>
-                    {j.state === "complete" ? "✓" : j.state === "failed" ? "✗" : "○"}
-                  </span>
-                  <span style={{ color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {j.originalFilename || "Untitled"}
-                  </span>
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
-                  <span style={{ color: "var(--color-text-muted)", fontSize: 11 }}>
-                    {new Date(j.createdAt || "").toLocaleDateString()}
-                  </span>
-                  {j.state === "complete" && (
-                    <a href={`/reports/${j.jobId}`} style={{ color: "var(--color-accent)", fontSize: 12, fontWeight: 600, textDecoration: "none" }}>
-                      View
-                    </a>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
+function CornerMarks({ variant = "brand" }: { variant?: "brand" | "teal" }) {
+  const primary = variant === "brand" ? "border-[#2b79db]" : "border-[#5a8f8f]";
+  const secondary = variant === "brand" ? "border-[#5a8f8f]" : "border-[#2b79db]";
+
+  return (
+    <>
+      <span className={cn("pointer-events-none absolute -left-px -top-px block size-2 border-l-2 border-t-2", primary)} />
+      <span className={cn("pointer-events-none absolute -right-px -top-px block size-2 border-r-2 border-t-2", primary)} />
+      <span className={cn("pointer-events-none absolute -bottom-px -left-px block size-2 border-b-2 border-l-2", secondary)} />
+      <span className={cn("pointer-events-none absolute -bottom-px -right-px block size-2 border-b-2 border-r-2", secondary)} />
+    </>
+  );
+}
+
+function PipelineActionButton({
+  label,
+  onClick,
+  disabled,
+  variant = "default",
+  className,
+}: {
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+  variant?: "default" | "danger";
+  className?: string;
+}) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      className={cn(
+        "border px-3 py-1.5 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.1em] transition disabled:opacity-50",
+        variant === "danger"
+          ? "border-[#9e4a5a]/50 text-[#e8a0a8] hover:bg-[#9e4a5a]/10"
+          : "border-[#2b79db]/40 text-[#b8d4f5] hover:bg-[#2b79db]/10",
+        className,
       )}
-    </main>
-    </ErrorBoundary>
+    >
+      {label}
+    </button>
+  );
+}
+
+function DownloadLink({
+  href,
+  children,
+  "aria-label": ariaLabel,
+  primary,
+  download,
+}: {
+  href: string;
+  children: React.ReactNode;
+  "aria-label": string;
+  primary?: boolean;
+  download?: boolean;
+}) {
+  return (
+    <a
+      href={href}
+      aria-label={ariaLabel}
+      target="_blank"
+      rel="noopener noreferrer"
+      {...(download ? { download: true } : {})}
+      className={cn(
+        "inline-flex items-center gap-2 px-4 py-2.5 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.12em] transition",
+        primary
+          ? "bg-[#2b79db] text-[#ffffff] hover:bg-[#3d8de8]"
+          : "border border-[#3d4d62] text-[#c5d0de] hover:border-[#5a8f8f]/50 hover:bg-[#5a8f8f]/8",
+      )}
+    >
+      {children}
+      {primary && <ArrowRight className="size-3.5" />}
+    </a>
   );
 }

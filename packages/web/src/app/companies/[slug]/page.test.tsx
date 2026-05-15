@@ -100,7 +100,7 @@ describe("CompanyAnalyticsDashboardPage", () => {
     await waitFor(() => expect(screen.getByText("Tallink Grupp")).toBeInTheDocument());
     expect(screen.getByText("TAL1T")).toBeInTheDocument();
     expect(screen.getByText("Nasdaq Tallinn")).toBeInTheDocument();
-    expect(screen.getByText("2 reports")).toBeInTheDocument();
+    expect(screen.getByText(/2 reports indexed/)).toBeInTheDocument();
   });
 
   it("shows 'Add Report' button linking to /upload?company=:slug", async () => {

@@ -13,7 +13,7 @@ export default function UploadPage({ searchParams }: { searchParams?: SearchPara
   return (
     <Suspense
       fallback={
-        <div style={{ minHeight: "100vh", padding: "40px", textAlign: "center", color: "#94a3b8" }}>
+        <div className="flex min-h-screen items-center justify-center bg-[#080b10] font-[family-name:var(--font-mono)] text-[11px] uppercase tracking-[0.16em] text-[#6b7d92]">
           Loading upload workspace...
         </div>
       }

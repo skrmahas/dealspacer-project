@@ -22,7 +22,7 @@ const LANGUAGE_NAMES: Record<Exclude<OutputLanguage, "en">, string> = {
 let client: OpenAIClient | null = null;
 
 function getModel(): string {
-  return (process.env.OPENAI_MODEL?.trim() || "gpt-4o");
+  return (process.env.OPENAI_MODEL?.trim() || "gpt-4o-mini");
 }
 
 function getClient(): OpenAIClient {

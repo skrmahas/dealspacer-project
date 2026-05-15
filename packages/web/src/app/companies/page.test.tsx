@@ -17,7 +17,7 @@ const MOCK_COMPANIES = [
   {
     id: "c2",
     name: "Tallinna Vesi",
-    ticker: "TVEAT",
+    ticker: "TVE1T",
     exchange: "Nasdaq Tallinn",
     slug: "tallinna-vesi",
     country: "EE",
@@ -26,22 +26,22 @@ const MOCK_COMPANIES = [
   },
   {
     id: "c3",
-    name: "Latvijas Gāze",
-    ticker: "GZE1R",
+    name: "DelfinGroup",
+    ticker: "DGR1R",
     exchange: "Nasdaq Riga",
-    slug: "latvijas-gaze",
+    slug: "delfingroup",
     country: "LV",
-    sector: "Utilities",
+    sector: "Financials",
     reportCount: 1,
   },
   {
     id: "c4",
-    name: "Šiaulių Bankas",
-    ticker: "SAB1L",
+    name: "Akola Group",
+    ticker: "AKO1L",
     exchange: "Nasdaq Vilnius",
-    slug: "siauliu-bankas",
+    slug: "akola-group",
     country: "LT",
-    sector: "Financials",
+    sector: "Consumer Staples",
     reportCount: 0,
   },
 ];
@@ -82,8 +82,8 @@ describe("CompanyCatalogPage", () => {
 
     expect(screen.getByText("Tallink Grupp")).toBeInTheDocument();
     expect(screen.getByText("Tallinna Vesi")).toBeInTheDocument();
-    expect(screen.getByText("Latvijas Gāze")).toBeInTheDocument();
-    expect(screen.getByText("Šiaulių Bankas")).toBeInTheDocument();
+    expect(screen.getByText("DelfinGroup")).toBeInTheDocument();
+    expect(screen.getByText("Akola Group")).toBeInTheDocument();
 
     expect(screen.getByText("3")).toBeInTheDocument();
     expect(screen.getByText("2")).toBeInTheDocument();
@@ -104,7 +104,7 @@ describe("CompanyCatalogPage", () => {
 
     expect(screen.getByText("Tallink Grupp")).toBeInTheDocument();
     expect(screen.queryByText("Tallinna Vesi")).not.toBeInTheDocument();
-    expect(screen.queryByText("Latvijas Gāze")).not.toBeInTheDocument();
+    expect(screen.queryByText("DelfinGroup")).not.toBeInTheDocument();
   });
 
   it("filters companies by ticker in real time", async () => {
@@ -113,9 +113,9 @@ describe("CompanyCatalogPage", () => {
     await waitFor(() => expect(screen.getByText("Tallink Grupp")).toBeInTheDocument());
 
     const search = screen.getByPlaceholderText(/search companies/i);
-    fireEvent.change(search, { target: { value: "GZE1R" } });
+    fireEvent.change(search, { target: { value: "DGR1R" } });
 
-    expect(screen.getByText("Latvijas Gāze")).toBeInTheDocument();
+    expect(screen.getByText("DelfinGroup")).toBeInTheDocument();
     expect(screen.queryByText("Tallink Grupp")).not.toBeInTheDocument();
   });
 
@@ -126,9 +126,9 @@ describe("CompanyCatalogPage", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /^riga$/i }));
 
-    expect(screen.getByText("Latvijas Gāze")).toBeInTheDocument();
+    expect(screen.getByText("DelfinGroup")).toBeInTheDocument();
     expect(screen.queryByText("Tallink Grupp")).not.toBeInTheDocument();
-    expect(screen.queryByText("Šiaulių Bankas")).not.toBeInTheDocument();
+    expect(screen.queryByText("Akola Group")).not.toBeInTheDocument();
   });
 
   it("each company links to /companies/:slug", async () => {
