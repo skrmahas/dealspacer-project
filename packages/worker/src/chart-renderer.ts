@@ -67,7 +67,7 @@ export async function renderSparkline(
       datasets: [
         {
           data: cleanValues,
-          borderColor: "#003366",
+          borderColor: "#2b79db",
           borderWidth: 1.5,
           pointRadius: 0,
           pointHoverRadius: 0,
@@ -107,7 +107,7 @@ export async function renderRevenueBreakdownBar(
   }
 
   const colors = [
-    "#003366", "#005599", "#0077CC", "#3399DD",
+    "#2b79db", "#1a5ca8", "#3d82d0", "#5b9fe8",
     "#66BBEE", "#99CCFF", "#336699", "#1A5276",
   ];
 
@@ -166,7 +166,7 @@ export async function renderRevenueDonut(
   }
 
   const colors = [
-    "#003366", "#005599", "#0077CC", "#3399DD",
+    "#2b79db", "#1a5ca8", "#3d82d0", "#5b9fe8",
     "#66BBEE", "#99CCFF", "#336699", "#1A5276",
   ];
 
@@ -234,7 +234,7 @@ export async function renderProfitabilityTrends(
     datasets.push({
       label: "Revenue",
       data: trends.revenue,
-      borderColor: "#003366",
+      borderColor: "#2b79db",
       backgroundColor: "rgba(0, 51, 102, 0.1)",
       borderWidth: 2,
       pointRadius: 4,
@@ -246,7 +246,7 @@ export async function renderProfitabilityTrends(
     datasets.push({
       label: "EBITDA",
       data: trends.ebitda,
-      borderColor: "#0077CC",
+      borderColor: "#3d82d0",
       backgroundColor: "rgba(0, 119, 204, 0.1)",
       borderWidth: 2,
       pointRadius: 4,
@@ -258,7 +258,7 @@ export async function renderProfitabilityTrends(
     datasets.push({
       label: "Net Profit",
       data: trends.netProfit,
-      borderColor: "#3399DD",
+      borderColor: "#5b9fe8",
       backgroundColor: "rgba(51, 153, 221, 0.1)",
       borderWidth: 2,
       pointRadius: 4,

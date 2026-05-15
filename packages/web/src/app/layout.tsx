@@ -20,8 +20,8 @@ export default function RootLayout({
           --color-text: #1f2a37;
           --color-text-muted: #556579;
           --color-heading: #0f2e52;
-          --color-accent: #0b7ea4;
-          --color-accent-dark: #145f82;
+          --color-accent: #2b79db;
+          --color-accent-dark: #1a5ca8;
           --color-success: #1c7c54;
           --color-error-bg: #fff6f5;
           --color-error-border: #ffd4cf;
@@ -40,8 +40,8 @@ export default function RootLayout({
             --color-text: #d4d9e0;
             --color-text-muted: #8895a7;
             --color-heading: #c8d6e5;
-            --color-accent: #4db8e8;
-            --color-accent-dark: #3598c8;
+            --color-accent: #5b9fe8;
+            --color-accent-dark: #3d82d0;
             --color-success: #3ca374;
             --color-error-bg: #2d1f1e;
             --color-error-border: #5c3835;

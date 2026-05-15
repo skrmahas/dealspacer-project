@@ -294,10 +294,21 @@ export default function Home() {
     >
       <div style={{ maxWidth: 980, margin: "0 auto", display: "grid", gap: 20 }}>
         <section style={{ background: "var(--color-bg-tint)", backdropFilter: "blur(6px)", border: "1px solid var(--color-border)", borderRadius: 16, padding: 20 }}>
-          <h1 style={{ margin: 0, fontSize: 32, color: "var(--color-heading)", letterSpacing: 0.2 }}>Baltic Earnings Intelligence</h1>
-          <p style={{ margin: "10px 0 0", color: "var(--color-text-muted)", fontSize: 15 }}>
-            Upload Baltic earnings reports and generate shareable localized PDF summaries.
-          </p>
+          <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+            {process.env.NEXT_PUBLIC_BEI_BRAND_LOGO_URL && (
+              <img
+                src={process.env.NEXT_PUBLIC_BEI_BRAND_LOGO_URL}
+                alt="DealSpacer"
+                style={{ maxHeight: 48, maxWidth: 180, objectFit: "contain" }}
+              />
+            )}
+            <div>
+              <h1 style={{ margin: 0, fontSize: 32, color: "var(--color-heading)", letterSpacing: 0.2 }}>DealSpacer</h1>
+              <p style={{ margin: "10px 0 0", color: "var(--color-text-muted)", fontSize: 15 }}>
+                Upload Baltic earnings reports and generate shareable localized PDF summaries.
+              </p>
+            </div>
+          </div>
         </section>
 
         <section

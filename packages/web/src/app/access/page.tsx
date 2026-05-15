@@ -59,7 +59,7 @@ function AccessForm() {
   return (
     <section style={{ width: "100%", maxWidth: 440, background: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: 16, padding: 24 }}>
       <div style={{ textAlign: "center", marginBottom: 20 }}>
-        <h1 style={{ margin: 0, fontSize: 22, color: "var(--color-heading)" }}>Baltic Earnings Intelligence</h1>
+        <h1 style={{ margin: 0, fontSize: 22, color: "var(--color-heading)" }}>DealSpacer</h1>
         <p style={{ margin: "8px 0 0", color: "var(--color-text-muted)", fontSize: 14 }}>
           Automated financial analysis for Baltic company reports
         </p>

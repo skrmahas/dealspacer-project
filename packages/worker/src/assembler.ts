@@ -365,7 +365,7 @@ export function buildHtml(data: ExtractedData, charts: ChartImages): string {
     }
     .cover h1 {
       font-size: 28pt;
-      color: #003366;
+      color: #2b79db;
       margin-bottom: 12pt;
     }
     .cover .subtitle {
@@ -392,8 +392,8 @@ export function buildHtml(data: ExtractedData, charts: ChartImages): string {
     }
     h2 {
       font-size: 16pt;
-      color: #003366;
-      border-bottom: 2px solid #003366;
+      color: #2b79db;
+      border-bottom: 2px solid #2b79db;
       padding-bottom: 6pt;
       margin-bottom: 12pt;
     }
@@ -414,7 +414,7 @@ export function buildHtml(data: ExtractedData, charts: ChartImages): string {
     }
     th {
       font-weight: 700;
-      color: #003366;
+      color: #2b79db;
       background: #f5f7fa;
       font-size: 10pt;
       text-transform: uppercase;
@@ -509,11 +509,12 @@ export function buildHtml(data: ExtractedData, charts: ChartImages): string {
 <body>
   <!-- Cover -->
   <div class="cover">
+    ${process.env.BEI_BRAND_LOGO_URL ? `<img src="${escapeHtml(process.env.BEI_BRAND_LOGO_URL)}" alt="DealSpacer" style="max-width:120pt; max-height:40pt; margin-bottom:16pt; object-fit:contain;" />` : ""}
     <h1>${escapeHtml(companyName)}</h1>
     <div class="subtitle">${escapeHtml(labels.earningsReport)} — ${escapeHtml(reportPeriod)}</div>
     <div class="date">${escapeHtml(labels.generatedOn)} ${new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}</div>
     <div class="generated-date">
-      <p>Baltic Earnings Intelligence</p>
+      <p>DealSpacer</p>
       <p>${escapeHtml(labels.automatedReport)}</p>
     </div>
   </div>
