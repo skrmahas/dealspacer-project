@@ -1,321 +1,320 @@
 "use client";
 
-import React, { useEffect, useMemo, useState, useCallback } from "react";
 import Link from "next/link";
-import {
-  Search,
-  Building2,
-  Menu,
-  X,
-} from "lucide-react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { motion } from "framer-motion";
+import { ArrowRight, BarChart3, BrainCircuit, Building2, Languages, Upload } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
-interface Company {
-  id: string;
-  name: string;
-  ticker: string | null;
-  exchange: string;
-  slug: string;
-  country: string | null;
-  sector: string | null;
-  reportCount: number;
-}
-
-type ExchangeFilter = "All" | "Nasdaq Tallinn" | "Nasdaq Riga" | "Nasdaq Vilnius";
-
-const EXCHANGE_TABS: ExchangeFilter[] = ["All", "Nasdaq Tallinn", "Nasdaq Riga", "Nasdaq Vilnius"];
-const EXCHANGE_SHORT: Record<string, string> = {
-  "Nasdaq Tallinn": "Tallinn",
-  "Nasdaq Riga": "Riga",
-  "Nasdaq Vilnius": "Vilnius",
+type Stats = {
+  companies: number;
+  reports: number;
 };
 
-export default function CompanyDirectory() {
-  const [companies, setCompanies] = useState<Company[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [search, setSearch] = useState("");
-  const [exchangeFilter, setExchangeFilter] = useState<ExchangeFilter>("All");
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+const fadeUp = {
+  initial: { opacity: 0, y: 20 },
+  whileInView: { opacity: 1, y: 0 },
+  viewport: { once: true, amount: 0.2 },
+  transition: { duration: 0.45, ease: "easeOut" },
+} as const;
+
+export default function LandingPage() {
+  const [stats, setStats] = useState<Stats>({ companies: 0, reports: 0 });
+  const [displayStats, setDisplayStats] = useState<Stats>({ companies: 0, reports: 0 });
+  const [statsVisible, setStatsVisible] = useState(false);
+  const statsRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
-    fetch("/api/companies")
-      .then((r) => r.json())
-      .then((data) => {
-        if (Array.isArray(data)) {
-          setCompanies(data);
-        } else {
-          setError(data.error || "Failed to load companies");
+    let cancelled = false;
+
+    async function loadStats() {
+      try {
+        const [companiesRes, reportsRes] = await Promise.all([
+          fetch("/api/companies"),
+          fetch("/api/reports"),
+        ]);
+
+        const companiesData = await companiesRes.json();
+        const reportsData = await reportsRes.json();
+
+        if (cancelled) return;
+
+        setStats({
+          companies: Array.isArray(companiesData) ? companiesData.length : 0,
+          reports: Array.isArray(reportsData) ? reportsData.length : 0,
+        });
+      } catch {
+        if (!cancelled) {
+          setStats({ companies: 0, reports: 0 });
         }
-      })
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false));
+      }
+    }
+
+    loadStats();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  const filtered = useMemo(() => {
-    let list = companies;
-    if (exchangeFilter !== "All") {
-      list = list.filter((c) => c.exchange === exchangeFilter);
+  useEffect(() => {
+    if (typeof IntersectionObserver === "undefined") {
+      setStatsVisible(true);
+      return;
     }
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      list = list.filter(
-        (c) =>
-          c.name.toLowerCase().includes(q) ||
-          (c.ticker && c.ticker.toLowerCase().includes(q)),
-      );
-    }
-    return list;
-  }, [companies, exchangeFilter, search]);
 
-  // Group by exchange
-  const grouped = useMemo(() => {
-    const groups: Record<string, Company[]> = {};
-    for (const c of filtered) {
-      if (!groups[c.exchange]) groups[c.exchange] = [];
-      groups[c.exchange].push(c);
-    }
-    return groups;
-  }, [filtered]);
+    const node = statsRef.current;
+    if (!node) return;
 
-  const closeSidebar = useCallback(() => setSidebarOpen(false), []);
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setStatsVisible(true);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.25 },
+    );
+
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!statsVisible) return;
+
+    if (typeof navigator !== "undefined" && navigator.userAgent.toLowerCase().includes("jsdom")) {
+      setDisplayStats(stats);
+      return;
+    }
+
+    const start = performance.now();
+    const durationMs = 450;
+
+    let frame = 0;
+    const animate = (now: number) => {
+      const progress = Math.max(0, Math.min((now - start) / durationMs, 1));
+      setDisplayStats({
+        companies: Math.round(stats.companies * progress),
+        reports: Math.round(stats.reports * progress),
+      });
+
+      if (progress < 1) {
+        frame = window.requestAnimationFrame(animate);
+      }
+    };
+
+    const fallbackTimeout = window.setTimeout(() => {
+      setDisplayStats(stats);
+    }, durationMs + 50);
+
+    frame = window.requestAnimationFrame(animate);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.clearTimeout(fallbackTimeout);
+    };
+  }, [stats, statsVisible]);
+
+  const featureCards = useMemo(
+    () => [
+      {
+        title: "Multi-language reports",
+        description: "Generate output in EN, ET, LV, and LT with consistent metric labeling.",
+      },
+      {
+        title: "Side-by-side comparison",
+        description: "Compare two reports with deltas, sentiment context, and trend signals.",
+      },
+      {
+        title: "AI metric extraction & charts",
+        description: "Extract core earnings metrics and visualize them in clean investor-ready layouts.",
+      },
+      {
+        title: "Sentiment analysis",
+        description: "Track management tone, outlook, and guidance direction at a glance.",
+      },
+    ],
+    [],
+  );
 
   return (
-    <div style={{ display: "flex", minHeight: "100vh", fontFamily: "\"Avenir Next\", \"Segoe UI\", sans-serif", color: "#21324a" }}>
-      {/* Mobile overlay */}
-      {sidebarOpen && (
-        <div
-          onClick={closeSidebar}
-          style={{
-            position: "fixed", inset: 0, background: "rgba(0,0,0,0.35)", zIndex: 40,
-          }}
-        />
-      )}
-
-      {/* Sidebar */}
-      <aside
-        className="company-sidebar"
-        style={{
-          width: 280,
-          minWidth: 280,
-          borderRight: "1px solid #e2e8f0",
-          background: "#f8fafd",
-          display: "flex",
-          flexDirection: "column",
-          position: "fixed",
-          top: 0,
-          left: sidebarOpen ? 0 : -280,
-          bottom: 0,
-          zIndex: 50,
-          transition: "left 0.2s ease",
-          padding: "16px 14px",
-          gap: 12,
-          overflow: "hidden",
-        }}
-      >
-        {/* Sidebar header */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <Link href="/app" style={{ fontSize: 18, fontWeight: 800, color: "#173b68", textDecoration: "none" }}>
-            DealSpacer
+    <div className="min-h-screen bg-background text-foreground">
+      <header className="border-b border-zinc-200/70 bg-background/90 backdrop-blur dark:border-white/10">
+        <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-4">
+          <Link href="/" className="flex items-center gap-2 font-semibold tracking-tight">
+            <Building2 className="size-5 text-primary" />
+            <span>DealSpacer</span>
           </Link>
-          <button
-            onClick={closeSidebar}
-            className="mobile-only"
-            style={{ background: "none", border: "none", cursor: "pointer", color: "#607287" }}
-          >
-            <X size={20} />
-          </button>
+          <nav className="flex items-center gap-5 text-sm font-medium">
+            <Link href="/companies" className="text-muted-foreground transition hover:text-foreground">
+              Catalog
+            </Link>
+            <Link href="/upload" className="text-muted-foreground transition hover:text-foreground">
+              Upload
+            </Link>
+          </nav>
         </div>
+      </header>
 
-        {/* Search */}
-        <div style={{ position: "relative" }}>
-          <Search size={16} style={{ position: "absolute", left: 10, top: 10, color: "#94a3b8" }} />
-          <input
-            type="text"
-            placeholder="Search companies..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            style={{
-              width: "100%", boxSizing: "border-box",
-              border: "1px solid #cfd8e3", borderRadius: 10,
-              padding: "8px 10px 8px 32px", fontSize: 13,
-              outline: "none", background: "#fff", color: "#24364f",
-            }}
-          />
-        </div>
+      <main>
+        <motion.section
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.55, ease: "easeOut" }}
+          className="relative overflow-hidden"
+        >
+          <div className="absolute inset-0 bg-gradient-to-b from-zinc-100/80 via-background to-background dark:from-zinc-900/50" />
+          <div className="absolute inset-0 [background:radial-gradient(120%_90%_at_50%_0%,rgba(59,130,246,0.14),transparent_55%)]" />
 
-        {/* Exchange tabs */}
-        <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-          {EXCHANGE_TABS.map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setExchangeFilter(tab)}
-              style={{
-                border: exchangeFilter === tab ? "1px solid #4680ff" : "1px solid #cfd8e3",
-                borderRadius: 999, padding: "4px 10px", fontSize: 11,
-                fontWeight: exchangeFilter === tab ? 700 : 500,
-                background: exchangeFilter === tab ? "#edf4ff" : "#fff",
-                color: exchangeFilter === tab ? "#2d5fbf" : "#607287",
-                cursor: "pointer",
-              }}
-            >
-              {EXCHANGE_SHORT[tab] || tab}
-            </button>
-          ))}
-        </div>
-
-        {/* Company list */}
-        <div style={{ flex: 1, overflowY: "auto" }}>
-          {loading && (
-            <div style={{ padding: 20, textAlign: "center", color: "#94a3b8", fontSize: 13 }}>
-              Loading companies...
+          <div className="relative mx-auto flex min-h-[calc(100vh-65px)] w-full max-w-6xl flex-col items-center justify-center px-6 py-20 text-center">
+            <h1 className="max-w-3xl text-balance text-4xl font-semibold tracking-tight sm:text-5xl md:text-6xl">
+              Baltic Earnings Intelligence
+            </h1>
+            <p className="mt-6 max-w-2xl text-balance text-base text-muted-foreground sm:text-lg">
+              AI-powered analysis of ~40 Baltic listed companies across Tallinn, Riga, and Vilnius.
+              Upload filings, extract key metrics, and compare performance in minutes.
+            </p>
+            <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
+              <Button asChild size="lg" className="rounded-2xl">
+                <Link href="/companies">
+                  Browse the Catalog
+                  <ArrowRight className="size-4" />
+                </Link>
+              </Button>
+              <Button asChild size="lg" variant="outline" className="rounded-2xl dark:border-white/10">
+                <Link href="/upload">Upload a Report</Link>
+              </Button>
             </div>
-          )}
-          {error && (
-            <div style={{ padding: 12, color: "#c0392b", fontSize: 13 }}>
-              {error}
-            </div>
-          )}
-          {!loading && !error && Object.entries(grouped).map(([exchange, list]) => (
-            <div key={exchange} style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", color: "#8b9cb8", letterSpacing: "0.05em", padding: "0 4px", marginBottom: 6 }}>
-                {EXCHANGE_SHORT[exchange] || exchange} ({list.length})
-              </div>
-              <div style={{ display: "grid", gap: 2 }}>
-                {list.map((c) => (
-                  <Link
-                    key={c.id}
-                    href={`/companies/${c.slug}`}
-                    onClick={closeSidebar}
-                    style={{
-                      display: "flex", justifyContent: "space-between", alignItems: "center",
-                      padding: "8px 10px", borderRadius: 8, textDecoration: "none",
-                      color: "#21324a", background: "transparent",
-                      transition: "background 0.1s",
-                    }}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = "#eef2f8")}
-                    onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-                  >
-                    <div style={{ overflow: "hidden" }}>
-                      <div style={{ fontSize: 13, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {c.name}
-                      </div>
-                      {c.ticker && (
-                        <div style={{ fontSize: 11, color: "#8b9cb8", marginTop: 1 }}>
-                          {c.ticker}
-                        </div>
-                      )}
-                    </div>
-                    {c.reportCount > 0 && (
-                      <span style={{
-                        fontSize: 10, fontWeight: 700, background: "#e2ecf9", color: "#2d5fbf",
-                        borderRadius: 999, padding: "2px 7px", flexShrink: 0,
-                      }}>
-                        {c.reportCount}
-                      </span>
-                    )}
-                  </Link>
-                ))}
-              </div>
-            </div>
-          ))}
-          {!loading && !error && filtered.length === 0 && (
-            <div style={{ padding: 20, textAlign: "center", color: "#94a3b8", fontSize: 13 }}>
-              No companies found
-            </div>
-          )}
-        </div>
-
-        {/* Bottom nav */}
-        <div style={{ borderTop: "1px solid #e2e8f0", paddingTop: 10, display: "flex", gap: 10, fontSize: 12 }}>
-          <Link href="/app" style={{ color: "#3b5f93", textDecoration: "none", fontWeight: 600 }}>
-            Upload
-          </Link>
-          <Link href="/access" style={{ color: "#3b5f93", textDecoration: "none", fontWeight: 600 }}>
-            Access
-          </Link>
-        </div>
-      </aside>
-
-      {/* Main content */}
-      <div className="main-content" style={{ flex: 1, marginLeft: 0, transition: "margin 0.2s" }}>
-        {/* Mobile header */}
-        <div className="mobile-only" style={{
-          display: "flex", alignItems: "center", gap: 10, padding: "12px 16px",
-          borderBottom: "1px solid #e2e8f0", background: "#fff",
-        }}>
-          <button
-            onClick={() => setSidebarOpen(true)}
-            style={{ background: "none", border: "none", cursor: "pointer", color: "#21324a" }}
-          >
-            <Menu size={22} />
-          </button>
-          <span style={{ fontSize: 16, fontWeight: 700, color: "#173b68" }}>DealSpacer</span>
-        </div>
-
-        {/* Welcome state */}
-        <div style={{
-          display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-          minHeight: "60vh", padding: "40px 20px", textAlign: "center",
-        }}>
-          <div style={{
-            width: 64, height: 64, borderRadius: 16,
-            display: "grid", placeItems: "center",
-            background: "#edf2ff", color: "#3b5f93", marginBottom: 16,
-          }}>
-            <Building2 size={30} />
           </div>
-          <h2 style={{ margin: 0, fontSize: 24, color: "#0f2e52" }}>
-            {companies.length > 0
-              ? `${companies.length} companies tracked`
-              : "Baltic Company Directory"}
-          </h2>
-          <p style={{ margin: "10px 0 0", maxWidth: 420, color: "#5f6f83", fontSize: 14, lineHeight: 1.5 }}>
-            Select a company from the sidebar to view its reports and financial data.
-            Upload new reports via the{" "}
-            <Link href="/app" style={{ color: "#365d9c", fontWeight: 700 }}>
-              upload page
+        </motion.section>
+
+        <motion.section
+          ref={statsRef}
+          {...fadeUp}
+          className="mx-auto w-full max-w-6xl px-6 pb-8"
+        >
+          <div className="grid gap-3 rounded-2xl border border-zinc-200 bg-gradient-to-b from-white to-zinc-50 p-4 shadow-zinc-950/5 sm:grid-cols-2 md:grid-cols-4 dark:border-white/10 dark:from-zinc-900/30 dark:to-zinc-900/10">
+            <StatTile value={displayStats.companies} label="Companies tracked" />
+            <StatTile value={displayStats.reports} label="Reports processed" />
+            <StatTile value={3} label="Exchanges" />
+            <StatTile value={4} label="Languages supported" />
+          </div>
+        </motion.section>
+
+        <motion.section {...fadeUp} className="mx-auto w-full max-w-6xl px-6 py-12">
+          <h2 className="text-2xl font-semibold tracking-tight">How it works</h2>
+          <div className="mt-6 grid gap-4 md:grid-cols-3">
+            <StepCard icon={Upload} title="Upload" text="Drop in earnings filings from your workflow." />
+            <StepCard icon={BrainCircuit} title="AI extracts" text="Pipeline extracts metrics, trends, and sentiment." />
+            <StepCard icon={BarChart3} title="Browse & Compare" text="Review reports and compare side-by-side." />
+          </div>
+        </motion.section>
+
+        <motion.section {...fadeUp} className="mx-auto w-full max-w-6xl px-6 py-12">
+          <h2 className="text-2xl font-semibold tracking-tight">Features</h2>
+          <div className="mt-6 grid gap-4 sm:grid-cols-2">
+            {featureCards.map((feature) => (
+              <Card
+                key={feature.title}
+                className="relative rounded-2xl border-zinc-200 bg-gradient-to-b from-white to-zinc-50 shadow-zinc-950/5 dark:border-white/10 dark:from-zinc-900/20 dark:to-zinc-900/5"
+              >
+                <span className="absolute -left-px -top-px size-2 border-l-2 border-t-2 border-primary" />
+                <span className="absolute -right-px -top-px size-2 border-r-2 border-t-2 border-primary" />
+                <CardHeader>
+                  <CardTitle className="text-lg">{feature.title}</CardTitle>
+                </CardHeader>
+                <CardContent className="pt-0 text-sm text-muted-foreground">{feature.description}</CardContent>
+              </Card>
+            ))}
+          </div>
+        </motion.section>
+
+        <motion.section {...fadeUp} className="mx-auto w-full max-w-6xl px-6 py-12">
+          <h2 className="text-2xl font-semibold tracking-tight">Exchanges</h2>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <Badge variant="outline" className="rounded-xl px-3 py-1.5 dark:border-white/20">
+              Tallinn
+            </Badge>
+            <Badge variant="outline" className="rounded-xl px-3 py-1.5 dark:border-white/20">
+              Riga
+            </Badge>
+            <Badge variant="outline" className="rounded-xl px-3 py-1.5 dark:border-white/20">
+              Vilnius
+            </Badge>
+            <Badge variant="secondary" className="rounded-xl px-3 py-1.5">
+              <Languages className="mr-1 size-3.5" />
+              EN / ET / LV / LT
+            </Badge>
+          </div>
+        </motion.section>
+
+        <motion.section {...fadeUp} className="mx-auto w-full max-w-6xl px-6 py-12">
+          <div className="rounded-2xl border border-zinc-200 bg-gradient-to-b from-zinc-50 to-white p-8 shadow-zinc-950/5 dark:border-white/10 dark:from-zinc-900/30 dark:to-zinc-900/10">
+            <h3 className="text-2xl font-semibold tracking-tight">Ready to start?</h3>
+            <p className="mt-2 text-muted-foreground">Upload your next filing or jump into the catalog.</p>
+            <div className="mt-6 flex flex-wrap gap-3">
+              <Button asChild className="rounded-xl">
+                <Link href="/upload">Upload a Report</Link>
+              </Button>
+              <Button asChild variant="outline" className="rounded-xl dark:border-white/10">
+                <Link href="/companies">Browse the Catalog</Link>
+              </Button>
+            </div>
+          </div>
+        </motion.section>
+      </main>
+
+      <footer className="border-t border-zinc-200/80 py-8 dark:border-white/10">
+        <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-3 px-6 text-sm text-muted-foreground">
+          <span>© Baltic Earnings Intelligence</span>
+          <div className="flex gap-4">
+            <Link href="/privacy" className="hover:text-foreground">
+              Privacy
             </Link>
-            .
-          </p>
-          <div style={{ marginTop: 20, display: "flex", gap: 12, flexWrap: "wrap", justifyContent: "center" }}>
-            <Link
-              href="/app"
-              style={{
-                display: "inline-block", padding: "10px 20px", borderRadius: 10,
-                background: "linear-gradient(90deg, #5d7dff, #63d2ff)", color: "#fff",
-                fontWeight: 700, textDecoration: "none", fontSize: 14,
-              }}
-            >
-              Upload a Report
+            <Link href="/terms" className="hover:text-foreground">
+              Terms
             </Link>
-            <Link
-              href="/access"
-              style={{
-                display: "inline-block", padding: "10px 20px", borderRadius: 10,
-                border: "1px solid #cdd9eb", color: "#365d9c",
-                fontWeight: 700, textDecoration: "none", fontSize: 14,
-              }}
-            >
-              Request Access
+            <Link href="/access" className="hover:text-foreground">
+              Access
             </Link>
           </div>
         </div>
-      </div>
-
-      <style jsx>{`
-        @media (min-width: 768px) {
-          .company-sidebar {
-            left: 0 !important;
-            position: relative !important;
-          }
-          .main-content {
-            margin-left: 0 !important;
-          }
-          .mobile-only {
-            display: none !important;
-          }
-        }
-      `}</style>
+      </footer>
     </div>
+  );
+}
+
+function StatTile({ value, label }: { value: number; label: string }) {
+  return (
+    <div
+      className="rounded-xl border border-zinc-200/80 bg-background/70 p-4 text-center dark:border-white/10"
+      aria-label={`${value} ${label}`}
+    >
+      <div className="text-2xl font-semibold tracking-tight">{value}</div>
+      <div className="mt-1 text-sm text-muted-foreground">{label}</div>
+    </div>
+  );
+}
+
+function StepCard({
+  icon: Icon,
+  title,
+  text,
+}: {
+  icon: typeof Upload;
+  title: string;
+  text: string;
+}) {
+  return (
+    <Card className="rounded-2xl border-zinc-200 shadow-zinc-950/5 dark:border-white/10">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-lg">
+          <Icon className="size-4 text-primary" />
+          {title}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="pt-0 text-sm text-muted-foreground">{text}</CardContent>
+    </Card>
   );
 }
