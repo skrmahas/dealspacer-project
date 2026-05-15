@@ -296,6 +296,7 @@ export default function Home() {
               Document
               <input
                 type="file"
+                aria-label="Upload document"
                 accept=".pdf,.csv,.html,.htm,.xhtml,application/pdf,text/csv,text/html,application/xhtml+xml"
                 onChange={(event) => setFile(event.target.files?.[0] ?? null)}
                 style={{ border: "1px solid #cfd8e3", borderRadius: 10, padding: "10px 12px", background: "#f9fbfd" }}
@@ -324,6 +325,7 @@ export default function Home() {
               <button
                 key={option.value}
                 type="button"
+                aria-pressed={outputLanguage === option.value}
                 onClick={() => setOutputLanguage(option.value as OutputLanguage)}
                 style={{
                   borderRadius: 999,
@@ -342,6 +344,7 @@ export default function Home() {
 
           <button
             onClick={onUpload}
+            aria-label={!file ? "Select a file to upload" : uploading ? "Uploading file" : "Start pipeline"}
             disabled={!file || uploading}
             style={{
               border: "none",
@@ -428,6 +431,7 @@ export default function Home() {
                 <div style={{ marginTop: 16, display: "flex", gap: 10, flexWrap: "wrap" }}>
                   <a
                     href={`/api/jobs/${job.jobId}/download`}
+                    aria-label="Download PDF report"
                     style={{ display: "inline-block", padding: "10px 16px", borderRadius: 10, textDecoration: "none", background: "#165f83", color: "#fff", fontWeight: 700 }}
                   >
                     Download PDF
@@ -435,6 +439,7 @@ export default function Home() {
                   {shareUrl && (
                     <a
                       href={shareUrl}
+                      aria-label="Open shareable report page"
                       style={{ display: "inline-block", padding: "10px 16px", borderRadius: 10, textDecoration: "none", border: "1px solid #c8d4e0", color: "#2d4f6d", fontWeight: 700, background: "#f8fbff" }}
                     >
                       Open Share Page

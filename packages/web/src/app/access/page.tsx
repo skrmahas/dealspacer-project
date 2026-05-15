@@ -70,13 +70,15 @@ function AccessForm() {
       </p>
       <input
         type="password"
+        aria-label="Access code"
+        aria-describedby={error ? "access-error" : undefined}
         value={code}
         onChange={(event) => setCode(event.target.value)}
         onKeyDown={(event) => { if (event.key === "Enter") void submit(); }}
         placeholder="Access code"
         style={{ width: "100%", border: "1px solid #cfd8e3", borderRadius: 10, padding: "12px 14px", fontSize: 15, boxSizing: "border-box" }}
       />
-      {error && <p style={{ margin: "10px 0 0", color: "var(--color-error-text)", fontSize: 14 }}>{error}</p>}
+      {error && <p id="access-error" style={{ margin: "10px 0 0", color: "var(--color-error-text)", fontSize: 14 }}>{error}</p>}
       <button
         type="button"
         onClick={() => void submit()}
