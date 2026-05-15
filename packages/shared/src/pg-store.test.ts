@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { createPostgresStore, createPostgresFileStore } from "./pg-store";
+import { createPostgresStore, createPostgresFileStore, createCompanyStore } from "./pg-store";
 import * as db from "./db";
 import fs from "node:fs/promises";
 import os from "node:os";
@@ -377,5 +377,78 @@ describe("createPostgresFileStore", () => {
       delete process.env.DATA_DIR;
       await fs.rm(tmpDir, { recursive: true, force: true }).catch(() => {});
     }
+  });
+});
+
+describe("createCompanyStore", () => {
+  it("listCompanies returns companies ordered by exchange then name", async () => {
+    const rows = [
+      { id: "1", name: "Tallink", ticker: "TAL", exchange: "Nasdaq Tallinn", slug: "tallink", country: "EE", sector: "Industrials", report_count: 0, created_at: "2024-01-01", updated_at: "2024-01-01" },
+      { id: "2", name: "LHV", ticker: "LHV", exchange: "Nasdaq Tallinn", slug: "lhv", country: "EE", sector: "Financials", report_count: 0, created_at: "2024-01-01", updated_at: "2024-01-01" },
+      { id: "3", name: "Olainfarm", ticker: "OLF", exchange: "Nasdaq Riga", slug: "olainfarm", country: "LV", sector: "Health Care", report_count: 0, created_at: "2024-01-01", updated_at: "2024-01-01" },
+    ];
+    const { query } = setupWithClient(rows);
+
+    const store = createCompanyStore();
+    const companies = await store.listCompanies();
+
+    expect(companies).toHaveLength(3);
+    expect(companies[0].name).toBe("Tallink");
+    expect(companies[1].name).toBe("LHV");
+    expect(companies[2].name).toBe("Olainfarm");
+    expect(query).toHaveBeenCalledWith(
+      expect.stringContaining("ORDER BY exchange, name"),
+    );
+  });
+
+  it("getCompanyBySlug returns the correct company", async () => {
+    const rows = [
+      { id: "1", name: "Tallink", ticker: "TAL", exchange: "Nasdaq Tallinn", slug: "tallink", country: "EE", sector: "Industrials", report_count: 0, created_at: "2024-01-01", updated_at: "2024-01-01" },
+    ];
+    setupWithClient(rows);
+
+    const store = createCompanyStore();
+    const company = await store.getCompanyBySlug("tallink");
+
+    expect(company).not.toBeNull();
+    expect(company!.name).toBe("Tallink");
+    expect(company!.slug).toBe("tallink");
+    expect(company!.reportCount).toBe(0);
+  });
+
+  it("getCompanyBySlug returns null for unknown slug", async () => {
+    setupWithClient([]);
+
+    const store = createCompanyStore();
+    const company = await store.getCompanyBySlug("nonexistent");
+
+    expect(company).toBeNull();
+  });
+
+  it("createCompany inserts and returns company with reportCount 0", async () => {
+    const rows = [
+      { id: "new", name: "TestCo", ticker: "TST", exchange: "Nasdaq Tallinn", slug: "testco", country: "EE", sector: "Tech", created_at: "2024-01-01", updated_at: "2024-01-01" },
+    ];
+    const { query } = setupWithClient(rows);
+
+    const store = createCompanyStore();
+    const company = await store.createCompany({
+      name: "TestCo", exchange: "Nasdaq Tallinn", slug: "testco", ticker: "TST", country: "EE", sector: "Tech",
+    });
+
+    expect(company.name).toBe("TestCo");
+    expect(company.slug).toBe("testco");
+    expect(company.reportCount).toBe(0);
+    expect(query).toHaveBeenCalledWith(
+      expect.stringContaining("ON CONFLICT (slug)"),
+      expect.arrayContaining(["TestCo", "TST", "Nasdaq Tallinn", "testco"]),
+    );
+  });
+
+  it("listCompanies returns empty array when no companies exist", async () => {
+    setupWithClient([]);
+    const store = createCompanyStore();
+    const companies = await store.listCompanies();
+    expect(companies).toHaveLength(0);
   });
 });
