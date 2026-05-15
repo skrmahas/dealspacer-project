@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { ReportSummary } from "@/components/report-summary";
 import { BriefSummary } from "@/components/brief-summary";
 import { ErrorBoundary } from "@/components/error-boundary";
@@ -25,6 +26,7 @@ function describeFailure(error: string | undefined): string {
 }
 
 export default function SharedReportPage({ params }: { params: { jobId: string } }) {
+  const router = useRouter();
   const [job, setJob] = useState<JobInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -71,6 +73,20 @@ export default function SharedReportPage({ params }: { params: { jobId: string }
       setLoading(false);
     }
   }, [params.jobId, stopPolling]);
+
+  useEffect(() => {
+    // Check if a catalog report exists for this job — if so, redirect
+    fetch(`/api/reports/by-job/${params.jobId}`)
+      .then(async (r) => {
+        if (r.ok) {
+          const report = await r.json();
+          if (report?.id) {
+            router.replace(`/reports/${report.id}`);
+          }
+        }
+      })
+      .catch(() => {}); // fall through to legacy behavior on error
+  }, [params.jobId, router]);
 
   useEffect(() => {
     startedAtRef.current = Date.now();
