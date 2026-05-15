@@ -22,6 +22,11 @@ function formatMetricRow(m: ExtractedMetric): string {
     </tr>`;
 }
 
+function formatNumericValue(value: number | null | undefined): string {
+  if (value == null) return "—";
+  return value.toLocaleString("en-US");
+}
+
 const LABELS: Record<OutputLanguage, {
   earningsReport: string;
   generatedOn: string;
@@ -32,6 +37,11 @@ const LABELS: Record<OutputLanguage, {
   value: string;
   trend: string;
   yoyChange: string;
+  name: string;
+  period: string;
+  revenue: string;
+  ebitda: string;
+  netProfit: string;
   revenueBySegment: string;
   revenueByGeography: string;
   revenueBreakdown: string;
@@ -57,6 +67,11 @@ const LABELS: Record<OutputLanguage, {
     value: "Value",
     trend: "Trend",
     yoyChange: "YoY Change",
+    name: "Name",
+    period: "Period",
+    revenue: "Revenue",
+    ebitda: "EBITDA",
+    netProfit: "Net Profit",
     revenueBySegment: "Revenue by Segment",
     revenueByGeography: "Revenue by Geography",
     revenueBreakdown: "Revenue Breakdown",
@@ -82,6 +97,11 @@ const LABELS: Record<OutputLanguage, {
     value: "Väärtus",
     trend: "Trend",
     yoyChange: "Aastane muutus",
+    name: "Nimi",
+    period: "Periood",
+    revenue: "Käive",
+    ebitda: "EBITDA",
+    netProfit: "Puhaskasum",
     revenueBySegment: "Käive segmentide lõikes",
     revenueByGeography: "Käive geograafia lõikes",
     revenueBreakdown: "Käibe jaotus",
@@ -107,6 +127,11 @@ const LABELS: Record<OutputLanguage, {
     value: "Vērtība",
     trend: "Tendence",
     yoyChange: "Izmaiņas pret iepriekšējo gadu",
+    name: "Nosaukums",
+    period: "Periods",
+    revenue: "Ieņēmumi",
+    ebitda: "EBITDA",
+    netProfit: "Neto peļņa",
     revenueBySegment: "Ieņēmumi pa segmentiem",
     revenueByGeography: "Ieņēmumi pa ģeogrāfiju",
     revenueBreakdown: "Ieņēmumu sadalījums",
@@ -132,6 +157,11 @@ const LABELS: Record<OutputLanguage, {
     value: "Vertė",
     trend: "Tendencija",
     yoyChange: "Metinis pokytis",
+    name: "Pavadinimas",
+    period: "Laikotarpis",
+    revenue: "Pajamos",
+    ebitda: "EBITDA",
+    netProfit: "Grynasis pelnas",
     revenueBySegment: "Pajamos pagal segmentą",
     revenueByGeography: "Pajamos pagal geografiją",
     revenueBreakdown: "Pajamų pasiskirstymas",
@@ -223,33 +253,94 @@ export function buildHtml(data: ExtractedData, charts: ChartImages): string {
       </section>`);
   }
 
-  // Revenue Breakdown — charts
+  // Revenue Breakdown — charts + data table fallback
+  const bySegment = data.revenueBreakdown?.bySegment ?? [];
+  const byGeography = data.revenueBreakdown?.byGeography ?? [];
+  const hasRevenueData = bySegment.length > 0 || byGeography.length > 0;
   const hasRevenueChart = charts.revenueBarChart || charts.revenueDonutChart;
-  if (hasRevenueChart) {
-    const chartTitle =
-      data.revenueBreakdown?.bySegment
+  if (hasRevenueChart || hasRevenueData) {
+    const chartTitle = bySegment.length > 0
         ? labels.revenueBySegment
-        : data.revenueBreakdown?.byGeography
+        : byGeography.length > 0
           ? labels.revenueByGeography
           : labels.revenueBreakdown;
+    const segmentRows = bySegment
+      .map((item) => `
+            <tr>
+              <td class="label">${escapeHtml(item.name)}</td>
+              <td class="value">${escapeHtml(formatNumericValue(item.value))}</td>
+            </tr>`)
+      .join("\n");
+    const geographyRows = byGeography
+      .map((item) => `
+            <tr>
+              <td class="label">${escapeHtml(item.name)}</td>
+              <td class="value">${escapeHtml(formatNumericValue(item.value))}</td>
+            </tr>`)
+      .join("\n");
     sections.push(`
       <section id="revenue-breakdown">
         <h2>${escapeHtml(chartTitle)}</h2>
-        <div class="chart-row">
+        ${hasRevenueChart ? `<div class="chart-row">
           ${charts.revenueBarChart ? `<div class="chart-container"><img src="${charts.revenueBarChart}" alt="${escapeHtml(labels.revenueBreakdownChart)}" /></div>` : ""}
           ${charts.revenueDonutChart ? `<div class="chart-container"><img src="${charts.revenueDonutChart}" alt="${escapeHtml(labels.revenueDonutChart)}" /></div>` : ""}
-        </div>
+        </div>` : ""}
+        ${segmentRows ? `
+        <table>
+          <thead>
+            <tr><th>${escapeHtml(labels.name)}</th><th>${escapeHtml(labels.value)}</th></tr>
+          </thead>
+          <tbody>
+            ${segmentRows}
+          </tbody>
+        </table>` : ""}
+        ${geographyRows ? `
+        <table>
+          <thead>
+            <tr><th>${escapeHtml(labels.name)}</th><th>${escapeHtml(labels.value)}</th></tr>
+          </thead>
+          <tbody>
+            ${geographyRows}
+          </tbody>
+        </table>` : ""}
       </section>`);
   }
 
-  // Profitability Trends — chart
-  if (charts.profitabilityChart) {
+  // Profitability Trends — chart + data table fallback
+  const trends = data.profitabilityTrends;
+  const hasTrendData = !!trends && trends.periods.length > 0;
+  if (charts.profitabilityChart || hasTrendData) {
+    const trendRows = hasTrendData
+      ? trends.periods
+          .map((period, idx) => `
+            <tr>
+              <td class="label">${escapeHtml(period)}</td>
+              <td class="value">${escapeHtml(formatNumericValue(trends.revenue?.[idx]))}</td>
+              <td class="value">${escapeHtml(formatNumericValue(trends.ebitda?.[idx]))}</td>
+              <td class="value">${escapeHtml(formatNumericValue(trends.netProfit?.[idx]))}</td>
+            </tr>`)
+          .join("\n")
+      : "";
     sections.push(`
       <section id="profitability-trends">
         <h2>${escapeHtml(labels.profitabilityTrends)}</h2>
-        <div class="chart-container chart-full">
+        ${charts.profitabilityChart ? `<div class="chart-container chart-full">
           <img src="${charts.profitabilityChart}" alt="${escapeHtml(labels.profitabilityTrendsChart)}" />
-        </div>
+        </div>` : ""}
+        ${trendRows ? `
+        <table>
+          <thead>
+            <tr>
+              <th>${escapeHtml(labels.period)}</th>
+              <th>${escapeHtml(labels.revenue)}</th>
+              <th>${escapeHtml(labels.ebitda)}</th>
+              <th>${escapeHtml(labels.netProfit)}</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${trendRows}
+          </tbody>
+        </table>` : ""}
       </section>`);
   }
 

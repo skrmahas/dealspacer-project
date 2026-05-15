@@ -28,6 +28,18 @@ const minimalData: ExtractedData = {
     outlook: "Continued recovery expected.",
     riskFactors: ["Fuel price volatility"],
   },
+  revenueBreakdown: {
+    bySegment: [
+      { name: "Power Generation", value: 120000000 },
+      { name: "Distribution", value: 85000000 },
+    ],
+  },
+  profitabilityTrends: {
+    periods: ["2026", "2027"],
+    revenue: [950000000, 1020000000],
+    ebitda: [320000000, 346000000],
+    netProfit: [140000000, 155000000],
+  },
 };
 
 describe("buildHtml", () => {
@@ -57,16 +69,29 @@ describe("buildHtml", () => {
     expect(html).toContain("Fuel price volatility");
   });
 
-  it("omits revenue breakdown section when no charts", () => {
+  it("renders revenue breakdown table even when charts are missing", () => {
     const html = buildHtml(minimalData, emptyCharts);
-    expect(html).not.toContain("Revenue Breakdown");
+    expect(html).toContain("Revenue by Segment");
+    expect(html).toContain("Power Generation");
+    expect(html).toContain("120,000,000");
+    expect(html).toContain("Distribution");
   });
 
   it("includes revenue breakdown when chart present", () => {
     const charts = { ...emptyCharts, revenueBarChart: "file:///tmp/chart.jpg" };
     const html = buildHtml(minimalData, charts);
-    expect(html).toContain("Revenue Breakdown");
+    expect(html).toContain("Revenue by Segment");
     expect(html).toContain('src="file:///tmp/chart.jpg"');
+  });
+
+  it("renders profitability trends table even when chart is missing", () => {
+    const html = buildHtml(minimalData, emptyCharts);
+    expect(html).toContain("Profitability Trends");
+    expect(html).toContain("<th>Period</th>");
+    expect(html).toContain("2026");
+    expect(html).toContain("950,000,000");
+    expect(html).toContain("320,000,000");
+    expect(html).toContain("140,000,000");
   });
 
   it("uses localized labels for non-English output", () => {
