@@ -34,7 +34,7 @@ We have audited the consolidated financial statements of AS Example Baltic...
 
 In our opinion, the accompanying consolidated financial statements present fairly, in all material respects...
 
-We conducted our audit in accordance with International Standards on Auditing...`;
+We conducted our audit in accordance with International Standards on Auditing. The financial statements present fairly all material aspects position results operations according to applicable requirements...`;
 
       const result = classifyDocument(text);
       expect(result.docClass).toBe("auditor_report");
@@ -43,7 +43,7 @@ We conducted our audit in accordance with International Standards on Auditing...
     });
 
     it("rejects an auditor report containing 'we have audited'", () => {
-      const text = "We have audited the financial statements of the company. In our opinion they present fairly...";
+      const text = "We have audited the financial statements of the company consolidated financial statements present fairly the position results operations according to international standards auditing requirements procedures";
       const result = classifyDocument(text);
       expect(result.docClass).toBe("auditor_report");
       expect(result.shouldReject).toBe(true);
@@ -109,10 +109,53 @@ We conducted our audit in accordance with International Standards on Auditing...
   });
 
   describe("empty or minimal documents", () => {
-    it("passes empty text as financial_report (falls through to NO_FINANCIAL_DATA gate)", () => {
+    it("rejects empty text as low_quality_text", () => {
       const result = classifyDocument("");
+      expect(result.shouldReject).toBe(true);
+      expect(result.docClass).toBe("low_quality_text");
+    });
+
+    it("rejects text with fewer than 10 unique 4+ letter words", () => {
+      const text = "a b c d e f g h i j".repeat(10); // only 1-2 letter words
+      const result = classifyDocument(text);
+      expect(result.shouldReject).toBe(true);
+      expect(result.docClass).toBe("low_quality_text");
+    });
+  });
+
+  describe("text quality gate", () => {
+    it("rejects garbled OCR output", () => {
+      const text = "asdf qwer zxcv poi lkj mnb hgf dsa rew qaz wsx edc rfv tgb yhn ujm ik ol p".repeat(5);
+      // These are 3-letter or random — no 4+ letter words
+      const result = classifyDocument(text);
+      expect(result.docClass).toBe("low_quality_text");
+      expect(result.shouldReject).toBe(true);
+      expect(result.rejectionMessage).toContain("scanned or image-only");
+    });
+
+    it("rejects borderline text with 8 unique 4+ letter words", () => {
+      // 8 unique 4+ letter words — below the 10 threshold for the quality gate
+      const text = "this that then them they here some more";
+      const result = classifyDocument(text);
+      expect(result.shouldReject).toBe(true);
+      expect(result.docClass).toBe("low_quality_text");
+    });
+
+    it("passes text with 10+ unique 4+ letter words", () => {
+      const text = "Annual Report 2024: Revenue increased significantly compared to previous fiscal periods. The management board presents this report to shareholders.";
+      // "Annual Report Revenue increased significantly compared previous fiscal periods management board presents this report shareholders"
+      // = many unique 4+ letter words
+      const result = classifyDocument(text);
       expect(result.shouldReject).toBe(false);
-      expect(result.docClass).toBe("financial_report");
+    });
+
+    it("quality gate runs before pattern matching (garbled text with auditor keyword)", () => {
+      // Contains "audited" but doesn't have enough unique 4+ letter words
+      const text = "audited financial report reviewed by committee audited reviewed by audited financial.";
+      // unique 4+: audited, financial, report, reviewed, committee = 5 unique — below 10
+      const result = classifyDocument(text);
+      expect(result.docClass).toBe("low_quality_text");
+      expect(result.shouldReject).toBe(true);
     });
   });
 });

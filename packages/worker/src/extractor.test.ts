@@ -371,3 +371,138 @@ describe("extractFromText — error handling", () => {
     }
   });
 });
+
+describe("extractFromText — retry behavior", () => {
+  it("retries on 429 rate limit and succeeds", async () => {
+    process.env.EXTRACTION_MAX_RETRIES = "2";
+
+    try {
+      let callCount = 0;
+      const client = {
+        chat: {
+          completions: {
+            create: vi.fn().mockImplementation(() => {
+              callCount++;
+              if (callCount < 3) {
+                const err = new Error("429 Too Many Requests") as unknown as Error & { status: number };
+                (err as unknown as Record<string, unknown>).status = 429;
+                throw err;
+              }
+              return Promise.resolve({
+                choices: [{ message: { content: JSON.stringify(validExtraction) } }],
+              });
+            }),
+          },
+        },
+      } as unknown as OpenAIClient;
+      setClient(client);
+
+      const result = await extractFromText("test text");
+      expect(result.metadata.companyName).toBe("AS Tallink Grupp");
+      expect(callCount).toBe(3); // 2 failures + 1 success
+    } finally {
+      delete process.env.EXTRACTION_MAX_RETRIES;
+    }
+  });
+
+  it("does not retry on 400 Bad Request", async () => {
+    process.env.EXTRACTION_MAX_RETRIES = "2";
+
+    try {
+      let callCount = 0;
+      const client = {
+        chat: {
+          completions: {
+            create: vi.fn().mockImplementation(() => {
+              callCount++;
+              const err = new Error("400 Bad Request") as unknown as Error & { status: number };
+              (err as unknown as Record<string, unknown>).status = 400;
+              throw err;
+            }),
+          },
+        },
+      } as unknown as OpenAIClient;
+      setClient(client);
+
+      await expect(extractFromText("test")).rejects.toThrow("400 Bad Request");
+      expect(callCount).toBe(1); // No retries on 4xx
+    } finally {
+      delete process.env.EXTRACTION_MAX_RETRIES;
+    }
+  });
+
+  it("retries on 503 Service Unavailable", async () => {
+    process.env.EXTRACTION_MAX_RETRIES = "1";
+
+    try {
+      let callCount = 0;
+      const client = {
+        chat: {
+          completions: {
+            create: vi.fn().mockImplementation(() => {
+              callCount++;
+              if (callCount < 2) {
+                const err = new Error("503 Service Unavailable") as unknown as Error & { status: number };
+                (err as unknown as Record<string, unknown>).status = 503;
+                throw err;
+              }
+              return Promise.resolve({
+                choices: [{ message: { content: JSON.stringify(validExtraction) } }],
+              });
+            }),
+          },
+        },
+      } as unknown as OpenAIClient;
+      setClient(client);
+
+      const result = await extractFromText("test");
+      expect(callCount).toBe(2);
+      expect(result.metrics).toHaveLength(4);
+    } finally {
+      delete process.env.EXTRACTION_MAX_RETRIES;
+    }
+  });
+
+  it("respects EXTRACTION_MAX_RETRIES env var", async () => {
+    process.env.EXTRACTION_MAX_RETRIES = "0"; // No retries
+
+    try {
+      let callCount = 0;
+      const client = {
+        chat: {
+          completions: {
+            create: vi.fn().mockImplementation(() => {
+              callCount++;
+              const err = new Error("429 Too Many Requests") as unknown as Error & { status: number };
+              (err as unknown as Record<string, unknown>).status = 429;
+              throw err;
+            }),
+          },
+        },
+      } as unknown as OpenAIClient;
+      setClient(client);
+
+      await expect(extractFromText("test")).rejects.toThrow();
+      expect(callCount).toBe(1); // Only 1 attempt (0 retries)
+    } finally {
+      delete process.env.EXTRACTION_MAX_RETRIES;
+    }
+  });
+});
+
+describe("extractFromText — model configuration", () => {
+  it("uses OPENAI_MODEL env var when set", async () => {
+    process.env.OPENAI_MODEL = "gpt-4o-mini";
+    try {
+      const client = mockClient(validExtraction);
+      setClient(client);
+
+      await extractFromText("test");
+
+      const createFn = client.chat.completions.create as ReturnType<typeof vi.fn>;
+      expect(createFn.mock.calls[0][0].model).toBe("gpt-4o-mini");
+    } finally {
+      delete process.env.OPENAI_MODEL;
+    }
+  });
+});

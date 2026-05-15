@@ -43,6 +43,7 @@ function createMockStore(jobs: Job[] = []) {
       return new Map<string, TranslationCacheEntry>();
     },
     async saveCachedTranslations(_entries: TranslationCacheEntry[]) {},
+    async deleteOldJobs(_retentionMs: number, _minCount: number) { return 0; },
   } satisfies JobStore;
 }
 
@@ -72,7 +73,7 @@ describe("startWorker", () => {
       await store.updateJob(j.id, { state: "parsing" });
     });
 
-    const stop = startWorker({
+    const worker = startWorker({
       store: store as JobStore,
       processJob,
       pollIntervalMs: 1000,
@@ -85,14 +86,14 @@ describe("startWorker", () => {
     // Job state should now be "parsing"
     expect(job.state).toBe("parsing");
 
-    stop();
+    worker.stop();
   });
 
   it("waits when no pending jobs are found", async () => {
     const store = createMockStore([]);
     const processJob = vi.fn();
 
-    const stop = startWorker({
+    const worker = startWorker({
       store: store as JobStore,
       processJob,
       pollIntervalMs: 1000,
@@ -102,7 +103,7 @@ describe("startWorker", () => {
 
     expect(processJob).not.toHaveBeenCalled();
 
-    stop();
+    worker.stop();
   });
 
   it("processes multiple jobs in sequence", async () => {
@@ -133,7 +134,7 @@ describe("startWorker", () => {
       await store.updateJob(j.id, { state: "parsing" });
     });
 
-    const stop = startWorker({
+    const worker = startWorker({
       store: store as JobStore,
       processJob,
       pollIntervalMs: 1000,
@@ -149,7 +150,7 @@ describe("startWorker", () => {
     expect(processJob).toHaveBeenCalledTimes(2);
     expect(job2.state).toBe("parsing");
 
-    stop();
+    worker.stop();
   });
 
   it("resets stale in-progress jobs and they are picked up by poll loop", async () => {
@@ -169,7 +170,7 @@ describe("startWorker", () => {
       await store.updateJob(j.id, { state: "parsing" });
     });
 
-    const stop = startWorker({
+    const worker = startWorker({
       store: store as JobStore,
       processJob,
       pollIntervalMs: 50,
@@ -182,7 +183,7 @@ describe("startWorker", () => {
     expect(processJob).toHaveBeenCalledTimes(1);
     expect(staleJob.state).toBe("parsing");
 
-    stop();
+    worker.stop();
   });
 
   it("does not reset terminal jobs", async () => {
@@ -211,7 +212,7 @@ describe("startWorker", () => {
     const store = createMockStore([completeJob, failedJob]);
     const processJob = vi.fn();
 
-    const stop = startWorker({
+    const worker = startWorker({
       store: store as JobStore,
       processJob,
       pollIntervalMs: 50,
@@ -225,7 +226,7 @@ describe("startWorker", () => {
     expect(completeJob.state).toBe("complete");
     expect(failedJob.state).toBe("failed");
 
-    stop();
+    worker.stop();
   });
 
   it("does not reset recent in-progress jobs", async () => {
@@ -243,7 +244,7 @@ describe("startWorker", () => {
     const store = createMockStore([recentJob]);
     const processJob = vi.fn();
 
-    const stop = startWorker({
+    const worker = startWorker({
       store: store as JobStore,
       processJob,
       pollIntervalMs: 50,
@@ -256,6 +257,70 @@ describe("startWorker", () => {
     expect(processJob).not.toHaveBeenCalled();
     expect(recentJob.state).toBe("extracting");
 
-    stop();
+    worker.stop();
+  });
+
+  it("drain resolves immediately when no jobs are in flight", async () => {
+    const store = createMockStore([]);
+    const processJob = vi.fn();
+
+    const worker = startWorker({
+      store: store as JobStore,
+      processJob,
+      pollIntervalMs: 1000,
+    });
+
+    await vi.advanceTimersByTimeAsync(1);
+
+    worker.stop();
+    await expect(worker.drain(5000)).resolves.toBeUndefined();
+  });
+
+  it("drain waits for in-flight job to complete", async () => {
+    const job: Job = {
+      id: "job-1",
+      state: "pending",
+      originalFilename: "a.pdf",
+      outputLanguage: "en",
+      extractedText: null,
+      extractedJson: null,
+      error: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    const store = createMockStore([job]);
+
+    let jobResolve: (() => void) | null = null;
+    const processJob = vi.fn().mockImplementation(() => {
+      return new Promise<void>((resolve) => {
+        jobResolve = resolve;
+      });
+    });
+
+    const worker = startWorker({
+      store: store as JobStore,
+      processJob,
+      pollIntervalMs: 1000,
+    });
+
+    // Let the worker pick up the job and start processing
+    await vi.advanceTimersByTimeAsync(1);
+    expect(processJob).toHaveBeenCalledTimes(1);
+
+    // Stop polling, start drain
+    worker.stop();
+    const drainPromise = worker.drain(5000);
+
+    // Drain should not resolve yet — job still in flight
+    let drained = false;
+    drainPromise.then(() => { drained = true; });
+    await vi.advanceTimersByTimeAsync(100);
+    expect(drained).toBe(false);
+
+    // Complete the in-flight job
+    jobResolve!();
+    await vi.advanceTimersByTimeAsync(1);
+    await drainPromise;
+    expect(drained).toBe(true);
   });
 });

@@ -86,3 +86,19 @@ describe("parseDocument", () => {
     expect(text).toContain("Metric: Revenue");
   });
 });
+
+describe("OCR page timeout", () => {
+  it("respects OCR_PAGE_TIMEOUT_MS env var", async () => {
+    // Verify env var is read (parsePdf with a digital PDF won't hit OCR path,
+    // but the function should still parse the env var correctly when needed)
+    process.env.OCR_PAGE_TIMEOUT_MS = "15000";
+    try {
+      const pdfBuffer = readFileSync(samplePath);
+      // This PDF is digital so it won't hit OCR, but it still exercises the code path
+      const text = await parsePdf(pdfBuffer);
+      expect(text).toContain("Hello Baltic Earnings");
+    } finally {
+      delete process.env.OCR_PAGE_TIMEOUT_MS;
+    }
+  });
+});

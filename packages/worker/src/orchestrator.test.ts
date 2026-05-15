@@ -48,6 +48,7 @@ function createMockStore() {
       return new Map<string, TranslationCacheEntry>();
     },
     async saveCachedTranslations(_entries: TranslationCacheEntry[]) {},
+    async deleteOldJobs(_retentionMs: number, _minCount: number) { return 0; },
   } satisfies JobStore;
   return store;
 }
@@ -62,7 +63,7 @@ describe("processJob", () => {
   it("transitions pending → parsing → extracting → translating → assembling → complete on success", async () => {
     const job = await store.createJob({ originalFilename: "report.pdf", outputLanguage: "lt" });
     const readFile = vi.fn().mockResolvedValue(Buffer.from("fake pdf"));
-    const parseDocument = vi.fn().mockResolvedValue("Extracted financial data");
+    const parseDocument = vi.fn().mockResolvedValue("Annual report extracted financial data showing revenue ebitda profit margins growth performance summary business overview segment results");
     const extractFromText = vi.fn().mockResolvedValue(mockExtraction());
     const translated = { ...mockExtraction(), metadata: { ...mockExtraction().metadata, outputLanguage: "lt" as const } };
     const translateExtractedData = vi.fn().mockResolvedValue(translated);
@@ -81,14 +82,14 @@ describe("processJob", () => {
     expect(states).toEqual(["parsing", "extracting", "translating", "assembling", "complete"]);
     expect(readFile).toHaveBeenCalledWith(job.id);
     expect(parseDocument).toHaveBeenCalledWith(Buffer.from("fake pdf"), "report.pdf");
-    expect(extractFromText).toHaveBeenCalledWith("Extracted financial data");
+    expect(extractFromText).toHaveBeenCalledWith("Annual report extracted financial data showing revenue ebitda profit margins growth performance summary business overview segment results");
     expect(translateExtractedData).toHaveBeenCalledWith(mockExtraction(), "lt", store);
     expect(assemblePdf).toHaveBeenCalledWith(translated);
     expect(saveReport).toHaveBeenCalledWith(job.id, Buffer.from("fake pdf"));
 
     const updated = await store.getJob(job.id);
     expect(updated!.state).toBe("complete");
-    expect(updated!.extractedText).toBe("Extracted financial data");
+    expect(updated!.extractedText).toBe("Annual report extracted financial data showing revenue ebitda profit margins growth performance summary business overview segment results");
     expect(updated!.extractedJson).toBe(JSON.stringify(translated));
   });
 
@@ -123,7 +124,7 @@ describe("processJob", () => {
   it("transitions pending → parsing → extracting → failed on extraction error", async () => {
     const job = await store.createJob({ originalFilename: "report.pdf" });
     const readFile = vi.fn().mockResolvedValue(Buffer.from("fake pdf"));
-    const parseDocument = vi.fn().mockResolvedValue("Some text");
+    const parseDocument = vi.fn().mockResolvedValue("Annual report summary financial data revenue ebitda profit margins growth performance business overview segment results");
     const extractFromText = vi.fn().mockRejectedValue(new Error("GPT-4o rate limit"));
     const translateExtractedData = vi.fn();
     const assemblePdf = vi.fn();
@@ -150,7 +151,7 @@ describe("processJob", () => {
   it("transitions pending → parsing → extracting → translating → assembling → failed on assembly error", async () => {
     const job = await store.createJob({ originalFilename: "report.pdf" });
     const readFile = vi.fn().mockResolvedValue(Buffer.from("fake pdf"));
-    const parseDocument = vi.fn().mockResolvedValue("Some text");
+    const parseDocument = vi.fn().mockResolvedValue("Annual report summary financial data revenue ebitda profit margins growth performance business overview segment results");
     const extractFromText = vi.fn().mockResolvedValue(mockExtraction());
     const translateExtractedData = vi.fn().mockResolvedValue(mockExtraction());
     const assemblePdf = vi.fn().mockRejectedValue(new Error("PDF rendering failed"));
@@ -176,7 +177,10 @@ describe("processJob", () => {
   it("fails with 'No financial data found' when extraction returns empty", async () => {
     const job = await store.createJob({ originalFilename: "not-financial.pdf" });
     const readFile = vi.fn().mockResolvedValue(Buffer.from("fake pdf"));
-    const parseDocument = vi.fn().mockResolvedValue("Some random text");
+    // Must have 10+ unique 4-letter words to pass the classifier quality gate
+    const parseDocument = vi.fn().mockResolvedValue(
+      "annual report overview management summary company performance financial statements revenue ebitda profit presentation document business",
+    );
     const extractFromText = vi.fn().mockResolvedValue({
       metadata: { companyName: "", reportPeriod: "", sourceLanguage: "" },
       metrics: [],
@@ -232,5 +236,50 @@ describe("processJob", () => {
     const updated = await store.getJob(job.id);
     expect(updated!.state).toBe("failed");
     expect(updated!.error).toContain("auditor's report");
+  });
+
+  it("fails job when translation throws an error", async () => {
+    const job = await store.createJob({ originalFilename: "report.pdf" });
+    const readFile = vi.fn().mockResolvedValue(Buffer.from("fake pdf"));
+    const parseDocument = vi.fn().mockResolvedValue("Annual report summary financial data revenue ebitda profit margins growth performance business overview segment results");
+    const extractFromText = vi.fn().mockResolvedValue({
+      metadata: { companyName: "Test", reportPeriod: "Q1", sourceLanguage: "en" },
+      metrics: [{ label: "Revenue", value: 100, unit: "EUR" }],
+      narratives: [{ section: "executive_summary", text: "Good results with strong growth across all segments of the business." }],
+      sentiment: { managementTone: "positive", outlook: "Good", riskFactors: [] },
+    });
+    const translateExtractedData = vi.fn().mockRejectedValue(new Error("Translation API error"));
+    const assemblePdf = vi.fn();
+    const saveReport = vi.fn();
+
+    await processJob(job, store, readFile, parseDocument, extractFromText, translateExtractedData, assemblePdf, saveReport);
+
+    const updated = await store.getJob(job.id);
+    expect(updated!.state).toBe("failed");
+    expect(updated!.error).toContain("Translation API error");
+  });
+
+  it("completes job successfully with sanitizer warnings (null metrics dropped)", async () => {
+    const job = await store.createJob({ originalFilename: "report.pdf" });
+    const readFile = vi.fn().mockResolvedValue(Buffer.from("fake pdf"));
+    const parseDocument = vi.fn().mockResolvedValue("Annual report summary financial data revenue ebitda profit margins growth performance business overview segment results");
+    // Extract returns one good metric and one null-value metric (sanitizer will drop the null)
+    const extractFromText = vi.fn().mockResolvedValue({
+      metadata: { companyName: "Test", reportPeriod: "Q1", sourceLanguage: "en" },
+      metrics: [
+        { label: "Revenue", value: 100, unit: "EUR" },
+        { label: "Bad Metric", value: null },
+      ],
+      narratives: [{ section: "executive_summary", text: "Results were strong with good growth across all segments." }],
+      sentiment: { managementTone: "positive", outlook: "Good", riskFactors: [] },
+    });
+    const translateExtractedData = vi.fn().mockImplementation(async (data: ExtractedData) => ({ ...data, metadata: { ...data.metadata, outputLanguage: "en" } }));
+    const assemblePdf = vi.fn().mockResolvedValue(Buffer.from("pdf"));
+    const saveReport = vi.fn();
+
+    await processJob(job, store, readFile, parseDocument, extractFromText, translateExtractedData, assemblePdf, saveReport);
+
+    const updated = await store.getJob(job.id);
+    expect(updated!.state).toBe("complete");
   });
 });

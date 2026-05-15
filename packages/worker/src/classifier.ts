@@ -4,7 +4,7 @@
  * documents and save API costs on invalid uploads.
  */
 
-export type DocClass = "financial_report" | "auditor_report" | "legal_filing" | "prospectus" | "press_release" | "unknown";
+export type DocClass = "financial_report" | "auditor_report" | "legal_filing" | "prospectus" | "press_release" | "low_quality_text" | "unknown";
 
 export interface ClassificationResult {
   docClass: DocClass;
@@ -66,6 +66,11 @@ const PRESS_RELEASE_PATTERNS = [
 export function classifyDocument(text: string): ClassificationResult {
   const sample = text.slice(0, CLASSIFY_CHARS);
 
+  // Gate 1: text quality — reject garbled OCR / image-only PDFs before pattern matching
+  if (!hasMinimumTextQuality(sample)) {
+    return lowQualityRejection();
+  }
+
   // Count pattern matches for each category
   const auditorHits = AUDITOR_PATTERNS.filter((p) => sample.includes(p)).length;
   const prospectusHits = PROSPECTUS_PATTERNS.filter((p) => sample.includes(p)).length;
@@ -97,8 +102,24 @@ export function classifyDocument(text: string): ClassificationResult {
 }
 
 /**
- * Quick check for financial content in the sample text.
+ * Check if the text has minimum coherence: at least 10 unique words of 4+ letters.
+ * Catches garbled OCR output, image-only PDFs, and non-text uploads.
  */
+function hasMinimumTextQuality(text: string): boolean {
+  const words = text.toLowerCase().match(/[a-z]{4,}/g);
+  if (!words) return false;
+  const uniqueWords = new Set(words);
+  return uniqueWords.size >= 10;
+}
+
+function lowQualityRejection(): ClassificationResult {
+  return {
+    docClass: "low_quality_text",
+    shouldReject: true,
+    rejectionMessage:
+      "Could not extract readable text from this document. The file may be scanned or image-only. Please upload a digital PDF with selectable text.",
+  };
+}
 function hasFinancialContent(text: string): boolean {
   const financialTerms = /(revenue|EBITDA|net profit|operating profit|balance sheet|income statement|cash flow|earnings per share|dividend|financial statements?|annual report|quarterly report|interim report|consolidated financial|management report|group turnover|turnover)/i;
   return financialTerms.test(text);

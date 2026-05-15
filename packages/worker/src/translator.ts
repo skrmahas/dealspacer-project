@@ -21,6 +21,10 @@ const LANGUAGE_NAMES: Record<Exclude<OutputLanguage, "en">, string> = {
 
 let client: OpenAIClient | null = null;
 
+function getModel(): string {
+  return (process.env.OPENAI_MODEL?.trim() || "gpt-4o");
+}
+
 function getClient(): OpenAIClient {
   if (!client) {
     const apiKey = process.env.OPENAI_API_KEY;
@@ -117,7 +121,7 @@ async function batchTranslate(
 ): Promise<Map<string, string>> {
   const openai = apiClient ?? getClient();
   const response = await openai.chat.completions.create({
-    model: "gpt-4o",
+    model: getModel(),
     messages: [
       {
         role: "system",

@@ -47,16 +47,28 @@ IMPORTANT:
 - DO NOT fabricate numbers. If a figure is not clearly present, do not include it.
 - This document may be an annual report, quarterly filing, strategic plan, investor presentation, or other business financial document. Extract whatever financial data IS present.
 - If genuine financial or strategic content is found, populate the appropriate sections. Only return completely empty arrays/sections if the document truly contains no business or financial content (e.g., a legal contract, a press release about a non-financial topic).
+
+BALTIC CONTEXT:
+- Baltic company names often include legal forms: AS, OU, OÜ, SIA, UAB, AB. The companyName should include the legal form as presented.
+- Baltic annual reports may contain local-language section headers such as "Tegevusaruanne" (ET: management report), "Vadibas zinojums" (LV: management report), "Vadovybes ataskaita" (LT: management report), "Finantsaruanded" (ET: financial statements), "Pelno (nuostoliu) ataskaita" (LT: income statement).
+- Currency is typically EUR (euros). Historical documents may reference EEK (Estonian kroon, pre-2011), LVL (Latvian lats, pre-2014), or LTL (Lithuanian litas, pre-2015). Convert or note historical currencies as appropriate.
+- Nasdaq Baltic (Nasdaq Tallinn, Nasdaq Riga, Nasdaq Vilnius) listed companies file in a specific format following exchange disclosure requirements.
+- Baltic strategic plans and investor presentations often contain multi-year projections (typically 3-5 year horizons) with specific target metrics.
 - Output ONLY the JSON object, no markdown fences, no explanation.`;
 
 const DEFAULT_CHUNK_THRESHOLD = 60000;
 const DEFAULT_CHUNK_SIZE = 50000;
 const DEFAULT_CHUNK_OVERLAP = 5000;
 const DEFAULT_MAX_CONCURRENCY = 3;
+const DEFAULT_MAX_RETRIES = 3;
 
 export type OpenAIClient = Pick<OpenAI, "chat">;
 
 let client: OpenAIClient | null = null;
+
+function getModel(): string {
+  return (process.env.OPENAI_MODEL?.trim() || "gpt-4o");
+}
 
 function getClient(): OpenAIClient {
   if (!client) {
@@ -78,6 +90,7 @@ interface ChunkConfig {
   chunkSize: number;
   overlap: number;
   maxConcurrency: number;
+  maxRetries: number;
 }
 
 function getChunkConfig(): ChunkConfig {
@@ -85,11 +98,12 @@ function getChunkConfig(): ChunkConfig {
   const chunkSize = readPositiveEnv("EXTRACTION_CHUNK_SIZE", DEFAULT_CHUNK_SIZE);
   const overlap = readPositiveEnv("EXTRACTION_CHUNK_OVERLAP", DEFAULT_CHUNK_OVERLAP);
   const maxConcurrency = readPositiveEnv("EXTRACTION_MAX_CONCURRENCY", DEFAULT_MAX_CONCURRENCY);
+  const maxRetries = readNonNegativeEnv("EXTRACTION_MAX_RETRIES", DEFAULT_MAX_RETRIES);
 
   // Ensure overlap < chunkSize
   const effectiveOverlap = Math.min(overlap, Math.floor(chunkSize * 0.2));
 
-  return { threshold, chunkSize, overlap: effectiveOverlap, maxConcurrency };
+  return { threshold, chunkSize, overlap: effectiveOverlap, maxConcurrency, maxRetries };
 }
 
 function readPositiveEnv(name: string, fallback: number): number {
@@ -97,6 +111,15 @@ function readPositiveEnv(name: string, fallback: number): number {
   if (!raw) return fallback;
   const parsed = Number(raw);
   if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
+  return parsed;
+}
+
+/** Like readPositiveEnv but accepts 0 (useful for "no retries" / "no limit" configs). */
+function readNonNegativeEnv(name: string, fallback: number): number {
+  const raw = process.env[name];
+  if (!raw) return fallback;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed < 0) return fallback;
   return parsed;
 }
 
@@ -116,9 +139,35 @@ function chunkText(text: string, chunkSize: number, overlap: number): string[] {
 
 // ── Single extraction call ───────────────────────────────────────────────────
 
+function isRetryableError(error: unknown): boolean {
+  if (error instanceof Error) {
+    const msg = error.message.toLowerCase();
+    // Network/timeout errors
+    if (msg.includes("timeout") || msg.includes("econnrefused") || msg.includes("econnreset") ||
+        msg.includes("enetunreach") || msg.includes("etimedout") || msg.includes("fetch failed")) {
+      return true;
+    }
+  }
+
+  // Check for OpenAI APIError with status code (the SDK attaches status to the error object)
+  const err = error as Record<string, unknown>;
+  if (typeof err.status === "number") {
+    const status = err.status as number;
+    // 429 Too Many Requests, 5xx Server Errors
+    return status === 429 || (status >= 500 && status < 600);
+  }
+
+  return false;
+}
+
+function getRetryDelay(attempt: number): number {
+  // Exponential backoff: 1000ms, 2000ms, 4000ms, ...
+  return Math.min(1000 * Math.pow(2, attempt), 30000);
+}
+
 async function callExtract(text: string, openai: OpenAIClient): Promise<ExtractedData> {
   const response = await openai.chat.completions.create({
-    model: "gpt-4o",
+    model: getModel(),
     messages: [
       { role: "system", content: SYSTEM_PROMPT },
       { role: "user", content: `Extract financial data from this document:\n\n${text}` },
@@ -131,6 +180,41 @@ async function callExtract(text: string, openai: OpenAIClient): Promise<Extracte
   if (!content) throw new Error("GPT-4o returned empty response");
 
   return JSON.parse(content) as ExtractedData;
+}
+
+async function callExtractWithRetry(
+  text: string,
+  openai: OpenAIClient,
+  maxRetries: number,
+  chunkLabel?: string,
+): Promise<ExtractedData> {
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const result = await callExtract(text, openai);
+      if (attempt > 0 && chunkLabel) {
+        console.log(`[extractor] ${chunkLabel}: succeeded on attempt ${attempt + 1}/${maxRetries + 1}`);
+      }
+      return result;
+    } catch (error) {
+      lastError = error;
+
+      if (attempt < maxRetries && isRetryableError(error)) {
+        const delay = getRetryDelay(attempt);
+        const label = chunkLabel || "extraction";
+        const reason = error instanceof Error ? error.message.slice(0, 80) : String(error).slice(0, 80);
+        console.log(`[extractor] ${label}: attempt ${attempt + 1}/${maxRetries + 1} failed (${reason}), retrying in ${delay}ms...`);
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        continue;
+      }
+
+      // Non-retryable or out of attempts — throw
+      break;
+    }
+  }
+
+  throw lastError;
 }
 
 // ── Result merging ───────────────────────────────────────────────────────────
@@ -277,7 +361,7 @@ export async function extractFromText(
   // For small documents, use the single-call path unchanged
   if (text.length <= config.threshold) {
     console.log(`[extractor] Single-call extraction (${text.length} chars)`);
-    const response = await callExtract(text, openai);
+    const response = await callExtractWithRetry(text, openai, config.maxRetries);
     console.log(`[extractor] GPT-4o response: ${JSON.stringify(response).slice(0, 300)}...`);
     logExtractionResult(response);
     return response;
@@ -293,15 +377,16 @@ export async function extractFromText(
 
   async function processChunk(index: number): Promise<void> {
     const chunk = chunks[index];
+    const label = `Chunk ${index + 1}/${chunks.length}`;
     try {
-      const result = await callExtract(chunk, openai);
+      const result = await callExtractWithRetry(chunk, openai, config.maxRetries, label);
       results[index] = result;
       completedCount++;
       console.log(
-        `[extractor] Chunk ${index + 1}/${chunks.length}: extracted ${result.metrics.length} metrics, ${result.narratives.length} narratives`,
+        `[extractor] ${label}: extracted ${result.metrics.length} metrics, ${result.narratives.length} narratives`,
       );
     } catch (error) {
-      console.error(`[extractor] Chunk ${index + 1}/${chunks.length} failed:`, error instanceof Error ? error.message : error);
+      console.error(`[extractor] ${label} failed after retries:`, error instanceof Error ? error.message : error);
       // Use empty result for failed chunk so merging still works
       results[index] = {
         metadata: { companyName: "", reportPeriod: "", sourceLanguage: "" },

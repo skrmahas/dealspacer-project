@@ -27,6 +27,10 @@ async function migrate() {
     `);
 
     await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_jobs_poll ON jobs(state, created_at);
+    `);
+
+    await client.query(`
       CREATE TABLE IF NOT EXISTS translation_cache (
         source_text TEXT PRIMARY KEY,
         et TEXT,
@@ -35,16 +39,6 @@ async function migrate() {
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
-    `);
-
-    await client.query(`
-      ALTER TABLE jobs
-      ADD COLUMN IF NOT EXISTS file_data BYTEA;
-    `);
-
-    await client.query(`
-      ALTER TABLE jobs
-      ADD COLUMN IF NOT EXISTS report_data BYTEA;
     `);
 
     console.log("Migration complete: jobs and translation cache ready.");

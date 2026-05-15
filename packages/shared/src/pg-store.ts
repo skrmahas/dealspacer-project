@@ -62,17 +62,17 @@ export function createPostgresStore(): JobStore {
         }
         if (input.extractedText !== undefined) {
           sets.push(`extracted_text = $` + paramIndex);
-          values.push(input.extractedText);
+          values.push(input.extractedText ?? null);
           paramIndex++;
         }
         if (input.extractedJson !== undefined) {
           sets.push(`extracted_json = $` + paramIndex);
-          values.push(input.extractedJson);
+          values.push(input.extractedJson ?? null);
           paramIndex++;
         }
         if (input.error !== undefined) {
           sets.push(`error = $` + paramIndex);
-          values.push(input.error);
+          values.push(input.error ?? null);
           paramIndex++;
         }
 
@@ -130,6 +130,43 @@ export function createPostgresStore(): JobStore {
           [["parsing", "extracting", "translating", "assembling"], staleAfterMs],
         );
         return result.rowCount ?? 0;
+      });
+    },
+
+    async deleteOldJobs(retentionMs: number, minCount: number): Promise<number> {
+      return withClient(async (client) => {
+        // Count terminal jobs
+        const countResult = await client.query(
+          `SELECT COUNT(*) AS total FROM jobs WHERE state = ANY($1::text[])`,
+          [["complete", "failed"]],
+        );
+        const total = parseInt(countResult.rows[0].total, 10);
+        if (total <= minCount) return 0;
+
+        // Delete old terminal jobs in batches, keeping at least minCount
+        const toDelete = total - minCount;
+        const batchSize = 100;
+        let deleted = 0;
+
+        while (deleted < toDelete) {
+          const limit = Math.min(batchSize, toDelete - deleted);
+          const result = await client.query(
+            `DELETE FROM jobs
+             WHERE id IN (
+               SELECT id FROM jobs
+               WHERE state = ANY($1::text[])
+                 AND updated_at < NOW() - ($2 * INTERVAL '1 millisecond')
+               ORDER BY updated_at ASC
+               LIMIT $3
+             )`,
+            [["complete", "failed"], retentionMs, limit],
+          );
+          const rowsDeleted = result.rowCount ?? 0;
+          if (rowsDeleted === 0) break;
+          deleted += rowsDeleted;
+        }
+
+        return deleted;
       });
     },
 

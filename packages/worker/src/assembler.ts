@@ -149,7 +149,7 @@ const LABELS: Record<OutputLanguage, {
   },
 };
 
-function buildHtml(data: ExtractedData, charts: ChartImages): string {
+export function buildHtml(data: ExtractedData, charts: ChartImages): string {
   const labels = LABELS[data.metadata.outputLanguage ?? "en"];
   const companyName = data.metadata.companyName || "Company Report";
   const reportPeriod = data.metadata.reportPeriod || "";
@@ -325,7 +325,21 @@ function buildHtml(data: ExtractedData, charts: ChartImages): string {
   <style>
     @page {
       size: A4;
-      margin: 2cm 2.2cm;
+      margin: 2cm 2.2cm 2.5cm 2.2cm;
+
+      @bottom-center {
+        content: "Page " counter(page) " of " counter(pages);
+        font-size: 8pt;
+        color: #999;
+        font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+      }
+    }
+
+    /* Hide page number on cover */
+    @page cover {
+      @bottom-center {
+        content: none;
+      }
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -340,6 +354,7 @@ function buildHtml(data: ExtractedData, charts: ChartImages): string {
 
     /* Cover page */
     .cover {
+      page: cover;
       page-break-after: always;
       display: flex;
       flex-direction: column;

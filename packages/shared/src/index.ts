@@ -24,9 +24,9 @@ export type CreateJobInput = Pick<Job, "originalFilename"> & {
 };
 export type UpdateJobInput = {
   state?: JobState;
-  extractedText?: string;
-  extractedJson?: string;
-  error?: string;
+  extractedText?: string | null;
+  extractedJson?: string | null;
+  error?: string | null;
 };
 
 export interface JobStore {
@@ -37,6 +37,7 @@ export interface JobStore {
   resetStaleJobs?(staleAfterMs: number): Promise<number>;
   getCachedTranslations(sourceTexts: string[]): Promise<Map<string, TranslationCacheEntry>>;
   saveCachedTranslations(entries: TranslationCacheEntry[]): Promise<void>;
+  deleteOldJobs?(retentionMs: number, minCount: number): Promise<number>;
 }
 
 export interface TranslationCacheEntry {

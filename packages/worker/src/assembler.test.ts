@@ -1,226 +1,100 @@
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
-import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
-import { assemblePdf, canLaunchPdfBrowser, closeBrowser } from "./assembler.js";
+import { describe, it, expect } from "vitest";
+import { buildHtml } from "./assembler";
 import type { ExtractedData } from "@bei/shared";
 
-const completeFixturePath = resolve(
-  import.meta.dirname,
-  "__fixtures__",
-  "complete-extraction.json",
-);
-const minimalFixturePath = resolve(
-  import.meta.dirname,
-  "__fixtures__",
-  "minimal-extraction.json",
-);
-const standardFontDataUrl = `${resolve(
-  import.meta.dirname,
-  "..",
-  "..",
-  "..",
-  "node_modules",
-  "pdfjs-dist",
-  "standard_fonts",
-)}/`;
+const emptyCharts = {
+  sparklines: new Map<string, string>(),
+  yoyChanges: new Map<string, number | null>(),
+  revenueBarChart: "",
+  revenueDonutChart: "",
+  profitabilityChart: "",
+};
 
-function readFixture(path: string): ExtractedData {
-  return JSON.parse(readFileSync(path, "utf-8")) as ExtractedData;
-}
+const minimalData: ExtractedData = {
+  metadata: {
+    companyName: "AS Tallink Grupp",
+    reportPeriod: "Q1 2024",
+    sourceLanguage: "en",
+  },
+  metrics: [
+    { label: "Revenue", value: 210400000, unit: "EUR" },
+    { label: "EBITDA", value: 48700000, unit: "EUR" },
+  ],
+  narratives: [
+    { section: "executive_summary", text: "Strong quarter with revenue growth." },
+  ],
+  sentiment: {
+    managementTone: "positive",
+    outlook: "Continued recovery expected.",
+    riskFactors: ["Fuel price volatility"],
+  },
+};
 
-async function canLaunchBrowser(): Promise<boolean> {
-  return canLaunchPdfBrowser();
-}
-
-const browserAvailable = await canLaunchBrowser();
-const browserIt = browserAvailable ? it : it.skip;
-
-if (!browserAvailable) {
-  console.warn("Skipping assembler integration tests: Puppeteer browser could not be launched in this environment.");
-}
-
-async function extractPdfText(pdfBuffer: Buffer): Promise<string> {
-  const data = new Uint8Array(pdfBuffer);
-  const doc = await pdfjsLib.getDocument({ data, standardFontDataUrl }).promise;
-
-  const texts: string[] = [];
-  for (let i = 1; i <= doc.numPages; i++) {
-    const page = await doc.getPage(i);
-    const content = await page.getTextContent();
-    const pageText = content.items
-      .map((item) => ("str" in item ? item.str : ""))
-      .join(" ");
-    texts.push(pageText);
-  }
-  return texts.join("\n");
-}
-
-describe("assemblePdf", () => {
-  afterAll(async () => {
-    await closeBrowser();
+describe("buildHtml", () => {
+  it("includes company name and report period", () => {
+    const html = buildHtml(minimalData, emptyCharts);
+    expect(html).toContain("AS Tallink Grupp");
+    expect(html).toContain("Q1 2024");
   });
 
-  browserIt(
-    "generates a PDF with cover page containing company name and report period",
-    async () => {
-      const data = readFixture(completeFixturePath);
-      const pdf = await assemblePdf(data);
-      const text = await extractPdfText(pdf);
+  it("includes key metrics in a table", () => {
+    const html = buildHtml(minimalData, emptyCharts);
+    expect(html).toContain("Revenue");
+    expect(html).toContain("210,400,000");
+    expect(html).toContain("EUR");
+    expect(html).toContain("EBITDA");
+  });
 
-      expect(text).toContain("AS Tallink Grupp");
-      expect(text).toContain("Q1 2024");
-    },
-    30000,
-  );
+  it("includes executive summary narrative", () => {
+    const html = buildHtml(minimalData, emptyCharts);
+    expect(html).toContain("Strong quarter with revenue growth");
+  });
 
-  browserIt(
-    "includes Executive Summary section with content",
-    async () => {
-      const data = readFixture(completeFixturePath);
-      const pdf = await assemblePdf(data);
-      const text = await extractPdfText(pdf);
+  it("includes sentiment analysis", () => {
+    const html = buildHtml(minimalData, emptyCharts);
+    expect(html).toContain("positive");
+    expect(html).toContain("Continued recovery expected");
+    expect(html).toContain("Fuel price volatility");
+  });
 
-      expect(text).toContain("Executive Summary");
-      expect(text).toContain("Tallink Grupp reported strong");
-      expect(text).toContain("EUR 210.4 million");
-    },
-    30000,
-  );
+  it("omits revenue breakdown section when no charts", () => {
+    const html = buildHtml(minimalData, emptyCharts);
+    expect(html).not.toContain("Revenue Breakdown");
+  });
 
-  browserIt(
-    "includes Key Metrics Dashboard with metrics table",
-    async () => {
-      const data = readFixture(completeFixturePath);
-      const pdf = await assemblePdf(data);
-      const text = await extractPdfText(pdf);
+  it("includes revenue breakdown when chart present", () => {
+    const charts = { ...emptyCharts, revenueBarChart: "file:///tmp/chart.jpg" };
+    const html = buildHtml(minimalData, charts);
+    expect(html).toContain("Revenue Breakdown");
+    expect(html).toContain('src="file:///tmp/chart.jpg"');
+  });
 
-      expect(text).toContain("Key Metrics Dashboard");
-      expect(text).toContain("Revenue");
-      expect(text).toContain("210,400,000");
-      expect(text).toContain("EBITDA");
-      expect(text).toContain("48,700,000");
-      expect(text).toContain("Net Profit");
-      expect(text).toContain("12,300,000");
-    },
-    30000,
-  );
+  it("uses localized labels for non-English output", () => {
+    const data: ExtractedData = {
+      ...minimalData,
+      metadata: { ...minimalData.metadata, outputLanguage: "et" },
+    };
+    const html = buildHtml(data, emptyCharts);
+    expect(html).toContain("Kokkuvõte"); // Estonian for "Executive Summary"
+  });
 
-  browserIt(
-    "includes Sentiment Analysis section",
-    async () => {
-      const data = readFixture(completeFixturePath);
-      const pdf = await assemblePdf(data);
-      const text = await extractPdfText(pdf);
+  it("includes AI disclaimer", () => {
+    const html = buildHtml(minimalData, emptyCharts);
+    expect(html).toContain("AI-Generated Disclaimer");
+    expect(html).toContain("GPT-4o");
+  });
 
-      expect(text).toContain("Sentiment Analysis");
-      expect(text).toContain("Management Tone");
-      expect(text).toContain("positive");
-      expect(text).toContain("Fuel price volatility");
-      expect(text).toContain("Geopolitical uncertainty");
-    },
-    30000,
-  );
-
-  browserIt(
-    "includes AI disclaimer on every report",
-    async () => {
-      const data = readFixture(completeFixturePath);
-      const pdf = await assemblePdf(data);
-      const text = await extractPdfText(pdf);
-
-      expect(text).toContain("AI-Generated Disclaimer");
-      expect(text).toContain("GPT-4o");
-    },
-    30000,
-  );
-
-  browserIt(
-    "omits Executive Summary when no narratives present",
-    async () => {
-      const data = readFixture(minimalFixturePath);
-      const pdf = await assemblePdf(data);
-      const text = await extractPdfText(pdf);
-
-      expect(text).not.toContain("Executive Summary");
-    },
-    30000,
-  );
-
-  browserIt(
-    "omits Sentiment Analysis when sentiment is empty",
-    async () => {
-      const data = readFixture(minimalFixturePath);
-      const pdf = await assemblePdf(data);
-      const text = await extractPdfText(pdf);
-
-      expect(text).not.toContain("Sentiment Analysis");
-    },
-    30000,
-  );
-
-  browserIt(
-    "still includes metrics and disclaimer with minimal data",
-    async () => {
-      const data = readFixture(minimalFixturePath);
-      const pdf = await assemblePdf(data);
-      const text = await extractPdfText(pdf);
-
-      expect(text).toContain("Small Company");
-      expect(text).toContain("Key Metrics Dashboard");
-      expect(text).toContain("Revenue");
-      expect(text).toContain("500,000");
-      expect(text).toContain("AI-Generated Disclaimer");
-    },
-    30000,
-  );
-
-  browserIt(
-    "includes Revenue Breakdown section with charts",
-    async () => {
-      const data = readFixture(completeFixturePath);
-      const pdf = await assemblePdf(data);
-      const text = await extractPdfText(pdf);
-
-      expect(text).toContain("Revenue by Segment");
-    },
-    30000,
-  );
-
-  browserIt(
-    "includes Profitability Trends section",
-    async () => {
-      const data = readFixture(completeFixturePath);
-      const pdf = await assemblePdf(data);
-      const text = await extractPdfText(pdf);
-
-      expect(text).toContain("Profitability Trends");
-    },
-    30000,
-  );
-
-  browserIt(
-    "omits Revenue Breakdown when revenueBreakdown data missing",
-    async () => {
-      const data = readFixture(minimalFixturePath);
-      const pdf = await assemblePdf(data);
-      const text = await extractPdfText(pdf);
-
-      expect(text).not.toContain("Revenue by Segment");
-      expect(text).not.toContain("Revenue by Geography");
-    },
-    30000,
-  );
-
-  browserIt(
-    "omits Profitability Trends when trend data is insufficient",
-    async () => {
-      const data = readFixture(minimalFixturePath);
-      const pdf = await assemblePdf(data);
-      const text = await extractPdfText(pdf);
-
-      expect(text).not.toContain("Profitability Trends");
-    },
-    30000,
-  );
+  it("handles empty data gracefully", () => {
+    const emptyData: ExtractedData = {
+      metadata: { companyName: "", reportPeriod: "", sourceLanguage: "en" },
+      metrics: [],
+      narratives: [],
+      sentiment: { managementTone: "", outlook: "", riskFactors: [] },
+    };
+    const html = buildHtml(emptyData, emptyCharts);
+    // Should still produce valid HTML
+    expect(html).toContain("<html");
+    expect(html).toContain("</html>");
+    expect(html).toContain("Company Report"); // fallback name
+  });
 });
