@@ -1,6 +1,7 @@
 import { withClient } from "./db";
-import type { Job, CreateJobInput, UpdateJobInput, JobStore, TranslationCacheEntry, FileStore } from "./index";
+import type { Job, CreateJobInput, UpdateJobInput, JobStore, TranslationCacheEntry, FileStore, Company, CreateCompanyInput, CompanyStore, SeedCompany } from "./index";
 import { createAutoFileStore } from "./file-store";
+import { BALTIC_COMPANIES } from "./seed-companies";
 
 function rowToJob(row: Record<string, unknown>): Job {
   return {
@@ -224,4 +225,82 @@ export function createPostgresStore(): JobStore {
 
 export function createPostgresFileStore(): FileStore {
   return createAutoFileStore("./bei-data");
+}
+
+// ── Company store ──────────────────────────────────────────────────────────
+
+function rowToCompany(row: Record<string, unknown>): Company {
+  return {
+    id: row.id as string,
+    name: row.name as string,
+    ticker: (row.ticker as string | null) ?? null,
+    exchange: row.exchange as string,
+    slug: row.slug as string,
+    country: (row.country as string | null) ?? null,
+    sector: (row.sector as string | null) ?? null,
+    reportCount: (row.report_count as number) ?? 0,
+    createdAt: row.created_at as string,
+    updatedAt: row.updated_at as string,
+  };
+}
+
+export function createCompanyStore(): CompanyStore {
+  return {
+    async listCompanies(): Promise<Company[]> {
+      return withClient(async (client) => {
+        const result = await client.query(
+          `SELECT *, 0::int AS report_count
+           FROM companies
+           ORDER BY exchange, name`,
+        );
+        return result.rows.map(rowToCompany);
+      });
+    },
+
+    async getCompanyBySlug(slug: string): Promise<Company | null> {
+      return withClient(async (client) => {
+        const result = await client.query(
+          `SELECT *, 0::int AS report_count
+           FROM companies
+           WHERE slug = $1`,
+          [slug],
+        );
+        return result.rows.length > 0 ? rowToCompany(result.rows[0]) : null;
+      });
+    },
+
+    async createCompany(input: CreateCompanyInput): Promise<Company> {
+      return withClient(async (client) => {
+        const result = await client.query(
+          `INSERT INTO companies (name, ticker, exchange, slug, country, sector)
+           VALUES ($1, $2, $3, $4, $5, $6)
+           ON CONFLICT (slug) DO UPDATE SET
+             name = EXCLUDED.name,
+             ticker = EXCLUDED.ticker,
+             exchange = EXCLUDED.exchange,
+             country = EXCLUDED.country,
+             sector = EXCLUDED.sector,
+             updated_at = NOW()
+           RETURNING *`,
+          [input.name, input.ticker ?? null, input.exchange, input.slug, input.country ?? null, input.sector ?? null],
+        );
+        const company = rowToCompany(result.rows[0]);
+        company.reportCount = 0;
+        return company;
+      });
+    },
+  };
+}
+
+// ── Seed ───────────────────────────────────────────────────────────────────
+
+/** Seed Baltic listed companies — idempotent via ON CONFLICT (slug). */
+export async function seedCompanies(): Promise<number> {
+  const store = createCompanyStore();
+  let count = 0;
+  for (const c of BALTIC_COMPANIES) {
+    await store.createCompany(c);
+    count++;
+  }
+  return count;
 }

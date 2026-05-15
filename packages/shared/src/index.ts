@@ -1,4 +1,5 @@
-export { createPostgresStore, createPostgresFileStore } from "./pg-store";
+export { createPostgresStore, createPostgresFileStore, createCompanyStore, seedCompanies } from "./pg-store";
+export { BALTIC_COMPANIES } from "./seed-companies";
 export { getPool, closePool } from "./db";
 export { createFileStore, createEnvFileStore, createS3FileStore, createAutoFileStore } from "./file-store";
 export type { FileStore, EnvFileStoreOptions } from "./file-store";
@@ -90,4 +91,40 @@ export interface ExtractedData {
   sentiment: ExtractedSentiment;
   revenueBreakdown?: RevenueBreakdown;
   profitabilityTrends?: ProfitabilityTrends;
+}
+
+// ── Companies data layer ────────────────────────────────────────────────────
+
+export interface Company {
+  id: string;
+  name: string;
+  ticker: string | null;
+  exchange: string;
+  slug: string;
+  country: string | null;
+  sector: string | null;
+  reportCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type CreateCompanyInput = Pick<Company, "name" | "exchange" | "slug"> & {
+  ticker?: string | null;
+  country?: string | null;
+  sector?: string | null;
+};
+
+export interface CompanyStore {
+  listCompanies(): Promise<Company[]>;
+  getCompanyBySlug(slug: string): Promise<Company | null>;
+  createCompany(input: CreateCompanyInput): Promise<Company>;
+}
+
+export interface SeedCompany {
+  name: string;
+  ticker: string | null;
+  exchange: string;
+  slug: string;
+  country: string | null;
+  sector: string | null;
 }

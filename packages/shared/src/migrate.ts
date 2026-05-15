@@ -58,7 +58,29 @@ async function migrate() {
       CREATE INDEX IF NOT EXISTS idx_leads_created_at ON leads(created_at);
     `);
 
-    console.log("Migration complete: jobs, translation cache, and leads ready.");
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS companies (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        name TEXT NOT NULL,
+        ticker TEXT,
+        exchange TEXT NOT NULL,
+        slug TEXT NOT NULL UNIQUE,
+        country TEXT,
+        sector TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `);
+
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_companies_exchange ON companies(exchange);
+    `);
+
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_companies_slug ON companies(slug);
+    `);
+
+    console.log("Migration complete: jobs, translation cache, leads, and companies ready.");
   } finally {
     client.release();
   }
