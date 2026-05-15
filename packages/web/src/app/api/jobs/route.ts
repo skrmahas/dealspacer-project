@@ -64,7 +64,13 @@ export async function POST(request: NextRequest) {
   const store = createPostgresStore();
   const buffer = Buffer.from(await file.arrayBuffer());
   const t2 = Date.now();
-  const job = await store.createJob({ originalFilename: file.name, outputLanguage });
+
+  const companyIdValue = formData.get("companyId");
+  const companyId = typeof companyIdValue === "string" && companyIdValue.length > 0
+    ? companyIdValue
+    : null;
+
+  const job = await store.createJob({ originalFilename: file.name, outputLanguage, companyId });
   const t3 = Date.now();
 
   try {

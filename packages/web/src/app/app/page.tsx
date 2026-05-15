@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { ReportSummary } from "@/components/report-summary";
 import { BriefSummary } from "@/components/brief-summary";
 import { ErrorBoundary } from "@/components/error-boundary";
@@ -88,6 +89,11 @@ function PollingSkeleton() {
 }
 
 export default function Home() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const companySlug = searchParams.get("company");
+  const [companyId, setCompanyId] = useState<string | null>(null);
+  const [companyName, setCompanyName] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [outputLanguage, setOutputLanguage] = useState<OutputLanguage>("en");
   const [uploading, setUploading] = useState(false);
@@ -237,6 +243,21 @@ export default function Home() {
     }
   }, []);
 
+  // Fetch company context from query param
+  useEffect(() => {
+    if (!companySlug) return;
+    fetch("/api/companies")
+      .then((r) => r.json())
+      .then((companies: any[]) => {
+        const found = companies.find((c: any) => c.slug === companySlug);
+        if (found) {
+          setCompanyId(found.id);
+          setCompanyName(found.name);
+        }
+      })
+      .catch(() => {});
+  }, [companySlug]);
+
   // Fetch recent jobs on mount
   useEffect(() => {
     void fetchRecentJobs();
@@ -259,6 +280,7 @@ export default function Home() {
       const form = new FormData();
       form.set("file", file);
       form.set("outputLanguage", outputLanguage);
+      if (companyId) form.set("companyId", companyId);
 
       abortUploadRef.current = null;
       const created = await uploadFileWithProgress(
@@ -306,7 +328,7 @@ export default function Home() {
             <div>
               <h1 style={{ margin: 0, fontSize: 32, color: "var(--color-heading)", letterSpacing: 0.2 }}>DealSpacer</h1>
               <p style={{ margin: "10px 0 0", color: "var(--color-text-muted)", fontSize: 15 }}>
-                Upload Baltic earnings reports and generate shareable localized PDF summaries.
+                {companyName ? `Uploading a report for ${companyName}` : "Upload Baltic earnings reports and generate shareable localized PDF summaries."}
               </p>
             </div>
           </div>
@@ -486,9 +508,36 @@ export default function Home() {
 
             {polling && <PollingSkeleton />}
 
-            {(pipelineError || (job.state === "failed" && job.error)) && (
+            {(pipelineError || ((job.state === "failed" || job.state === "duplicate") && job.error)) && (
               <div style={{ marginTop: 14, borderRadius: 10, border: "1px solid var(--color-error-border)", background: "var(--color-error-bg)", color: "var(--color-error-text)", padding: 12, fontSize: 14 }}>
                 {pipelineError || describeFailure(job.error)}
+                {job.state === "duplicate" && (
+                  <div style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <button onClick={async () => {
+                      try {
+                        const res = await fetch(`/api/reports/by-job/${job.jobId}`);
+                        if (res.ok) {
+                          const report = await res.json();
+                          if (report?.id) router.push(`/reports/${report.id}`);
+                        }
+                      } catch {}
+                    }} style={{ border: "1px solid #a22e26", borderRadius: 6, padding: "6px 12px", background: "transparent", color: "#a22e26", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+                      View Existing
+                    </button>
+                    <button onClick={async () => {
+                      setRetrying(true);
+                      try {
+                        const res = await fetch(`/api/jobs/${job.jobId}/replace`, { method: "POST" });
+                        if (res.ok) {
+                          const data = await res.json();
+                          if (data.reportId) router.push(`/reports/${data.reportId}`);
+                        }
+                      } catch {} finally { setRetrying(false); }
+                    }} disabled={retrying} style={{ border: "1px solid var(--color-accent)", borderRadius: 6, padding: "6px 12px", background: "transparent", color: "var(--color-accent)", fontSize: 12, fontWeight: 600, cursor: retrying ? "not-allowed" : "pointer" }}>
+                      {retrying ? "Replacing..." : "Replace"}
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 
