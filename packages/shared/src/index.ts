@@ -37,6 +37,7 @@ export interface JobStore {
   resetStaleJobs?(staleAfterMs: number): Promise<number>;
   getCachedTranslations(sourceTexts: string[]): Promise<Map<string, TranslationCacheEntry>>;
   saveCachedTranslations(entries: TranslationCacheEntry[]): Promise<void>;
+  deleteOldJobs?(retentionMs: number, minCount: number): Promise<number>;
 }
 
 export interface TranslationCacheEntry {

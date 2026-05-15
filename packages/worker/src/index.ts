@@ -53,6 +53,8 @@ const DEFAULT_STALE_JOB_SWEEP_INTERVAL_MS = 30_000;
 const DEFAULT_STALE_JOB_THRESHOLD_MS = 30 * 60 * 1000;
 const BROWSER_HEALTH_CHECK_INTERVAL_MS = 5 * 60 * 1000;
 const DEFAULT_SHUTDOWN_GRACE_MS = 120_000;
+const DEFAULT_JOB_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
+const DEFAULT_JOB_RETENTION_MIN_COUNT = 50;
 
 function formatMemoryMb(bytes: number): string {
   return (bytes / (1024 * 1024)).toFixed(0);
@@ -99,6 +101,27 @@ healthCheckTimer = setInterval(async () => {
   }
 }, BROWSER_HEALTH_CHECK_INTERVAL_MS);
 
+// Periodic job retention cleanup
+const retentionMs = readPositiveMsEnv("JOB_RETENTION_MS", DEFAULT_JOB_RETENTION_MS);
+const retentionMinCount = Math.max(
+  1,
+  parseInt(process.env.JOB_RETENTION_MIN_COUNT || String(DEFAULT_JOB_RETENTION_MIN_COUNT), 10) || DEFAULT_JOB_RETENTION_MIN_COUNT,
+);
+let retentionTimer: ReturnType<typeof setInterval> | null = null;
+if (typeof store.deleteOldJobs === "function") {
+  retentionTimer = setInterval(async () => {
+    if (stopped) return;
+    try {
+      const deleted = await store.deleteOldJobs!(retentionMs, retentionMinCount);
+      if (deleted > 0) {
+        console.log(`[worker] Cleaned up ${deleted} old job(s)`);
+      }
+    } catch (error) {
+      console.error("Job retention cleanup failed:", error instanceof Error ? error.message : error);
+    }
+  }, readPositiveMsEnv("STALE_JOB_SWEEP_INTERVAL_MS", 30_000));
+}
+
 const stopWorker = startWorker({
   store,
   processJob: async (job, store) => {
@@ -122,6 +145,10 @@ const shutdown = async () => {
   if (healthCheckTimer) {
     clearInterval(healthCheckTimer);
     healthCheckTimer = null;
+  }
+  if (retentionTimer) {
+    clearInterval(retentionTimer);
+    retentionTimer = null;
   }
 
   const graceMs = readPositiveMsEnv("WORKER_SHUTDOWN_GRACE_MS", DEFAULT_SHUTDOWN_GRACE_MS);

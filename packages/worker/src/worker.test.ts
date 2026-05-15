@@ -43,6 +43,7 @@ function createMockStore(jobs: Job[] = []) {
       return new Map<string, TranslationCacheEntry>();
     },
     async saveCachedTranslations(_entries: TranslationCacheEntry[]) {},
+    async deleteOldJobs(_retentionMs: number, _minCount: number) { return 0; },
   } satisfies JobStore;
 }
 

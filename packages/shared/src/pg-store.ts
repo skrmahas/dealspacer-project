@@ -133,6 +133,43 @@ export function createPostgresStore(): JobStore {
       });
     },
 
+    async deleteOldJobs(retentionMs: number, minCount: number): Promise<number> {
+      return withClient(async (client) => {
+        // Count terminal jobs
+        const countResult = await client.query(
+          `SELECT COUNT(*) AS total FROM jobs WHERE state = ANY($1::text[])`,
+          [["complete", "failed"]],
+        );
+        const total = parseInt(countResult.rows[0].total, 10);
+        if (total <= minCount) return 0;
+
+        // Delete old terminal jobs in batches, keeping at least minCount
+        const toDelete = total - minCount;
+        const batchSize = 100;
+        let deleted = 0;
+
+        while (deleted < toDelete) {
+          const limit = Math.min(batchSize, toDelete - deleted);
+          const result = await client.query(
+            `DELETE FROM jobs
+             WHERE id IN (
+               SELECT id FROM jobs
+               WHERE state = ANY($1::text[])
+                 AND updated_at < NOW() - ($2 * INTERVAL '1 millisecond')
+               ORDER BY updated_at ASC
+               LIMIT $3
+             )`,
+            [["complete", "failed"], retentionMs, limit],
+          );
+          const rowsDeleted = result.rowCount ?? 0;
+          if (rowsDeleted === 0) break;
+          deleted += rowsDeleted;
+        }
+
+        return deleted;
+      });
+    },
+
     async getCachedTranslations(sourceTexts: string[]): Promise<Map<string, TranslationCacheEntry>> {
       if (sourceTexts.length === 0) return new Map();
 
