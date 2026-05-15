@@ -381,11 +381,11 @@ describe("createPostgresFileStore", () => {
 });
 
 describe("createCompanyStore", () => {
-  it("listCompanies returns companies ordered by exchange then name", async () => {
+  it("listCompanies returns companies ordered by exchange then name with real report counts", async () => {
     const rows = [
-      { id: "1", name: "Tallink", ticker: "TAL", exchange: "Nasdaq Tallinn", slug: "tallink", country: "EE", sector: "Industrials", report_count: 0, created_at: "2024-01-01", updated_at: "2024-01-01" },
-      { id: "2", name: "LHV", ticker: "LHV", exchange: "Nasdaq Tallinn", slug: "lhv", country: "EE", sector: "Financials", report_count: 0, created_at: "2024-01-01", updated_at: "2024-01-01" },
-      { id: "3", name: "Olainfarm", ticker: "OLF", exchange: "Nasdaq Riga", slug: "olainfarm", country: "LV", sector: "Health Care", report_count: 0, created_at: "2024-01-01", updated_at: "2024-01-01" },
+      { id: "1", name: "Tallink", ticker: "TAL", exchange: "Nasdaq Tallinn", slug: "tallink", country: "EE", sector: "Industrials", report_count: 4, created_at: "2024-01-01", updated_at: "2024-01-01" },
+      { id: "2", name: "LHV", ticker: "LHV", exchange: "Nasdaq Tallinn", slug: "lhv", country: "EE", sector: "Financials", report_count: 7, created_at: "2024-01-01", updated_at: "2024-01-01" },
+      { id: "3", name: "Olainfarm", ticker: "OLF", exchange: "Nasdaq Riga", slug: "olainfarm", country: "LV", sector: "Health Care", report_count: 2, created_at: "2024-01-01", updated_at: "2024-01-01" },
     ];
     const { query } = setupWithClient(rows);
 
@@ -396,16 +396,21 @@ describe("createCompanyStore", () => {
     expect(companies[0].name).toBe("Tallink");
     expect(companies[1].name).toBe("LHV");
     expect(companies[2].name).toBe("Olainfarm");
+    expect(companies[0].reportCount).toBe(4);
+    expect(companies[1].reportCount).toBe(7);
+    expect(companies[2].reportCount).toBe(2);
     expect(query).toHaveBeenCalledWith(
       expect.stringContaining("ORDER BY exchange, name"),
     );
+    expect(query.mock.calls[0][0]).toContain("SELECT COUNT(*)");
+    expect(query.mock.calls[0][0]).toContain("FROM reports");
   });
 
-  it("getCompanyBySlug returns the correct company", async () => {
+  it("getCompanyBySlug returns the correct company with real report counts", async () => {
     const rows = [
-      { id: "1", name: "Tallink", ticker: "TAL", exchange: "Nasdaq Tallinn", slug: "tallink", country: "EE", sector: "Industrials", report_count: 0, created_at: "2024-01-01", updated_at: "2024-01-01" },
+      { id: "1", name: "Tallink", ticker: "TAL", exchange: "Nasdaq Tallinn", slug: "tallink", country: "EE", sector: "Industrials", report_count: 6, created_at: "2024-01-01", updated_at: "2024-01-01" },
     ];
-    setupWithClient(rows);
+    const { query } = setupWithClient(rows);
 
     const store = createCompanyStore();
     const company = await store.getCompanyBySlug("tallink");
@@ -413,7 +418,9 @@ describe("createCompanyStore", () => {
     expect(company).not.toBeNull();
     expect(company!.name).toBe("Tallink");
     expect(company!.slug).toBe("tallink");
-    expect(company!.reportCount).toBe(0);
+    expect(company!.reportCount).toBe(6);
+    expect(query.mock.calls[0][0]).toContain("SELECT COUNT(*)");
+    expect(query.mock.calls[0][0]).toContain("FROM reports");
   });
 
   it("getCompanyBySlug returns null for unknown slug", async () => {

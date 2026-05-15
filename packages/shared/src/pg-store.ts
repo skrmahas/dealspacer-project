@@ -259,7 +259,8 @@ export function createCompanyStore(): CompanyStore {
     async listCompanies(): Promise<Company[]> {
       return withClient(async (client) => {
         const result = await client.query(
-          `SELECT *, 0::int AS report_count
+          `SELECT *,
+                  (SELECT COUNT(*)::int FROM reports r WHERE r.company_id = companies.id) AS report_count
            FROM companies
            ORDER BY exchange, name`,
         );
@@ -270,7 +271,8 @@ export function createCompanyStore(): CompanyStore {
     async getCompanyBySlug(slug: string): Promise<Company | null> {
       return withClient(async (client) => {
         const result = await client.query(
-          `SELECT *, 0::int AS report_count
+          `SELECT *,
+                  (SELECT COUNT(*)::int FROM reports r WHERE r.company_id = companies.id) AS report_count
            FROM companies
            WHERE slug = $1`,
           [slug],
