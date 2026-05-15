@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildHtml } from "./assembler";
+import { buildHtml, buildBriefHtml } from "./assembler";
 import type { ExtractedData } from "@bei/shared";
 
 const emptyCharts = {
@@ -96,5 +96,62 @@ describe("buildHtml", () => {
     expect(html).toContain("<html");
     expect(html).toContain("</html>");
     expect(html).toContain("Company Report"); // fallback name
+  });
+});
+
+describe("buildBriefHtml", () => {
+  it("includes company name and report period", () => {
+    const html = buildBriefHtml(minimalData, emptyCharts);
+    expect(html).toContain("AS Tallink Grupp");
+    expect(html).toContain("Q1 2024");
+  });
+
+  it("includes a key metrics table", () => {
+    const html = buildBriefHtml(minimalData, emptyCharts);
+    expect(html).toContain("<table");
+    expect(html).toContain("Revenue");
+    expect(html).toContain("210,400,000");
+  });
+
+  it("shows management tone badge", () => {
+    const html = buildBriefHtml(minimalData, emptyCharts);
+    expect(html).toContain("tone-positive");
+    expect(html).toContain("positive");
+  });
+
+  it("shows risk factors", () => {
+    const html = buildBriefHtml(minimalData, emptyCharts);
+    expect(html).toContain("Fuel price volatility");
+    expect(html).toContain("Risk Factors");
+  });
+
+  it("includes key highlights from narratives", () => {
+    const html = buildBriefHtml(minimalData, emptyCharts);
+    expect(html).toContain("Strong quarter with revenue growth");
+  });
+
+  it("produces valid HTML structure", () => {
+    const html = buildBriefHtml(minimalData, emptyCharts);
+    expect(html).toContain("<html");
+    expect(html).toContain("</html>");
+    expect(html).toContain("<body");
+  });
+
+  it("handles empty data", () => {
+    const emptyData: ExtractedData = {
+      metadata: { companyName: "", reportPeriod: "", sourceLanguage: "en" },
+      metrics: [],
+      narratives: [],
+      sentiment: { managementTone: "", outlook: "", riskFactors: [] },
+    };
+    const html = buildBriefHtml(emptyData, emptyCharts);
+    expect(html).toContain("No key metrics extracted");
+    expect(html).toContain("Company Report");
+  });
+
+  it("is more compact than the full report", () => {
+    const brief = buildBriefHtml(minimalData, emptyCharts);
+    const full = buildHtml(minimalData, emptyCharts);
+    expect(brief.length).toBeLessThan(full.length);
   });
 });

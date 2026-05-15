@@ -563,6 +563,115 @@ export function buildHtml(data: ExtractedData, charts: ChartImages): string {
 </html>`;
 }
 
+// ── Executive Brief HTML Template ───────────────────────────────────────────
+
+/**
+ * Generate a compact 1-2 page executive brief PDF from extracted data.
+ * Focuses on key KPIs, management tone, and concise bullets.
+ */
+export function buildBriefHtml(data: ExtractedData, charts: ChartImages): string {
+  const labels = LABELS[data.metadata.outputLanguage ?? "en"];
+  const companyName = data.metadata.companyName || "Company Report";
+  const reportPeriod = data.metadata.reportPeriod || "";
+  const title = [companyName, reportPeriod].filter(Boolean).join(" — ");
+
+  // Top 8 key metrics by presence (revenue, EBITDA, net profit, etc.)
+  const keyMetricLabels = [
+    "revenue", "ebitda", "net profit", "net income",
+    "operating profit", "total assets", "equity", "eps",
+    "cash flow", "investment", "capex", "dividends",
+  ];
+  const keyMetrics = data.metrics
+    .filter((m) => {
+      const lower = m.label.toLowerCase();
+      return keyMetricLabels.some((k) => lower.includes(k));
+    })
+    .slice(0, 8);
+
+  // Sentiment summary
+  const tone = data.sentiment.managementTone || "Not assessed";
+  const outlook = data.sentiment.outlook || "No forward-looking statements extracted.";
+  const riskCount = data.sentiment.riskFactors.length;
+
+  // Key positives/negatives from narratives
+  const execSummary = data.narratives.find((n) => n.section === "executive_summary");
+  const mgmtCommentary = data.narratives.find((n) => n.section === "management_commentary");
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<style>
+  @page { size: A4; margin: 2cm 2.2cm; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 11pt;
+    color: #1a1a1a;
+    line-height: 1.4;
+  }
+  h1 { font-size: 20pt; color: #2b79db; margin-bottom: 6pt; }
+  h2 { font-size: 14pt; color: #2b79db; border-bottom: 2px solid #2b79db; padding-bottom: 4pt; margin: 16pt 0 8pt 0; }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 10pt; }
+  th, td { text-align: left; padding: 5pt 8pt; border-bottom: 1px solid #e5e5e5; font-size: 10pt; }
+  th { font-weight: 700; color: #2b79db; background: #f5f7fa; }
+  .header-meta { color: #666; font-size: 10pt; margin-bottom: 12pt; }
+  .tone-badge {
+    display: inline-block;
+    padding: 3pt 10pt;
+    border-radius: 12pt;
+    font-size: 10pt;
+    font-weight: 700;
+    margin-bottom: 8pt;
+  }
+  .tone-positive { background: #e8f5e9; color: #2e7d32; }
+  .tone-neutral { background: #e3f2fd; color: #1565c0; }
+  .tone-cautious { background: #fff3e0; color: #e65100; }
+  .tone-negative { background: #ffebee; color: #c62828; }
+  .tone-very-positive { background: #c8e6c9; color: #1b5e20; }
+  .disclaimer { margin-top: 16pt; padding-top: 8pt; border-top: 1px solid #e0e0e0; font-size: 7pt; color: #999; text-align: center; }
+  ul { padding-left: 20pt; margin-bottom: 8pt; }
+  li { margin-bottom: 2pt; font-size: 10pt; }
+</style>
+</head>
+<body>
+  <h1>${escapeHtml(title)}</h1>
+  <p class="header-meta">
+    ${escapeHtml(labels.generatedOn)} ${new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })} · Source: ${escapeHtml(data.metadata.sourceLanguage || "unknown")}
+  </p>
+
+  <h2>${escapeHtml(labels.keyMetricsDashboard)}</h2>
+  <table>
+    <thead><tr><th>Metric</th><th>Value</th></tr></thead>
+    <tbody>
+      ${keyMetrics.length > 0
+        ? keyMetrics.map((m) => `<tr><td>${escapeHtml(m.label)}</td><td>${escapeHtml(formatMetricValue(m))}</td></tr>`).join("\n")
+        : `<tr><td colspan="2">No key metrics extracted.</td></tr>`}
+    </tbody>
+  </table>
+
+  <h2>Management Tone & Outlook</h2>
+  <div class="tone-badge tone-${tone.toLowerCase().replace(/\s+/g, "-")}">${escapeHtml(tone)}</div>
+  <p style="font-size:10pt; color:#555;">${escapeHtml(outlook)}</p>
+
+  ${riskCount > 0 ? `
+  <p style="font-size:10pt; margin-top:8pt;"><strong>Risk Factors:</strong> ${escapeHtml(data.sentiment.riskFactors.slice(0, 3).join("; "))}${riskCount > 3 ? ` (+${riskCount - 3} more)` : ""}</p>
+  ` : ""}
+
+  ${execSummary || mgmtCommentary ? `
+  <h2>Key Highlights</h2>
+  ${execSummary ? `<p style="font-size:10pt; color:#555;">${escapeHtml(execSummary.text.slice(0, 500))}</p>` : ""}
+  ${mgmtCommentary ? `<p style="font-size:10pt; color:#555;">${escapeHtml(mgmtCommentary.text.slice(0, 500))}</p>` : ""}
+  ` : ""}
+
+  <div class="disclaimer">
+    <p><strong>${escapeHtml(labels.aiDisclaimer)}:</strong> ${escapeHtml(labels.disclaimerText.slice(0, 200))}</p>
+    <p>DealSpacer — Executive Brief</p>
+  </div>
+</body>
+</html>`;
+}
+
 // ── HTML escaping ───────────────────────────────────────────────────────────
 
 function escapeHtml(text: string): string {
@@ -817,5 +926,39 @@ export async function assemblePdf(data: ExtractedData): Promise<Buffer> {
   } finally {
     // Clean up temp chart files
     await fs.rm(tempDir, { recursive: true, force: true }).catch(() => {});
+  }
+}
+
+/**
+ * Generate a compact 1-2 page executive brief PDF.
+ * Uses the same chrome/browser infrastructure as assemblePdf.
+ */
+export async function assembleBriefPdf(data: ExtractedData): Promise<Buffer> {
+  const html = buildBriefHtml(data, {
+    sparklines: new Map(),
+    yoyChanges: new Map(),
+    revenueBarChart: "",
+    revenueDonutChart: "",
+    profitabilityChart: "",
+  });
+
+  const b = await getBrowser();
+  const page: Page = await b.newPage();
+  try {
+    await page.setContent(html, {
+      waitUntil: "load",
+      timeout: 30000,
+    });
+    const scale = getPdfScale();
+    const pdf = await page.pdf({
+      format: "A4",
+      printBackground: true,
+      preferCSSPageSize: true,
+      scale,
+      margin: { top: "1.5cm", right: "1.5cm", bottom: "1.5cm", left: "1.5cm" },
+    });
+    return maybeCompressPdf(Buffer.from(pdf));
+  } finally {
+    await page.close();
   }
 }
