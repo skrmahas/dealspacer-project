@@ -1,11 +1,12 @@
 import React from "react";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import AccessPage from "./page";
 import { ACCESS_REQUEST_TIMEOUT_MS } from "@/lib/access-timeout";
 
 const pushMock = vi.fn();
 const refreshMock = vi.fn();
+let nextParamValue: string | null = "/";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
@@ -13,7 +14,7 @@ vi.mock("next/navigation", () => ({
     refresh: refreshMock,
   }),
   useSearchParams: () => ({
-    get: (key: string) => (key === "next" ? "/" : null),
+    get: (key: string) => (key === "next" ? nextParamValue : null),
   }),
 }));
 
@@ -22,9 +23,11 @@ describe("AccessForm", () => {
     vi.useFakeTimers();
     pushMock.mockReset();
     refreshMock.mockReset();
+    nextParamValue = "/";
   });
 
   afterEach(() => {
+    cleanup();
     vi.useRealTimers();
     vi.unstubAllGlobals();
   });
@@ -64,5 +67,32 @@ describe("AccessForm", () => {
     expect(screen.getByRole("button", { name: "Unlock Access" })).toBeInTheDocument();
     expect(pushMock).not.toHaveBeenCalled();
     expect(refreshMock).not.toHaveBeenCalled();
+  });
+
+  it("defaults to /app when next query param is missing", async () => {
+    nextParamValue = null;
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ ok: true, next: "/app" }),
+    });
+    vi.stubGlobal(
+      "fetch",
+      fetchMock,
+    );
+
+    render(<AccessPage />);
+
+    fireEvent.change(screen.getByPlaceholderText("Access code"), {
+      target: { value: "some-code" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Unlock Access" }));
+
+    await vi.runAllTimersAsync();
+    await Promise.resolve();
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect((fetchMock.mock.calls[0][1] as RequestInit).body).toContain("\"next\":\"/app\"");
+    expect(pushMock).toHaveBeenCalledWith("/app");
+    expect(refreshMock).toHaveBeenCalled();
   });
 });

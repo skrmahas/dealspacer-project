@@ -45,12 +45,25 @@ describe("runMigrations", () => {
     expect(cacheTable).toContain("lt TEXT");
   });
 
-  it("creates all three indexes", async () => {
+  it("creates leads table", async () => {
+    await runMigrations();
+
+    const queries = mockQuery.mock.calls.map((c: unknown[]) => (c as string[])[0]);
+    const leadsTable = queries.find((q: string) => q.includes("CREATE TABLE IF NOT EXISTS leads"));
+    expect(leadsTable).toBeDefined();
+    expect(leadsTable).toContain("email TEXT NOT NULL UNIQUE");
+    expect(leadsTable).toContain("source TEXT");
+    expect(leadsTable).toContain("user_agent TEXT");
+    expect(leadsTable).toContain("referrer TEXT");
+    expect(leadsTable).toContain("ip_address TEXT");
+  });
+
+  it("creates all required indexes", async () => {
     await runMigrations();
 
     const queries = mockQuery.mock.calls.map((c: unknown[]) => (c as string[])[0]);
     const indexQueries = queries.filter((q: string) => q.includes("CREATE INDEX"));
-    expect(indexQueries.length).toBeGreaterThanOrEqual(3);
+    expect(indexQueries.length).toBeGreaterThanOrEqual(4);
 
     const stateIdx = indexQueries.find((q: string) => q.includes("idx_jobs_state"));
     expect(stateIdx).toBeDefined();
@@ -62,6 +75,9 @@ describe("runMigrations", () => {
     const pollIdx = indexQueries.find((q: string) => q.includes("idx_jobs_poll"));
     expect(pollIdx).toBeDefined();
     expect(pollIdx).toContain("state, created_at");
+
+    const leadsIdx = indexQueries.find((q: string) => q.includes("idx_leads_created_at"));
+    expect(leadsIdx).toBeDefined();
   });
 
   it("uses IF NOT EXISTS for idempotency", async () => {

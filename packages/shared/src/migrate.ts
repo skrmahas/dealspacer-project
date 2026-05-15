@@ -41,7 +41,24 @@ async function migrate() {
       );
     `);
 
-    console.log("Migration complete: jobs and translation cache ready.");
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS leads (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        email TEXT NOT NULL UNIQUE,
+        source TEXT,
+        user_agent TEXT,
+        referrer TEXT,
+        ip_address TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `);
+
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_leads_created_at ON leads(created_at);
+    `);
+
+    console.log("Migration complete: jobs, translation cache, and leads ready.");
   } finally {
     client.release();
   }

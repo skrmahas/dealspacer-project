@@ -10,15 +10,15 @@ const ACCESS_COOKIE_VALUE = "granted";
 const ACCESS_COOKIE_AGE_SECONDS = 60 * 60 * 24 * 30;
 
 function normalizedPath(path: string): string {
-  if (!path || !path.startsWith("/")) return "/";
-  if (path.startsWith("//")) return "/";
+  if (!path || !path.startsWith("/")) return "/app";
+  if (path.startsWith("//")) return "/app";
   return path;
 }
 
 export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => ({} as { code?: string; next?: string }));
   const code = (body.code ?? "").trim();
-  const next = normalizedPath(body.next ?? "/");
+  const next = normalizedPath(body.next ?? "/app");
   const expected = resolveExpectedAccessCode();
   const clientIp = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
     request.headers.get("x-real-ip") ||

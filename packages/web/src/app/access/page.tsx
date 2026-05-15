@@ -14,7 +14,7 @@ function AccessForm() {
 
   const nextPath = useMemo(() => {
     const nextValue = params.get("next");
-    if (!nextValue || !nextValue.startsWith("/")) return "/";
+    if (!nextValue || !nextValue.startsWith("/")) return "/app";
     return nextValue;
   }, [params]);
 
