@@ -13,8 +13,8 @@ A web application that serves as both a **browsable catalog** of Baltic company 
 **Catalog layer** (new):
 1. A curated directory of Baltic listed companies, grouped by exchange (Tallinn/Riga/Vilnius)
 2. A persistent `reports` table mapping each company's annual and quarterly reports to fiscal year, report type, language, and the generated summary PDF
-3. Company detail pages with a chronological report timeline showing key metrics inline (revenue, EBITDA, net profit) so users can scan trends without clicking into every report
-4. A dedicated comparison page where two reports (same company or cross-company) are rendered side-by-side with structured metrics, sentiment analysis, overlaid charts, and directional "who's doing better" callouts
+3. Company detail pages with a chronological report timeline showing key metrics inline (revenue, free cash flow, EBITDA, net profit) so users can scan trends without clicking into every report
+4. A dedicated comparison page where two reports (same company or cross-company) are rendered side-by-side with structured metrics, sentiment analysis, overlaid charts, and directional "who's doing better" callouts. Revenue, Free Cash Flow, and Guidance Sentiment are the three primary pillars weighted 2× in the comparison algorithm.
 5. Admin tools for resolving reports that don't auto-match to a known company
 
 **AI pipeline** (existing, now feeding the catalog):
@@ -76,6 +76,25 @@ The connection between layers: when a job completes successfully, the worker's o
 - **Completion hook** (new): On job `complete`, the orchestrator inserts a `reports` row with fuzzy-matched `company_id`, a snapshot of the extracted JSON, and the S3 key of the generated PDF. Duplicate detection runs before insert.
 
 The intermediate artifact is semi-structured — a fixed JSON container shape with flexible contents. This gives Stage 2 typed, machine-readable numbers for charting (no re-extraction risk), while keeping the schema flexible enough for any Baltic company regardless of sector. The same JSON is snapshotted into `reports.extracted_json_snapshot` for powering comparison pages without re-parsing or additional LLM calls.
+
+### Primary extraction targets
+
+The extraction prompt explicitly prioritizes three pillars that investors track most:
+
+| # | Metric | Statement | Why it matters |
+|---|---|---|---|
+| 1 | **Revenue** | Income Statement | Most fundamental and widely-tracked financial metric. Demonstrates the tool's ability to work with the core financial statement. |
+| 2 | **Free Cash Flow (FCF)** | Cash Flow Statement | "Profit is an opinion, but cash is a fact." Net Profit and EBITDA can be distorted by accounting adjustments or non-cash items. FCF reflects actual cash entering the company. More complex and more valuable than income-statement-only metrics. |
+| 3 | **Guidance Sentiment** | Textual (management commentary) | Shows the AI is not just a calculator — it understands textual context. The stock market is a discounting mechanism: prices are driven by future expectations, not past performance. The prompt explicitly instructs the LLM to extract forward-looking management statements and assess whether guidance is being raised, maintained, or lowered. |
+
+Optional second-tier metrics: **EBITDA**, **P/E ratio**, **Net Profit Margin** — extracted when present but not required for a "complete" extraction.
+
+These three pillars drive the comparison page's directional callout (Revenue, FCF, and Guidance Sentiment are weighted 2× when counting "who's doing better") and the company detail page's inline metric previews.
+
+**Schema changes**:
+- `ProfitabilityTrends` adds `freeCashFlow?: (number | null)[]` alongside `revenue`, `ebitda`, `netProfit`
+- `ReportWithPreview` adds `previewFcf` and `previewGuidanceSentiment` for inline display
+- `ExtractedSentiment` adds `guidanceDirection?: string` — "raised" | "maintained" | "lowered" | null
 
 ### Catalog data model
 
@@ -141,7 +160,7 @@ The "Map" dropdown lists all companies in the catalog, plus a "Create new compan
 
 **Layout** (full-width, sidebar collapses):
 - **Header**: Company names + fiscal year + report type for both sides, with a `vs` divider
-- **Directional callout**: A summary bar showing which report scores better on more metrics. Computed client-side from the snapshot JSONs — count of metrics where each side is higher, rendered as green ↑ / red ↓ arrows. No LLM.
+- **Directional callout**: A summary bar showing which report scores better on more metrics. Revenue, Free Cash Flow, and Guidance Sentiment are the three **primary pillars** and each count 2× in the tally. Remaining metrics count 1×. Computed client-side from the snapshot JSONs — count weighted scores where each side is higher, rendered as green ↑ / red ↓ arrows. No LLM.
 - **Metrics table**: Three columns — Report A values, Δ/% column, Report B values.
   - Each row: metric label, report A value, delta (absolute + percentage), report B value
   - Green ↑ for positive deltas (higher revenue, higher profit), red ↓ for negative

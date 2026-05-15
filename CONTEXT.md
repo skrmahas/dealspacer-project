@@ -23,7 +23,7 @@ User
  ├── Web (Next.js 14, packages/web)
  │   ├── /                          Company directory (landing page, sidebar)
  │   ├── /companies/:slug           Company detail (report timeline)
- │   ├── /compare                   Side-by-side comparison
+ │   ├── /compare                   Side-by-side comparison (primary metrics weighted 2×)
  │   ├── /reports/:reportId         Individual report view (PDF embed)
  │   ├── /reports/:jobId            Legacy redirect → report view
  │   ├── /upload                    Upload form (with optional ?company= context)
