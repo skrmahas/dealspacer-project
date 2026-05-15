@@ -3,13 +3,14 @@ import { classifyDocument } from "./classifier.js";
 import { deduplicateMetrics } from "./deduplicator.js";
 import { sanitizeExtractedData } from "./sanitizer.js";
 import { prefilterDocumentText } from "./prefilter.js";
+import type { OpenAIClient } from "./extractor.js";
 
 export async function processJob(
   job: Job,
   store: JobStore,
   readFile: (jobId: string) => Promise<Buffer>,
   parseDocument: (buffer: Buffer, filename: string) => Promise<string>,
-  extractFromText: (text: string, options?: unknown, context?: unknown, onProgress?: (completed: number, total: number) => Promise<void>) => Promise<ExtractedData>,
+  extractFromText: (text: string, apiClient?: OpenAIClient, partialResults?: ExtractedData[], onProgress?: (completed: number, total: number) => void) => Promise<ExtractedData>,
   translateExtractedData: (data: ExtractedData, language: Job["outputLanguage"], store: JobStore) => Promise<ExtractedData>,
   assemblePdf: (data: ExtractedData) => Promise<Buffer>,
   saveReport: (jobId: string, pdf: Buffer) => Promise<void>,
