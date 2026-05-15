@@ -93,6 +93,7 @@ export default function Home() {
   const [job, setJob] = useState<JobInfo | null>(null);
   const [pipelineError, setPipelineError] = useState<string | null>(null);
   const [polling, setPolling] = useState(false);
+  const [retrying, setRetrying] = useState(false);
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const startedAtRef = useRef<number>(0);
   const [isDragging, setIsDragging] = useState(false);
@@ -414,6 +415,42 @@ export default function Home() {
               <div style={{ marginTop: 14, borderRadius: 10, border: "1px solid var(--color-error-border)", background: "var(--color-error-bg)", color: "var(--color-error-text)", padding: 12, fontSize: 14 }}>
                 {pipelineError || describeFailure(job.error)}
               </div>
+            )}
+
+            {job.state === "failed" && job.jobId && (
+              <button
+                type="button"
+                disabled={retrying}
+                onClick={async () => {
+                  setRetrying(true);
+                  try {
+                    const res = await fetch(`/api/jobs/${job.jobId}/retry`, { method: "POST" });
+                    if (res.ok) {
+                      const data = await res.json() as JobInfo;
+                      setJob(data);
+                      setPipelineError(null);
+                      startPolling(data.jobId);
+                    }
+                  } catch {
+                    setPipelineError("Retry failed. Please try again.");
+                  } finally {
+                    setRetrying(false);
+                  }
+                }}
+                style={{
+                  marginTop: 8,
+                  border: "1px solid var(--color-accent)",
+                  borderRadius: 8,
+                  padding: "8px 14px",
+                  background: "transparent",
+                  color: "var(--color-accent)",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: retrying ? "not-allowed" : "pointer",
+                }}
+              >
+                {retrying ? "Retrying..." : "Retry Job"}
+              </button>
             )}
 
             {shareUrl && (

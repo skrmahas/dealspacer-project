@@ -24,9 +24,9 @@ export type CreateJobInput = Pick<Job, "originalFilename"> & {
 };
 export type UpdateJobInput = {
   state?: JobState;
-  extractedText?: string;
-  extractedJson?: string;
-  error?: string;
+  extractedText?: string | null;
+  extractedJson?: string | null;
+  error?: string | null;
 };
 
 export interface JobStore {

@@ -62,17 +62,17 @@ export function createPostgresStore(): JobStore {
         }
         if (input.extractedText !== undefined) {
           sets.push(`extracted_text = $` + paramIndex);
-          values.push(input.extractedText);
+          values.push(input.extractedText ?? null);
           paramIndex++;
         }
         if (input.extractedJson !== undefined) {
           sets.push(`extracted_json = $` + paramIndex);
-          values.push(input.extractedJson);
+          values.push(input.extractedJson ?? null);
           paramIndex++;
         }
         if (input.error !== undefined) {
           sets.push(`error = $` + paramIndex);
-          values.push(input.error);
+          values.push(input.error ?? null);
           paramIndex++;
         }
 
