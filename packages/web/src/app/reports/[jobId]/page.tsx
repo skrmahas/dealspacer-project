@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ErrorBoundary } from "@/components/error-boundary";
 import type { JobState } from "@bei/shared";
 
 type JobInfo = {
@@ -98,6 +99,7 @@ export default function SharedReportPage({ params }: { params: { jobId: string }
   }, [fetchJob, stopPolling]);
 
   return (
+    <ErrorBoundary>
     <main
       style={{
         minHeight: "100vh",
@@ -170,5 +172,6 @@ export default function SharedReportPage({ params }: { params: { jobId: string }
         </section>
       </div>
     </main>
+    </ErrorBoundary>
   );
 }

@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo, useRef, useState } from "react";
 import { ReportSummary } from "@/components/report-summary";
+import { ErrorBoundary } from "@/components/error-boundary";
 import { uploadFileWithProgress } from "@/lib/upload-progress";
 import type { UploadProgress } from "@/lib/upload-progress";
 import type { JobState, OutputLanguage } from "@bei/shared";
@@ -253,6 +254,7 @@ export default function Home() {
   }, [file, outputLanguage, startPolling]);
 
   return (
+    <ErrorBoundary>
     <main
       style={{
         minHeight: "100vh",
@@ -461,5 +463,6 @@ export default function Home() {
         }
       `}</style>
     </main>
+    </ErrorBoundary>
   );
 }
