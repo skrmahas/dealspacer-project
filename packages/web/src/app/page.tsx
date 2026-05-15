@@ -95,6 +95,7 @@ export default function Home() {
   const [polling, setPolling] = useState(false);
   const [retrying, setRetrying] = useState(false);
   const [recentJobs, setRecentJobs] = useState<JobInfo[]>([]);
+  const [copied, setCopied] = useState(false);
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const startedAtRef = useRef<number>(0);
   const [isDragging, setIsDragging] = useState(false);
@@ -464,6 +465,12 @@ export default function Home() {
 
             <ProgressTracker state={job.state} />
 
+            {job.jobId && (
+              <p style={{ margin: "8px 0 0", fontSize: 11, color: "#8899aa" }}>
+                Job ID: {job.jobId}
+              </p>
+            )}
+
             {polling && <PollingSkeleton />}
 
             {(pipelineError || (job.state === "failed" && job.error)) && (
@@ -511,9 +518,37 @@ export default function Home() {
             {shareUrl && (
               <div style={{ marginTop: 14, display: "grid", gap: 8 }}>
                 <p style={{ margin: 0, fontSize: 14, color: "#4d5d70" }}>Shareable report link</p>
-                <a href={shareUrl} style={{ color: "#0b5974", fontWeight: 700, textDecoration: "none", wordBreak: "break-all" }}>
-                  {shareUrl}
-                </a>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <a href={shareUrl} style={{ color: "#0b5974", fontWeight: 700, textDecoration: "none", wordBreak: "break-all", flex: 1 }}>
+                    {shareUrl}
+                  </a>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        await navigator.clipboard.writeText(window.location.origin + shareUrl);
+                        setCopied(true);
+                        setTimeout(() => setCopied(false), 2000);
+                      } catch {
+                        // Clipboard API may not be available
+                      }
+                    }}
+                    style={{
+                      border: "1px solid var(--color-border)",
+                      borderRadius: 6,
+                      padding: "4px 10px",
+                      background: copied ? "var(--color-success)" : "transparent",
+                      color: copied ? "#fff" : "var(--color-text-muted)",
+                      fontSize: 12,
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      whiteSpace: "nowrap",
+                      flexShrink: 0,
+                    }}
+                  >
+                    {copied ? "Copied!" : "Copy Link"}
+                  </button>
+                </div>
               </div>
             )}
 
