@@ -1,13 +1,20 @@
 "use client";
 
-import React, { useEffect, useMemo, useState, useCallback } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { motion } from "framer-motion";
 import {
-  Search,
   Building2,
   Menu,
+  Search,
+  Upload,
+  KeyRound,
   X,
 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 
 interface Company {
   id: string;
@@ -22,14 +29,26 @@ interface Company {
 
 type ExchangeFilter = "All" | "Nasdaq Tallinn" | "Nasdaq Riga" | "Nasdaq Vilnius";
 
-const EXCHANGE_TABS: ExchangeFilter[] = ["All", "Nasdaq Tallinn", "Nasdaq Riga", "Nasdaq Vilnius"];
+const EXCHANGE_TABS: { value: ExchangeFilter; label: string }[] = [
+  { value: "All", label: "All" },
+  { value: "Nasdaq Tallinn", label: "Tallinn" },
+  { value: "Nasdaq Riga", label: "Riga" },
+  { value: "Nasdaq Vilnius", label: "Vilnius" },
+];
+
+const EXCHANGE_ORDER: Record<string, number> = {
+  "Nasdaq Tallinn": 0,
+  "Nasdaq Riga": 1,
+  "Nasdaq Vilnius": 2,
+};
+
 const EXCHANGE_SHORT: Record<string, string> = {
   "Nasdaq Tallinn": "Tallinn",
   "Nasdaq Riga": "Riga",
   "Nasdaq Vilnius": "Vilnius",
 };
 
-export default function CompanyDirectory() {
+export default function CompanyCatalogPage() {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -38,17 +57,26 @@ export default function CompanyDirectory() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
     fetch("/api/companies")
       .then((r) => r.json())
       .then((data) => {
+        if (cancelled) return;
         if (Array.isArray(data)) {
           setCompanies(data);
         } else {
           setError(data.error || "Failed to load companies");
         }
       })
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false));
+      .catch((err) => {
+        if (!cancelled) setError(err instanceof Error ? err.message : String(err));
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const filtered = useMemo(() => {
@@ -56,266 +84,277 @@ export default function CompanyDirectory() {
     if (exchangeFilter !== "All") {
       list = list.filter((c) => c.exchange === exchangeFilter);
     }
-    if (search.trim()) {
-      const q = search.toLowerCase();
+    const q = search.trim().toLowerCase();
+    if (q) {
       list = list.filter(
         (c) =>
           c.name.toLowerCase().includes(q) ||
-          (c.ticker && c.ticker.toLowerCase().includes(q)),
+          (c.ticker ? c.ticker.toLowerCase().includes(q) : false),
       );
     }
     return list;
   }, [companies, exchangeFilter, search]);
 
-  // Group by exchange
   const grouped = useMemo(() => {
-    const groups: Record<string, Company[]> = {};
+    const groups = new Map<string, Company[]>();
     for (const c of filtered) {
-      if (!groups[c.exchange]) groups[c.exchange] = [];
-      groups[c.exchange].push(c);
+      const list = groups.get(c.exchange) ?? [];
+      list.push(c);
+      groups.set(c.exchange, list);
     }
-    return groups;
+    return Array.from(groups.entries()).sort(
+      ([a], [b]) => (EXCHANGE_ORDER[a] ?? 99) - (EXCHANGE_ORDER[b] ?? 99),
+    );
   }, [filtered]);
 
   const closeSidebar = useCallback(() => setSidebarOpen(false), []);
+  const openSidebar = useCallback(() => setSidebarOpen(true), []);
 
   return (
-    <div style={{ display: "flex", minHeight: "100vh", fontFamily: "\"Avenir Next\", \"Segoe UI\", sans-serif", color: "#21324a" }}>
-      {/* Mobile overlay */}
-      {sidebarOpen && (
-        <div
-          onClick={closeSidebar}
-          style={{
-            position: "fixed", inset: 0, background: "rgba(0,0,0,0.35)", zIndex: 40,
-          }}
+    <div className="min-h-screen bg-background text-foreground">
+      <MobileTopBar onOpenMenu={openSidebar} />
+
+      <div className="flex min-h-screen md:min-h-[calc(100vh)]">
+        <Sidebar
+          isOpen={sidebarOpen}
+          onClose={closeSidebar}
+          search={search}
+          onSearch={setSearch}
+          exchangeFilter={exchangeFilter}
+          onExchangeChange={setExchangeFilter}
+          loading={loading}
+          error={error}
+          grouped={grouped}
+          totalCount={filtered.length}
+        />
+
+        <main className="flex-1 md:ml-[280px]">
+          <WelcomeState companyCount={companies.length} />
+        </main>
+      </div>
+    </div>
+  );
+}
+
+function MobileTopBar({ onOpenMenu }: { onOpenMenu: () => void }) {
+  return (
+    <header className="sticky top-0 z-30 flex items-center gap-3 border-b border-zinc-200/80 bg-background/95 px-4 py-3 backdrop-blur md:hidden dark:border-white/10">
+      <Button
+        variant="ghost"
+        size="icon"
+        aria-label="Open menu"
+        onClick={onOpenMenu}
+      >
+        <Menu className="size-5" />
+      </Button>
+      <Link href="/" className="flex items-center gap-2 font-semibold tracking-tight">
+        <Building2 className="size-4 text-primary" />
+        <span>DealSpacer</span>
+      </Link>
+    </header>
+  );
+}
+
+function Sidebar({
+  isOpen,
+  onClose,
+  search,
+  onSearch,
+  exchangeFilter,
+  onExchangeChange,
+  loading,
+  error,
+  grouped,
+  totalCount,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  search: string;
+  onSearch: (v: string) => void;
+  exchangeFilter: ExchangeFilter;
+  onExchangeChange: (v: ExchangeFilter) => void;
+  loading: boolean;
+  error: string | null;
+  grouped: [string, Company[]][];
+  totalCount: number;
+}) {
+  return (
+    <>
+      {isOpen && (
+        <button
+          aria-hidden
+          onClick={onClose}
+          className="fixed inset-0 z-40 bg-zinc-950/40 backdrop-blur-sm md:hidden"
         />
       )}
 
-      {/* Sidebar */}
       <aside
-        className="company-sidebar"
-        style={{
-          width: 280,
-          minWidth: 280,
-          borderRight: "1px solid #e2e8f0",
-          background: "#f8fafd",
-          display: "flex",
-          flexDirection: "column",
-          position: "fixed",
-          top: 0,
-          left: sidebarOpen ? 0 : -280,
-          bottom: 0,
-          zIndex: 50,
-          transition: "left 0.2s ease",
-          padding: "16px 14px",
-          gap: 12,
-          overflow: "hidden",
-        }}
+        className={cn(
+          "fixed inset-y-0 left-0 z-50 flex w-[280px] flex-col gap-3 border-r border-zinc-200 bg-gradient-to-b from-white to-zinc-50 p-4 shadow-zinc-950/5 transition-transform duration-200 dark:border-white/10 dark:from-zinc-900/40 dark:to-zinc-900/10",
+          "md:translate-x-0",
+          isOpen ? "translate-x-0" : "-translate-x-full",
+        )}
       >
-        {/* Sidebar header */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <Link href="/app" style={{ fontSize: 18, fontWeight: 800, color: "#173b68", textDecoration: "none" }}>
-            DealSpacer
+        <div className="flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-2 font-semibold tracking-tight">
+            <Building2 className="size-4 text-primary" />
+            <span>DealSpacer</span>
           </Link>
-          <button
-            onClick={closeSidebar}
-            className="mobile-only"
-            style={{ background: "none", border: "none", cursor: "pointer", color: "#607287" }}
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="Close menu"
+            onClick={onClose}
+            className="md:hidden"
           >
-            <X size={20} />
-          </button>
+            <X className="size-4" />
+          </Button>
         </div>
 
-        {/* Search */}
-        <div style={{ position: "relative" }}>
-          <Search size={16} style={{ position: "absolute", left: 10, top: 10, color: "#94a3b8" }} />
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <input
             type="text"
             placeholder="Search companies..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            style={{
-              width: "100%", boxSizing: "border-box",
-              border: "1px solid #cfd8e3", borderRadius: 10,
-              padding: "8px 10px 8px 32px", fontSize: 13,
-              outline: "none", background: "#fff", color: "#24364f",
-            }}
+            onChange={(e) => onSearch(e.target.value)}
+            className="h-9 w-full rounded-xl border border-zinc-200 bg-background pl-8 pr-2.5 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background dark:border-white/10"
           />
         </div>
 
-        {/* Exchange tabs */}
-        <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-          {EXCHANGE_TABS.map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setExchangeFilter(tab)}
-              style={{
-                border: exchangeFilter === tab ? "1px solid #4680ff" : "1px solid #cfd8e3",
-                borderRadius: 999, padding: "4px 10px", fontSize: 11,
-                fontWeight: exchangeFilter === tab ? 700 : 500,
-                background: exchangeFilter === tab ? "#edf4ff" : "#fff",
-                color: exchangeFilter === tab ? "#2d5fbf" : "#607287",
-                cursor: "pointer",
-              }}
-            >
-              {EXCHANGE_SHORT[tab] || tab}
-            </button>
-          ))}
+        <div className="flex flex-wrap gap-1.5">
+          {EXCHANGE_TABS.map((tab) => {
+            const active = exchangeFilter === tab.value;
+            return (
+              <button
+                key={tab.value}
+                onClick={() => onExchangeChange(tab.value)}
+                className={cn(
+                  "rounded-full border px-3 py-1 text-xs font-semibold transition-colors",
+                  active
+                    ? "border-primary/40 bg-primary/10 text-primary dark:border-primary/30 dark:bg-primary/20"
+                    : "border-zinc-200 bg-background text-muted-foreground hover:bg-muted dark:border-white/10",
+                )}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
         </div>
 
-        {/* Company list */}
-        <div style={{ flex: 1, overflowY: "auto" }}>
+        <div className="-mx-1 flex-1 overflow-y-auto px-1">
           {loading && (
-            <div style={{ padding: 20, textAlign: "center", color: "#94a3b8", fontSize: 13 }}>
+            <div className="px-2 py-6 text-center text-sm text-muted-foreground">
               Loading companies...
             </div>
           )}
           {error && (
-            <div style={{ padding: 12, color: "#c0392b", fontSize: 13 }}>
+            <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
               {error}
             </div>
           )}
-          {!loading && !error && Object.entries(grouped).map(([exchange, list]) => (
-            <div key={exchange} style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", color: "#8b9cb8", letterSpacing: "0.05em", padding: "0 4px", marginBottom: 6 }}>
-                {EXCHANGE_SHORT[exchange] || exchange} ({list.length})
-              </div>
-              <div style={{ display: "grid", gap: 2 }}>
-                {list.map((c) => (
-                  <Link
-                    key={c.id}
-                    href={`/companies/${c.slug}`}
-                    onClick={closeSidebar}
-                    style={{
-                      display: "flex", justifyContent: "space-between", alignItems: "center",
-                      padding: "8px 10px", borderRadius: 8, textDecoration: "none",
-                      color: "#21324a", background: "transparent",
-                      transition: "background 0.1s",
-                    }}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = "#eef2f8")}
-                    onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-                  >
-                    <div style={{ overflow: "hidden" }}>
-                      <div style={{ fontSize: 13, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {c.name}
-                      </div>
-                      {c.ticker && (
-                        <div style={{ fontSize: 11, color: "#8b9cb8", marginTop: 1 }}>
-                          {c.ticker}
-                        </div>
-                      )}
-                    </div>
-                    {c.reportCount > 0 && (
-                      <span style={{
-                        fontSize: 10, fontWeight: 700, background: "#e2ecf9", color: "#2d5fbf",
-                        borderRadius: 999, padding: "2px 7px", flexShrink: 0,
-                      }}>
-                        {c.reportCount}
-                      </span>
-                    )}
-                  </Link>
-                ))}
-              </div>
-            </div>
-          ))}
-          {!loading && !error && filtered.length === 0 && (
-            <div style={{ padding: 20, textAlign: "center", color: "#94a3b8", fontSize: 13 }}>
+          {!loading && !error && totalCount === 0 && (
+            <div className="px-2 py-6 text-center text-sm text-muted-foreground">
               No companies found
             </div>
           )}
+          {!loading && !error && grouped.map(([exchange, list]) => (
+            <div key={exchange} className="mb-4">
+              <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                {EXCHANGE_SHORT[exchange] ?? exchange} ({list.length})
+              </div>
+              <ul className="grid gap-0.5">
+                {list.map((c) => (
+                  <li key={c.id}>
+                    <Link
+                      href={`/companies/${c.slug}`}
+                      onClick={onClose}
+                      className="flex items-center justify-between gap-2 rounded-lg px-2.5 py-2 transition-colors hover:bg-muted"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-sm font-semibold text-foreground">
+                          {c.name}
+                        </div>
+                        {c.ticker && (
+                          <div className="truncate text-xs text-muted-foreground">
+                            {c.ticker}
+                          </div>
+                        )}
+                      </div>
+                      {c.reportCount > 0 && (
+                        <Badge variant="secondary" className="shrink-0">
+                          {c.reportCount}
+                        </Badge>
+                      )}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
         </div>
 
-        {/* Bottom nav */}
-        <div style={{ borderTop: "1px solid #e2e8f0", paddingTop: 10, display: "flex", gap: 10, fontSize: 12 }}>
-          <Link href="/app" style={{ color: "#3b5f93", textDecoration: "none", fontWeight: 600 }}>
+        <div className="flex items-center justify-between gap-2 border-t border-zinc-200 pt-3 text-sm dark:border-white/10">
+          <Link
+            href="/upload"
+            className="inline-flex items-center gap-1.5 font-semibold text-foreground transition-colors hover:text-primary"
+          >
+            <Upload className="size-3.5" />
             Upload
           </Link>
-          <Link href="/access" style={{ color: "#3b5f93", textDecoration: "none", fontWeight: 600 }}>
+          <Link
+            href="/access"
+            className="inline-flex items-center gap-1.5 font-semibold text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <KeyRound className="size-3.5" />
             Access
           </Link>
         </div>
       </aside>
+    </>
+  );
+}
 
-      {/* Main content */}
-      <div className="main-content" style={{ flex: 1, marginLeft: 0, transition: "margin 0.2s" }}>
-        {/* Mobile header */}
-        <div className="mobile-only" style={{
-          display: "flex", alignItems: "center", gap: 10, padding: "12px 16px",
-          borderBottom: "1px solid #e2e8f0", background: "#fff",
-        }}>
-          <button
-            onClick={() => setSidebarOpen(true)}
-            style={{ background: "none", border: "none", cursor: "pointer", color: "#21324a" }}
-          >
-            <Menu size={22} />
-          </button>
-          <span style={{ fontSize: 16, fontWeight: 700, color: "#173b68" }}>DealSpacer</span>
-        </div>
+function WelcomeState({ companyCount }: { companyCount: number }) {
+  return (
+    <motion.section
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, ease: "easeOut" }}
+      className="flex min-h-[60vh] flex-col items-center justify-center px-6 py-16 text-center"
+    >
+      <div className="grid size-16 place-items-center rounded-2xl border border-zinc-200 bg-gradient-to-b from-white to-zinc-50 text-primary shadow-zinc-950/5 dark:border-white/10 dark:from-zinc-900/40 dark:to-zinc-900/10">
+        <Building2 className="size-7" />
+      </div>
+      <h1 className="mt-5 text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+        {companyCount > 0
+          ? `${companyCount} Baltic companies tracked`
+          : "Baltic Company Directory"}
+      </h1>
+      <p className="mt-3 max-w-md text-balance text-sm text-muted-foreground sm:text-base">
+        Select a company from the sidebar to view its reports, metrics, and trend
+        analysis.
+      </p>
 
-        {/* Welcome state */}
-        <div style={{
-          display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-          minHeight: "60vh", padding: "40px 20px", textAlign: "center",
-        }}>
-          <div style={{
-            width: 64, height: 64, borderRadius: 16,
-            display: "grid", placeItems: "center",
-            background: "#edf2ff", color: "#3b5f93", marginBottom: 16,
-          }}>
-            <Building2 size={30} />
-          </div>
-          <h2 style={{ margin: 0, fontSize: 24, color: "#0f2e52" }}>
-            {companies.length > 0
-              ? `${companies.length} companies tracked`
-              : "Baltic Company Directory"}
-          </h2>
-          <p style={{ margin: "10px 0 0", maxWidth: 420, color: "#5f6f83", fontSize: 14, lineHeight: 1.5 }}>
-            Select a company from the sidebar to view its reports and financial data.
-            Upload new reports via the{" "}
-            <Link href="/app" style={{ color: "#365d9c", fontWeight: 700 }}>
-              upload page
-            </Link>
-            .
-          </p>
-          <div style={{ marginTop: 20, display: "flex", gap: 12, flexWrap: "wrap", justifyContent: "center" }}>
-            <Link
-              href="/app"
-              style={{
-                display: "inline-block", padding: "10px 20px", borderRadius: 10,
-                background: "linear-gradient(90deg, #5d7dff, #63d2ff)", color: "#fff",
-                fontWeight: 700, textDecoration: "none", fontSize: 14,
-              }}
-            >
+      <Card className="mt-8 w-full max-w-md rounded-2xl bg-gradient-to-b from-white to-zinc-50 dark:from-zinc-900/40 dark:to-zinc-900/10">
+        <CardHeader>
+          <CardTitle className="text-base">Need to add a report?</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-wrap gap-2 pt-0">
+          <Button asChild className="rounded-xl">
+            <Link href="/upload">
+              <Upload className="size-3.5" />
               Upload a Report
             </Link>
-            <Link
-              href="/access"
-              style={{
-                display: "inline-block", padding: "10px 20px", borderRadius: 10,
-                border: "1px solid #cdd9eb", color: "#365d9c",
-                fontWeight: 700, textDecoration: "none", fontSize: 14,
-              }}
-            >
-              Request Access
+          </Button>
+          <Button asChild variant="outline" className="rounded-xl">
+            <Link href="/access">
+              <KeyRound className="size-3.5" />
+              Access
             </Link>
-          </div>
-        </div>
-      </div>
-
-      <style jsx>{`
-        @media (min-width: 768px) {
-          .company-sidebar {
-            left: 0 !important;
-            position: relative !important;
-          }
-          .main-content {
-            margin-left: 0 !important;
-          }
-          .mobile-only {
-            display: none !important;
-          }
-        }
-      `}</style>
-    </div>
+          </Button>
+        </CardContent>
+      </Card>
+    </motion.section>
   );
 }
