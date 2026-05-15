@@ -58,7 +58,7 @@ BALTIC CONTEXT:
 
 const DEFAULT_CHUNK_THRESHOLD = 60000;
 const DEFAULT_CHUNK_SIZE = 80000;  // ~20k tokens at 4 chars/token, well within GPT-4o 128k context
-const DEFAULT_CHUNK_OVERLAP = 5000;
+const DEFAULT_CHUNK_OVERLAP = 3000;
 const DEFAULT_MAX_CONCURRENCY = 1;
 const DEFAULT_MAX_RETRIES = 3;
 const DEFAULT_RETRY_BASE_DELAY_MS = 1000;
@@ -392,6 +392,8 @@ export async function extractFromText(
   // Large document: chunk and parallelize
   const chunks = chunkText(text, config.chunkSize, config.overlap);
   console.log(`[extractor] Chunked extraction: ${chunks.length} chunks (${text.length} chars total)`);
+  console.log(`[extractor] Extraction config: threshold=${config.threshold}, chunkSize=${config.chunkSize}, overlap=${config.overlap}, concurrency=${config.maxConcurrency}, retries=${config.maxRetries}`);
+  const extractionStart = Date.now();
 
   // Process chunks in parallel with concurrency limit
   // Use partial results for already-completed chunks (resume after failure)
@@ -447,6 +449,8 @@ export async function extractFromText(
 
   await Promise.all(workers);
 
+  const extractionMs = Date.now() - extractionStart;
+  console.log(`[extractor] All ${chunks.length} chunks completed in ${extractionMs}ms (${(text.length / extractionMs * 1000 / 1024).toFixed(1)} KB/s)`);
   console.log(`[extractor] Merging ${results.length} chunk results...`);
   const merged = mergeExtractions(results);
   logExtractionResult(merged);
