@@ -387,8 +387,11 @@ export function buildHtml(data: ExtractedData, charts: ChartImages): string {
 
     /* Sections */
     section {
-      page-break-inside: avoid;
       margin-bottom: 24pt;
+    }
+    /* Avoid page breaks inside small containers only */
+    section.small-section {
+      page-break-inside: avoid;
     }
     h2 {
       font-size: 16pt;
