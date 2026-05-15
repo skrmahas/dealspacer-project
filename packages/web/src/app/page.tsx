@@ -5,21 +5,23 @@ import React, { useEffect, useRef, useState } from "react";
 import { motion, useInView, useSpring, useTransform } from "framer-motion";
 import {
   ArrowRight,
-  BarChart3,
   BrainCircuit,
   Building2,
-  Globe,
+  CandlestickChart,
+  CircleDot,
+  DatabaseZap,
+  FileUp,
+  Globe2,
   Languages,
   LineChart,
   MessageSquareQuote,
+  Radar,
   Scale,
-  Sparkles,
-  Upload,
+  SearchCheck,
   type LucideIcon,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 type Stats = {
@@ -27,12 +29,18 @@ type Stats = {
   reports: number;
 };
 
-const fadeUp = {
-  initial: { opacity: 0, y: 24 },
+const reveal = {
+  initial: { opacity: 0, y: 26 },
   whileInView: { opacity: 1, y: 0 },
-  viewport: { once: true, amount: 0.2 },
-  transition: { duration: 0.5, ease: "easeOut" },
+  viewport: { once: true, amount: 0.22 },
+  transition: { duration: 0.58, ease: "easeOut" },
 } as const;
+
+const exchanges = [
+  { city: "Tallinn", country: "Estonia", code: "TAL", accent: "bg-[#32f5c8]" },
+  { city: "Riga", country: "Latvia", code: "RIG", accent: "bg-[#ff4d6d]" },
+  { city: "Vilnius", country: "Lithuania", code: "VIL", accent: "bg-[#ffd166]" },
+];
 
 export default function LandingPage() {
   const [stats, setStats] = useState<Stats>({ companies: 0, reports: 0 });
@@ -70,11 +78,12 @@ export default function LandingPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen overflow-hidden bg-[color:var(--bei-ink)] font-[family-name:var(--font-ui)] text-[color:var(--bei-cream)]">
+      <Atmosphere />
       <SiteHeader />
 
-      <main>
-        <Hero />
+      <main className="relative z-10">
+        <Hero companies={stats.companies} reports={stats.reports} />
         <StatsBar companies={stats.companies} reports={stats.reports} />
         <HowItWorks />
         <FeaturesGrid />
@@ -87,29 +96,56 @@ export default function LandingPage() {
   );
 }
 
+function Atmosphere() {
+  return (
+    <>
+      <div className="pointer-events-none fixed inset-0 z-0 bg-[linear-gradient(130deg,var(--bei-ink)_0%,#101b1f_48%,#16110d_100%)]" />
+      <div
+        className="pointer-events-none fixed inset-0 z-0 opacity-[0.34]"
+        style={{
+          backgroundImage:
+            "linear-gradient(rgba(235,217,171,0.11) 1px, transparent 1px), linear-gradient(90deg, rgba(235,217,171,0.08) 1px, transparent 1px)",
+          backgroundSize: "52px 52px",
+          maskImage: "linear-gradient(to bottom, black 0%, transparent 86%)",
+          WebkitMaskImage:
+            "linear-gradient(to bottom, black 0%, transparent 86%)",
+        }}
+      />
+      <div
+        className="pointer-events-none fixed inset-0 z-0 opacity-40"
+        style={{
+          background:
+            "linear-gradient(90deg, transparent 0 49%, rgba(50,245,200,0.18) 49% 50%, transparent 50% 100%), radial-gradient(72% 44% at 74% 4%, rgba(255,209,102,0.16), transparent 60%), radial-gradient(50% 42% at 7% 20%, rgba(255,77,109,0.12), transparent 55%)",
+        }}
+      />
+      <div className="pointer-events-none fixed inset-0 z-0 bg-[linear-gradient(to_bottom,transparent_0,rgba(255,255,255,0.025)_1px,transparent_2px)] bg-[length:100%_7px] opacity-35" />
+    </>
+  );
+}
+
 function SiteHeader() {
   return (
-    <header className="sticky top-0 z-30 border-b border-zinc-200/70 bg-background/80 backdrop-blur dark:border-white/10">
-      <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-4">
-        <Link
-          href="/"
-          className="flex items-center gap-2 font-semibold tracking-tight"
-        >
-          <span className="relative flex size-7 items-center justify-center rounded-lg border border-zinc-200 bg-gradient-to-br from-white to-zinc-100 shadow-zinc-950/5 dark:border-white/10 dark:from-zinc-900 dark:to-zinc-950">
-            <Building2 className="size-4 text-primary" />
+    <header className="sticky top-0 z-30 border-b border-[color:var(--bei-line)] bg-[rgba(11,18,21,0.82)] backdrop-blur-xl">
+      <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-5 py-4 sm:px-8">
+        <Link href="/" className="group flex items-center gap-3">
+          <span className="relative flex size-8 items-center justify-center border border-[color:var(--bei-line-strong)] bg-[color:var(--bei-panel)] text-[color:var(--bei-cyan)] shadow-[0_0_24px_rgba(50,245,200,0.14)]">
+            <Building2 className="size-4" />
+            <span className="absolute -right-1 -top-1 size-2 bg-[color:var(--bei-amber)]" />
           </span>
-          <span>DealSpacer</span>
+          <span className="font-[family-name:var(--font-display)] text-lg tracking-[0.03em] text-[color:var(--bei-cream)]">
+            DealSpacer
+          </span>
         </Link>
-        <nav className="flex items-center gap-1 text-sm font-medium">
+        <nav className="flex items-center gap-1 text-sm font-semibold uppercase tracking-[0.14em] text-[color:var(--bei-muted)]">
           <Link
             href="/companies"
-            className="rounded-lg px-3 py-1.5 text-muted-foreground transition hover:bg-muted hover:text-foreground"
+            className="px-3 py-2 transition hover:text-[color:var(--bei-cyan)]"
           >
             Catalog
           </Link>
           <Link
             href="/upload"
-            className="rounded-lg px-3 py-1.5 text-muted-foreground transition hover:bg-muted hover:text-foreground"
+            className="px-3 py-2 transition hover:text-[color:var(--bei-amber)]"
           >
             Upload
           </Link>
@@ -119,112 +155,166 @@ function SiteHeader() {
   );
 }
 
-function Hero() {
+function Hero({ companies, reports }: Stats) {
   return (
-    <section className="relative overflow-hidden">
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-zinc-100/80 via-background to-background dark:from-zinc-900/40" />
-      <div
-        className="pointer-events-none absolute inset-0"
-        style={{
-          background:
-            "radial-gradient(120% 90% at 50% 0%, rgba(59,130,246,0.16), transparent 55%)",
-        }}
-      />
-      <div
-        className="pointer-events-none absolute inset-x-0 top-0 h-[480px] opacity-[0.35] dark:opacity-25"
-        style={{
-          backgroundImage:
-            "radial-gradient(circle at 1px 1px, hsl(var(--muted-foreground) / 0.18) 1px, transparent 0)",
-          backgroundSize: "22px 22px",
-          maskImage:
-            "linear-gradient(to bottom, black, transparent 75%)",
-          WebkitMaskImage:
-            "linear-gradient(to bottom, black, transparent 75%)",
-        }}
-      />
-
-      <div className="relative mx-auto flex min-h-[calc(100vh-65px)] w-full max-w-6xl flex-col items-center justify-center px-6 py-20 text-center">
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, ease: "easeOut" }}
-        >
-          <Badge
-            variant="outline"
-            className="rounded-full border-zinc-200 bg-background/60 px-3 py-1 text-xs font-medium text-muted-foreground backdrop-blur dark:border-white/10"
+    <section className="relative min-h-[calc(100vh-65px)] px-5 py-16 sm:px-8 lg:py-20">
+      <div className="mx-auto grid w-full max-w-7xl items-center gap-10 lg:grid-cols-[1.02fr_0.98fr]">
+        <div className="max-w-3xl">
+          <motion.div
+            initial={{ opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.45, ease: "easeOut" }}
           >
-            <Sparkles className="mr-1.5 size-3.5 text-primary" />
-            Live catalog of ~40 Baltic listed companies
-          </Badge>
-        </motion.div>
+            <Badge
+              variant="outline"
+              className="border-[color:var(--bei-line-strong)] bg-[rgba(235,217,171,0.08)] px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-[color:var(--bei-cream)]"
+            >
+              <CircleDot className="mr-2 size-3 text-[color:var(--bei-cyan)]" />
+              Live catalog of ~40 Baltic listed companies
+            </Badge>
+          </motion.div>
 
-        <motion.h1
-          initial={{ opacity: 0, y: 24 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.55, ease: "easeOut", delay: 0.05 }}
-          className="mt-6 max-w-3xl text-balance text-4xl font-semibold tracking-tight sm:text-5xl md:text-6xl"
-        >
-          Baltic Earnings Intelligence
-        </motion.h1>
+          <motion.h1
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.62, ease: "easeOut", delay: 0.06 }}
+            className="mt-7 max-w-[10ch] font-[family-name:var(--font-display)] text-[clamp(3.4rem,8vw,8.6rem)] font-black uppercase leading-[0.78] tracking-normal text-[color:var(--bei-cream)]"
+          >
+            Baltic Earnings Intelligence
+          </motion.h1>
 
-        <motion.p
-          initial={{ opacity: 0, y: 24 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.55, ease: "easeOut", delay: 0.12 }}
-          className="mt-6 max-w-2xl text-balance text-base text-muted-foreground sm:text-lg"
-        >
-          AI-powered analysis of Baltic listed companies across Tallinn, Riga,
-          and Vilnius. Upload filings, extract key metrics, and compare
-          performance in minutes.
-        </motion.p>
+          <motion.p
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.62, ease: "easeOut", delay: 0.14 }}
+            className="mt-7 max-w-2xl text-lg leading-8 text-[color:var(--bei-muted)] sm:text-xl"
+          >
+            AI-powered analysis of Baltic listed companies across Tallinn, Riga,
+            and Vilnius. Upload filings, extract key metrics, and compare
+            performance in minutes.
+          </motion.p>
+
+          <motion.div
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.62, ease: "easeOut", delay: 0.22 }}
+            className="mt-10 flex flex-wrap items-center gap-3"
+          >
+            <Button
+              asChild
+              size="lg"
+              className="rounded-md bg-[color:var(--bei-cyan)] text-[#061012] shadow-[6px_6px_0_var(--bei-red)] hover:bg-[color:var(--bei-cyan)] hover:brightness-95"
+            >
+              <Link href="/companies">
+                Browse the Catalog
+                <ArrowRight className="size-4" />
+              </Link>
+            </Button>
+            <Button
+              asChild
+              size="lg"
+              variant="outline"
+              className="rounded-md border-[color:var(--bei-line-strong)] bg-[rgba(235,217,171,0.05)] text-[color:var(--bei-cream)] hover:bg-[rgba(235,217,171,0.12)]"
+            >
+              <Link href="/upload">Upload a Report</Link>
+            </Button>
+          </motion.div>
+        </div>
 
         <motion.div
-          initial={{ opacity: 0, y: 24 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.55, ease: "easeOut", delay: 0.2 }}
-          className="mt-10 flex flex-wrap items-center justify-center gap-3"
+          initial={{ opacity: 0, x: 28 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.7, ease: "easeOut", delay: 0.16 }}
+          className="relative min-h-[520px]"
+          aria-hidden="true"
         >
-          <Button asChild size="lg" className="rounded-2xl">
-            <Link href="/companies">
-              Browse the Catalog
-              <ArrowRight className="size-4" />
-            </Link>
-          </Button>
-          <Button
-            asChild
-            size="lg"
-            variant="outline"
-            className="rounded-2xl dark:border-white/10"
-          >
-            <Link href="/upload">Upload a Report</Link>
-          </Button>
+          <MarketConsole companies={companies} reports={reports} />
         </motion.div>
       </div>
     </section>
   );
 }
 
-function StatsBar({
-  companies,
-  reports,
-}: {
-  companies: number;
-  reports: number;
-}) {
+function MarketConsole({ companies, reports }: Stats) {
   return (
-    <motion.section {...fadeUp} className="mx-auto w-full max-w-6xl px-6 pb-8">
-      <div className="relative overflow-hidden rounded-2xl border border-zinc-200 bg-gradient-to-b from-white to-zinc-50 shadow-zinc-950/5 dark:border-white/10 dark:from-zinc-900/30 dark:to-zinc-900/10">
-        <CardCorners />
-        <div className="grid divide-y divide-zinc-200/70 sm:grid-cols-2 sm:divide-x sm:divide-y-0 md:grid-cols-4 dark:divide-white/10">
-          <StatTile
-            icon={Building2}
-            value={companies}
-            label="Companies tracked"
-          />
-          <StatTile icon={LineChart} value={reports} label="Reports processed" />
-          <StatTile icon={Globe} value={3} label="Exchanges" />
-          <StatTile icon={Languages} value={4} label="Languages supported" />
+    <div className="absolute inset-0">
+      <div className="absolute right-0 top-4 h-[86%] w-[82%] border border-[color:var(--bei-line-strong)] bg-[rgba(8,14,16,0.82)] shadow-[22px_22px_0_rgba(0,0,0,0.28)]" />
+      <div className="absolute left-2 top-12 w-[78%] border border-[color:var(--bei-line)] bg-[color:var(--bei-panel)] p-4 shadow-[0_20px_60px_rgba(0,0,0,0.35)] sm:left-8">
+        <div className="flex items-center justify-between border-b border-[color:var(--bei-line)] pb-3 font-[family-name:var(--font-mono)] text-[11px] uppercase tracking-[0.18em] text-[color:var(--bei-muted)]">
+          <span>Nasdaq Baltic feed</span>
+          <span className="text-[color:var(--bei-cyan)]">normalised</span>
         </div>
+        <div className="mt-4 grid grid-cols-[1fr_auto] gap-3 font-[family-name:var(--font-mono)] text-sm">
+          {[
+            ["TAL1T", "+4.8%", "text-[color:var(--bei-cyan)]"],
+            ["LHV1T", "+1.3%", "text-[color:var(--bei-cyan)]"],
+            ["OLF1R", "-0.7%", "text-[color:var(--bei-red)]"],
+            ["IGN1L", "+2.1%", "text-[color:var(--bei-cyan)]"],
+          ].map(([ticker, value, tone]) => (
+            <React.Fragment key={ticker}>
+              <span className="border-b border-dashed border-[color:var(--bei-line)] pb-2 text-[color:var(--bei-cream)]">
+                {ticker}
+              </span>
+              <span className={cn("border-b border-dashed border-[color:var(--bei-line)] pb-2", tone)}>
+                {value}
+              </span>
+            </React.Fragment>
+          ))}
+        </div>
+      </div>
+
+      <div className="absolute bottom-10 right-3 w-[72%] border border-[color:var(--bei-line)] bg-[#141f1e] p-5 sm:right-10">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <p className="font-[family-name:var(--font-mono)] text-[11px] uppercase tracking-[0.18em] text-[color:var(--bei-muted)]">
+              extraction pillars
+            </p>
+            <p className="mt-2 font-[family-name:var(--font-display)] text-3xl font-black uppercase leading-none text-[color:var(--bei-cream)]">
+              Revenue / FCF / Guidance
+            </p>
+          </div>
+          <Radar className="size-10 shrink-0 text-[color:var(--bei-amber)]" />
+        </div>
+        <div className="mt-6 grid grid-cols-3 gap-2">
+          {[72, 48, 88, 36, 64, 94, 54, 76, 42].map((height, index) => (
+            <span
+              key={index}
+              className="block bg-[color:var(--bei-cyan)]/80"
+              style={{ height }}
+            />
+          ))}
+        </div>
+      </div>
+
+      <div className="absolute bottom-0 left-0 grid w-[56%] grid-cols-2 border border-[color:var(--bei-line-strong)] bg-[color:var(--bei-cream)] text-[#061012]">
+        <MiniStat value={companies} label="Companies" />
+        <MiniStat value={reports} label="Reports" />
+      </div>
+    </div>
+  );
+}
+
+function MiniStat({ value, label }: { value: number; label: string }) {
+  return (
+    <div className="border-r border-[#061012]/20 p-4 last:border-r-0">
+      <div className="font-[family-name:var(--font-display)] text-4xl font-black leading-none">
+        {value}
+      </div>
+      <div className="mt-1 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.18em]">
+        {label}
+      </div>
+    </div>
+  );
+}
+
+function StatsBar({ companies, reports }: Stats) {
+  return (
+    <motion.section {...reveal} className="px-5 pb-10 sm:px-8">
+      <div className="mx-auto grid w-full max-w-7xl border border-[color:var(--bei-line)] bg-[rgba(8,14,16,0.66)] sm:grid-cols-2 lg:grid-cols-4">
+        <StatTile icon={Building2} value={companies} label="Companies tracked" />
+        <StatTile icon={LineChart} value={reports} label="Reports processed" />
+        <StatTile icon={Globe2} value={3} label="Exchanges" />
+        <StatTile icon={Languages} value={4} label="Languages supported" />
       </div>
     </motion.section>
   );
@@ -237,36 +327,32 @@ function HowItWorks() {
     text: string;
   }[] = [
     {
-      icon: Upload,
+      icon: FileUp,
       title: "Upload",
-      text: "Drop in an earnings filing — annual, quarterly, or semi-annual.",
+      text: "Drop in an annual, quarterly, or semi-annual earnings filing.",
     },
     {
       icon: BrainCircuit,
       title: "AI extracts",
-      text: "Our pipeline pulls metrics, narratives, sentiment, and charts.",
+      text: "The pipeline reads metrics, narratives, sentiment, and chart data.",
     },
     {
-      icon: BarChart3,
+      icon: SearchCheck,
       title: "Browse & compare",
-      text: "Review reports and stack two side-by-side with weighted deltas.",
+      text: "Find reports by company, then stack two side-by-side with weighted deltas.",
     },
   ];
 
   return (
-    <motion.section
-      {...fadeUp}
-      className="mx-auto w-full max-w-6xl px-6 py-16 md:py-24"
-    >
+    <motion.section {...reveal} className="mx-auto w-full max-w-7xl px-5 py-16 sm:px-8 lg:py-24">
       <SectionHeading
         eyebrow="Workflow"
         title="How it works"
-        description="From raw filing to comparable insight in three simple steps."
+        description="From raw Baltic filing to comparable intelligence without a spreadsheet hunt."
       />
-      <div className="relative mt-10 grid gap-6 md:grid-cols-3">
-        <div className="pointer-events-none absolute left-0 right-0 top-7 hidden h-px bg-gradient-to-r from-transparent via-zinc-200 to-transparent dark:via-white/10 md:block" />
-        {steps.map((step, i) => (
-          <Step key={step.title} index={i + 1} {...step} />
+      <div className="mt-10 grid gap-4 lg:grid-cols-3">
+        {steps.map((step, index) => (
+          <ProcessPanel key={step.title} index={index + 1} {...step} />
         ))}
       </div>
     </motion.section>
@@ -283,41 +369,38 @@ function FeaturesGrid() {
       icon: Languages,
       title: "Multi-language reports",
       description:
-        "Generate output in EN, ET, LV, and LT with consistent metric labeling across languages.",
+        "Generate output in EN, ET, LV, and LT with metric labels kept consistent across filings.",
     },
     {
       icon: Scale,
       title: "Side-by-side comparison",
       description:
-        "Stack two reports and surface deltas, sentiment context, and trend signals.",
+        "Put two reports under the same lens and expose deltas, sentiment, and direction.",
     },
     {
-      icon: LineChart,
+      icon: DatabaseZap,
       title: "AI metric extraction & charts",
       description:
-        "Pull core earnings metrics into clean, investor-ready visualisations.",
+        "Transform long reports into structured metrics, profitability trends, and chart-ready data.",
     },
     {
       icon: MessageSquareQuote,
       title: "Sentiment analysis",
       description:
-        "Track management tone, outlook, and guidance direction at a glance.",
+        "Track management tone, outlook, risk factors, and whether guidance is being raised or lowered.",
     },
   ];
 
   return (
-    <motion.section
-      {...fadeUp}
-      className="mx-auto w-full max-w-6xl px-6 py-16 md:py-24"
-    >
+    <motion.section {...reveal} className="mx-auto w-full max-w-7xl px-5 py-16 sm:px-8 lg:py-24">
       <SectionHeading
         eyebrow="Capabilities"
         title="Features"
-        description="Everything you need to read Baltic earnings — built on the same pipeline that powers the catalog."
+        description="Built for the odd shape of Baltic market work: multilingual filings, thin coverage, and reports that refuse to be tidy."
       />
-      <div className="mt-10 grid gap-4 sm:grid-cols-2">
+      <div className="mt-10 grid gap-4 md:grid-cols-2">
         {features.map((feature) => (
-          <FeatureCard key={feature.title} {...feature} />
+          <FeaturePanel key={feature.title} {...feature} />
         ))}
       </div>
     </motion.section>
@@ -325,64 +408,41 @@ function FeaturesGrid() {
 }
 
 function ExchangesSection() {
-  const exchanges = [
-    {
-      city: "Tallinn",
-      country: "Estonia",
-      code: "TAL",
-    },
-    {
-      city: "Riga",
-      country: "Latvia",
-      code: "RIG",
-    },
-    {
-      city: "Vilnius",
-      country: "Lithuania",
-      code: "VIL",
-    },
-  ];
-
   return (
-    <motion.section
-      {...fadeUp}
-      className="mx-auto w-full max-w-6xl px-6 py-16 md:py-24"
-    >
+    <motion.section {...reveal} className="mx-auto w-full max-w-7xl px-5 py-16 sm:px-8 lg:py-24">
       <SectionHeading
         eyebrow="Coverage"
         title="Exchanges"
-        description="Three Baltic exchanges, four languages, one normalised view."
+        description="Three Baltic exchanges, four languages, one normalized view."
       />
-      <div className="mt-10 grid gap-4 sm:grid-cols-3">
+      <div className="mt-10 grid gap-4 md:grid-cols-3">
         {exchanges.map((exchange) => (
           <div
             key={exchange.city}
-            className="group relative overflow-hidden rounded-2xl border border-zinc-200 bg-gradient-to-b from-white to-zinc-50 p-6 shadow-zinc-950/5 transition-colors hover:border-primary/40 dark:border-white/10 dark:from-zinc-900/30 dark:to-zinc-900/10"
+            className="group border border-[color:var(--bei-line)] bg-[rgba(235,217,171,0.05)] p-5 transition duration-300 hover:-translate-y-1 hover:border-[color:var(--bei-line-strong)] hover:bg-[rgba(235,217,171,0.09)]"
           >
-            <CardCorners />
-            <div className="flex items-center justify-between">
-              <div className="relative flex aspect-square size-10 items-center justify-center rounded-full border border-zinc-200 before:absolute before:-inset-2 before:rounded-full before:border before:border-zinc-200 dark:border-white/10 dark:before:border-white/5">
-                <Globe className="size-4 text-primary" />
-              </div>
-              <span className="font-mono text-[11px] uppercase tracking-widest text-muted-foreground">
+            <div className="flex items-start justify-between">
+              <span className={cn("h-16 w-2", exchange.accent)} />
+              <span className="font-[family-name:var(--font-mono)] text-xs uppercase tracking-[0.22em] text-[color:var(--bei-muted)]">
                 {exchange.code}
               </span>
             </div>
-            <div className="mt-6">
-              <h3 className="text-lg font-semibold tracking-tight">
-                {exchange.city}
-              </h3>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Nasdaq {exchange.city} · {exchange.country}
-              </p>
-            </div>
+            <h3 className="mt-8 font-[family-name:var(--font-display)] text-4xl font-black uppercase leading-none text-[color:var(--bei-cream)]">
+              {exchange.city}
+            </h3>
+            <p className="mt-3 text-sm text-[color:var(--bei-muted)]">
+              Nasdaq {exchange.city} · {exchange.country}
+            </p>
           </div>
         ))}
       </div>
 
-      <div className="mt-6 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-        <span className="font-medium uppercase tracking-wider">Languages</span>
-        <Badge variant="secondary" className="rounded-full">
+      <div className="mt-6 flex flex-wrap items-center gap-2 text-xs uppercase tracking-[0.16em] text-[color:var(--bei-muted)]">
+        <span>Languages</span>
+        <Badge
+          variant="secondary"
+          className="rounded-md bg-[rgba(50,245,200,0.12)] text-[color:var(--bei-cyan)]"
+        >
           <Languages className="mr-1 size-3.5" />
           EN / ET / LV / LT
         </Badge>
@@ -393,31 +453,27 @@ function ExchangesSection() {
 
 function CtaFooter() {
   return (
-    <motion.section
-      {...fadeUp}
-      className="mx-auto w-full max-w-6xl px-6 py-16 md:py-24"
-    >
-      <div className="relative overflow-hidden rounded-3xl border border-zinc-200 bg-gradient-to-b from-zinc-50 to-white p-10 shadow-zinc-950/5 dark:border-white/10 dark:from-zinc-900/40 dark:to-zinc-900/10">
-        <CardCorners />
-        <div
-          className="pointer-events-none absolute inset-0"
-          style={{
-            background:
-              "radial-gradient(80% 60% at 50% 0%, rgba(59,130,246,0.10), transparent 60%)",
-          }}
-        />
-        <div className="relative flex flex-col items-start gap-6 md:flex-row md:items-center md:justify-between">
-          <div className="max-w-xl">
-            <h3 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+    <motion.section {...reveal} className="mx-auto w-full max-w-7xl px-5 py-16 sm:px-8 lg:py-24">
+      <div className="relative overflow-hidden border border-[color:var(--bei-line-strong)] bg-[color:var(--bei-cream)] p-6 text-[#061012] sm:p-8 lg:p-10">
+        <div className="absolute inset-x-0 top-0 h-2 bg-[linear-gradient(90deg,var(--bei-cyan),var(--bei-amber),var(--bei-red))]" />
+        <div className="relative grid gap-8 lg:grid-cols-[1fr_auto] lg:items-end">
+          <div>
+            <p className="font-[family-name:var(--font-mono)] text-xs uppercase tracking-[0.18em] opacity-70">
+              Next filing, less friction
+            </p>
+            <h3 className="mt-4 max-w-2xl font-[family-name:var(--font-display)] text-5xl font-black uppercase leading-[0.9] sm:text-6xl">
               Ready to start?
             </h3>
-            <p className="mt-2 text-muted-foreground">
+            <p className="mt-5 max-w-xl text-base leading-7 opacity-75">
               Upload your next filing or jump into the catalog and explore
               what&apos;s already there.
             </p>
           </div>
           <div className="flex flex-wrap gap-3">
-            <Button asChild className="rounded-xl">
+            <Button
+              asChild
+              className="rounded-md bg-[#061012] text-[color:var(--bei-cream)] hover:bg-[#061012]/90"
+            >
               <Link href="/upload">
                 Upload a Report
                 <ArrowRight className="size-4" />
@@ -426,7 +482,7 @@ function CtaFooter() {
             <Button
               asChild
               variant="outline"
-              className="rounded-xl dark:border-white/10"
+              className="rounded-md border-[#061012]/25 bg-transparent text-[#061012] hover:bg-[#061012]/10"
             >
               <Link href="/companies">Browse the Catalog</Link>
             </Button>
@@ -439,20 +495,20 @@ function CtaFooter() {
 
 function SiteFooter() {
   return (
-    <footer className="border-t border-zinc-200/80 py-8 dark:border-white/10">
-      <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-3 px-6 text-sm text-muted-foreground">
+    <footer className="relative z-10 border-t border-[color:var(--bei-line)] py-8">
+      <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center justify-between gap-3 px-5 text-sm text-[color:var(--bei-muted)] sm:px-8">
         <span className="flex items-center gap-2">
-          <Building2 className="size-3.5 text-primary" />© Baltic Earnings
-          Intelligence
+          <CandlestickChart className="size-4 text-[color:var(--bei-cyan)]" />
+          © Baltic Earnings Intelligence
         </span>
         <div className="flex gap-4">
-          <Link href="/privacy" className="hover:text-foreground">
+          <Link href="/privacy" className="hover:text-[color:var(--bei-cream)]">
             Privacy
           </Link>
-          <Link href="/terms" className="hover:text-foreground">
+          <Link href="/terms" className="hover:text-[color:var(--bei-cream)]">
             Terms
           </Link>
-          <Link href="/access" className="hover:text-foreground">
+          <Link href="/access" className="hover:text-[color:var(--bei-cream)]">
             Access
           </Link>
         </div>
@@ -471,30 +527,19 @@ function SectionHeading({
   description?: string;
 }) {
   return (
-    <div className="flex max-w-2xl flex-col gap-3">
-      <span className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
+    <div className="grid gap-4 border-l-4 border-[color:var(--bei-red)] pl-5">
+      <span className="font-[family-name:var(--font-mono)] text-xs uppercase tracking-[0.22em] text-[color:var(--bei-amber)]">
         {eyebrow}
       </span>
-      <h2 className="text-balance text-2xl font-semibold tracking-tight sm:text-3xl">
+      <h2 className="font-[family-name:var(--font-display)] text-4xl font-black uppercase leading-none text-[color:var(--bei-cream)] sm:text-5xl">
         {title}
       </h2>
       {description ? (
-        <p className="text-balance text-sm text-muted-foreground sm:text-base">
+        <p className="max-w-2xl text-base leading-7 text-[color:var(--bei-muted)]">
           {description}
         </p>
       ) : null}
     </div>
-  );
-}
-
-function CardCorners() {
-  return (
-    <>
-      <span className="pointer-events-none absolute -left-px -top-px block size-2 border-l-2 border-t-2 border-primary" />
-      <span className="pointer-events-none absolute -right-px -top-px block size-2 border-r-2 border-t-2 border-primary" />
-      <span className="pointer-events-none absolute -bottom-px -left-px block size-2 border-b-2 border-l-2 border-primary" />
-      <span className="pointer-events-none absolute -bottom-px -right-px block size-2 border-b-2 border-r-2 border-primary" />
-    </>
   );
 }
 
@@ -509,14 +554,14 @@ function StatTile({
 }) {
   return (
     <div
-      className="flex flex-col items-center gap-2 p-6 text-center"
+      className="border-b border-[color:var(--bei-line)] p-5 last:border-b-0 sm:odd:border-r lg:border-b-0 lg:border-r lg:last:border-r-0"
       aria-label={`${value} ${label}`}
     >
-      <span className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-        <Icon className="size-3.5 text-primary" />
+      <span className="flex items-center gap-2 font-[family-name:var(--font-mono)] text-[11px] uppercase tracking-[0.18em] text-[color:var(--bei-muted)]">
+        <Icon className="size-4 text-[color:var(--bei-amber)]" />
         {label}
       </span>
-      <div className="text-3xl font-semibold tracking-tight tabular-nums">
+      <div className="mt-3 font-[family-name:var(--font-display)] text-5xl font-black leading-none text-[color:var(--bei-cream)] tabular-nums">
         <AnimatedNumber value={value} />
       </div>
     </div>
@@ -554,7 +599,7 @@ function AnimatedNumber({ value }: { value: number }) {
   return <span ref={ref}>{text}</span>;
 }
 
-function Step({
+function ProcessPanel({
   icon: Icon,
   title,
   text,
@@ -566,27 +611,24 @@ function Step({
   index: number;
 }) {
   return (
-    <Card className="relative overflow-hidden rounded-2xl border-zinc-200 bg-gradient-to-b from-white to-zinc-50 shadow-zinc-950/5 dark:border-white/10 dark:from-zinc-900/30 dark:to-zinc-900/10">
-      <CardCorners />
-      <CardContent className="flex flex-col gap-5 p-6 pt-6">
-        <div className="flex items-center justify-between">
-          <div className="relative flex aspect-square size-12 items-center justify-center rounded-full border border-zinc-200 before:absolute before:-inset-2 before:rounded-full before:border before:border-zinc-200 dark:border-white/10 dark:before:border-white/5">
-            <Icon className="size-5 text-primary" strokeWidth={1.5} />
-          </div>
-          <span className="font-mono text-xs text-muted-foreground">
-            {String(index).padStart(2, "0")}
-          </span>
-        </div>
-        <div>
-          <h3 className="text-lg font-semibold tracking-tight">{title}</h3>
-          <p className="mt-1.5 text-sm text-muted-foreground">{text}</p>
-        </div>
-      </CardContent>
-    </Card>
+    <div className="relative min-h-64 border border-[color:var(--bei-line)] bg-[rgba(8,14,16,0.68)] p-5">
+      <span className="absolute right-5 top-5 font-[family-name:var(--font-display)] text-7xl font-black leading-none text-[rgba(235,217,171,0.08)]">
+        {String(index).padStart(2, "0")}
+      </span>
+      <div className="flex size-12 items-center justify-center border border-[color:var(--bei-line-strong)] bg-[rgba(50,245,200,0.08)] text-[color:var(--bei-cyan)]">
+        <Icon className="size-5" strokeWidth={1.75} />
+      </div>
+      <h3 className="mt-16 font-[family-name:var(--font-display)] text-3xl font-black uppercase leading-none text-[color:var(--bei-cream)]">
+        {title}
+      </h3>
+      <p className="mt-4 text-sm leading-6 text-[color:var(--bei-muted)]">
+        {text}
+      </p>
+    </div>
   );
 }
 
-function FeatureCard({
+function FeaturePanel({
   icon: Icon,
   title,
   description,
@@ -596,28 +638,18 @@ function FeatureCard({
   description: string;
 }) {
   return (
-    <Card className="group relative overflow-hidden rounded-2xl border-zinc-200 bg-gradient-to-b from-white to-zinc-50 shadow-zinc-950/5 transition-colors hover:border-primary/40 dark:border-white/10 dark:from-zinc-900/20 dark:to-zinc-900/5">
-      <CardCorners />
-      <div
-        className={cn(
-          "pointer-events-none absolute inset-0 opacity-60 transition-opacity group-hover:opacity-100",
-        )}
-        style={{
-          background:
-            "radial-gradient(125% 125% at 50% 0%, transparent 40%, hsl(var(--muted) / 0.6))",
-        }}
-      />
-      <CardHeader className="relative">
-        <div className="flex items-center gap-3">
-          <span className="flex size-9 items-center justify-center rounded-xl border border-zinc-200 bg-background/80 text-primary dark:border-white/10">
-            <Icon className="size-4" strokeWidth={1.75} />
-          </span>
-          <CardTitle className="text-lg">{title}</CardTitle>
-        </div>
-      </CardHeader>
-      <CardContent className="relative pt-0 text-sm text-muted-foreground">
-        {description}
-      </CardContent>
-    </Card>
+    <div className="group grid min-h-52 grid-cols-[auto_1fr] gap-5 border border-[color:var(--bei-line)] bg-[rgba(235,217,171,0.045)] p-5 transition duration-300 hover:border-[color:var(--bei-cyan)] hover:bg-[rgba(50,245,200,0.07)]">
+      <span className="flex size-11 items-center justify-center bg-[color:var(--bei-cream)] text-[#061012] transition group-hover:bg-[color:var(--bei-cyan)]">
+        <Icon className="size-5" strokeWidth={1.75} />
+      </span>
+      <div>
+        <h3 className="font-[family-name:var(--font-display)] text-2xl font-black uppercase leading-none text-[color:var(--bei-cream)]">
+          {title}
+        </h3>
+        <p className="mt-4 text-sm leading-6 text-[color:var(--bei-muted)]">
+          {description}
+        </p>
+      </div>
+    </div>
   );
 }

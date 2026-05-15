@@ -3,7 +3,19 @@
 @tailwind utilities;
 
 :root {
-  --radius: 0.75rem;
+  --radius: 0.5rem;
+  --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  --font-ui: "Avenir Next Condensed", "DIN Alternate", "Bahnschrift", "Gill Sans", sans-serif;
+  --font-mono: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+  --bei-ink: #061012;
+  --bei-panel: #0d1719;
+  --bei-cream: #ebd9ab;
+  --bei-muted: #9fb1aa;
+  --bei-cyan: #32f5c8;
+  --bei-amber: #ffd166;
+  --bei-red: #ff4d6d;
+  --bei-line: rgba(235, 217, 171, 0.16);
+  --bei-line-strong: rgba(235, 217, 171, 0.34);
 
   /* Existing app tokens */
   --color-bg: #ffffff;
@@ -92,6 +104,7 @@ body {
   font-family: system-ui, sans-serif;
   background: var(--color-bg);
   color: var(--color-text);
+  text-rendering: optimizeLegibility;
 }
 
 /*
