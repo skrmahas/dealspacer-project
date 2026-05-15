@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import type { ExtractedData, ExtractedMetric, ExtractedNarrative, ExtractedSentiment } from "@bei/shared";
 
 type ExtractedPayload = Partial<ExtractedData> & {
@@ -31,6 +32,28 @@ function sectionNarrative(narratives: ExtractedNarrative[], section: string): st
   return item?.text?.trim() ? item.text.trim() : null;
 }
 
+function CollapsibleSection({ title, defaultOpen = true, children }: {
+  title: string;
+  defaultOpen?: boolean;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <section style={{ background: '#ffffff', border: '1px solid #d7dfe7', borderRadius: 12, padding: 16, marginBottom: 12 }}>
+      <div
+        onClick={() => setOpen(!open)}
+        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', userSelect: 'none' }}
+      >
+        <h4 style={{ margin: 0, fontSize: 15, color: '#0f2e52' }}>{title}</h4>
+        <span style={{ color: '#8899aa', fontSize: 14, transition: 'transform 0.15s', transform: open ? 'rotate(90deg)' : 'rotate(0deg)' }}>
+          ▸
+        </span>
+      </div>
+      {open && <div style={{ marginTop: 12 }}>{children}</div>}
+    </section>
+  );
+}
+
 export function ReportSummary({ extractedJson }: { extractedJson: string }) {
   let data: ExtractedPayload;
   try {
@@ -59,8 +82,7 @@ export function ReportSummary({ extractedJson }: { extractedJson: string }) {
         </p>
       </section>
 
-      <section style={{ background: "#ffffff", border: "1px solid #d7dfe7", borderRadius: 12, padding: 16 }}>
-        <h4 style={{ margin: "0 0 12px", fontSize: 15, color: "#0f2e52" }}>Key Metrics</h4>
+      <CollapsibleSection title="Key Metrics">
         {metrics.length === 0 && <p style={{ margin: 0, color: "#697586", fontSize: 14 }}>No metrics were extracted.</p>}
         {metrics.length > 0 && (
           <div style={{ display: "grid", gap: 8 }}>
@@ -74,10 +96,9 @@ export function ReportSummary({ extractedJson }: { extractedJson: string }) {
             ))}
           </div>
         )}
-      </section>
+      </CollapsibleSection>
 
-      <section style={{ background: "#ffffff", border: "1px solid #d7dfe7", borderRadius: 12, padding: 16 }}>
-        <h4 style={{ margin: "0 0 12px", fontSize: 15, color: "#0f2e52" }}>Narrative Sections</h4>
+      <CollapsibleSection title="Narrative Sections">
         <div style={{ display: "grid", gap: 10 }}>
           {sections.map((section) => {
             const text = sectionNarrative(narratives, section);
@@ -91,10 +112,9 @@ export function ReportSummary({ extractedJson }: { extractedJson: string }) {
             );
           })}
         </div>
-      </section>
+      </CollapsibleSection>
 
-      <section style={{ background: "#ffffff", border: "1px solid #d7dfe7", borderRadius: 12, padding: 16 }}>
-        <h4 style={{ margin: "0 0 12px", fontSize: 15, color: "#0f2e52" }}>Sentiment</h4>
+      <CollapsibleSection title="Sentiment">
         <p style={{ margin: "0 0 8px", fontSize: 14, color: "#1f2a37" }}>
           <strong>Management Tone:</strong> {sentiment.managementTone || "Not available"}
         </p>
@@ -112,7 +132,7 @@ export function ReportSummary({ extractedJson }: { extractedJson: string }) {
             ))}
           </ul>
         )}
-      </section>
+      </CollapsibleSection>
     </div>
   );
 }

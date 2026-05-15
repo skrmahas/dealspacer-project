@@ -3,6 +3,33 @@ import { createPostgresStore, createPostgresFileStore } from "@bei/shared";
 
 const { readReport } = createPostgresFileStore();
 
+function sanitizeFilename(name: string): string {
+  return name
+    .replace(/[^a-zA-Z0-9\-_\.]/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 100);
+}
+
+function buildDownloadFilename(originalFilename: string, extractedJson: string | null): string {
+  if (extractedJson) {
+    try {
+      const data = JSON.parse(extractedJson) as { metadata?: { companyName?: string; reportPeriod?: string } };
+      const company = data.metadata?.companyName?.trim();
+      const period = data.metadata?.reportPeriod?.trim();
+      if (company) {
+        const parts = [company];
+        if (period) parts.push(period);
+        parts.push("report");
+        return sanitizeFilename(parts.join("-")) + ".pdf";
+      }
+    } catch {
+      // Fall through to default name
+    }
+  }
+  return sanitizeFilename(originalFilename.replace(/\.(pdf|csv|html|htm|xhtml)$/i, "")) + "-report.pdf";
+}
+
 /**
  * Parse an HTTP Range header value.
  * Supports "bytes=start-end" and "bytes=start-" formats.
@@ -56,7 +83,7 @@ export async function GET(
     const pdf = await readReport(job.id);
     const fileBuffer = Buffer.isBuffer(pdf) ? pdf : Buffer.from(pdf);
     const fileSize = fileBuffer.length;
-    const filename = job.originalFilename.replace(/\.(pdf|csv|html|htm|xhtml)$/i, "") + "-report.pdf";
+    const filename = buildDownloadFilename(job.originalFilename, job.extractedJson);
 
     const rangeHeader = request.headers.get("range");
 
