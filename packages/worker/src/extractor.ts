@@ -59,7 +59,7 @@ BALTIC CONTEXT:
 const DEFAULT_CHUNK_THRESHOLD = 60000;
 const DEFAULT_CHUNK_SIZE = 50000;
 const DEFAULT_CHUNK_OVERLAP = 5000;
-const DEFAULT_MAX_CONCURRENCY = 3;
+const DEFAULT_MAX_CONCURRENCY = 1;
 const DEFAULT_MAX_RETRIES = 3;
 
 export type OpenAIClient = Pick<OpenAI, "chat">;
@@ -97,13 +97,22 @@ function getChunkConfig(): ChunkConfig {
   const threshold = readPositiveEnv("EXTRACTION_CHUNK_THRESHOLD", DEFAULT_CHUNK_THRESHOLD);
   const chunkSize = readPositiveEnv("EXTRACTION_CHUNK_SIZE", DEFAULT_CHUNK_SIZE);
   const overlap = readPositiveEnv("EXTRACTION_CHUNK_OVERLAP", DEFAULT_CHUNK_OVERLAP);
-  const maxConcurrency = readPositiveEnv("EXTRACTION_MAX_CONCURRENCY", DEFAULT_MAX_CONCURRENCY);
+  const maxConcurrency = readMaxConcurrencyEnv();
   const maxRetries = readNonNegativeEnv("EXTRACTION_MAX_RETRIES", DEFAULT_MAX_RETRIES);
 
   // Ensure overlap < chunkSize
   const effectiveOverlap = Math.min(overlap, Math.floor(chunkSize * 0.2));
 
   return { threshold, chunkSize, overlap: effectiveOverlap, maxConcurrency, maxRetries };
+}
+
+function readMaxConcurrencyEnv(): number {
+  // Preferred key for rate-limit control.
+  if (process.env.LLM_EXTRACTION_CONCURRENCY !== undefined) {
+    return readPositiveEnv("LLM_EXTRACTION_CONCURRENCY", DEFAULT_MAX_CONCURRENCY);
+  }
+  // Backward compatibility with earlier config name.
+  return readPositiveEnv("EXTRACTION_MAX_CONCURRENCY", DEFAULT_MAX_CONCURRENCY);
 }
 
 function readPositiveEnv(name: string, fallback: number): number {

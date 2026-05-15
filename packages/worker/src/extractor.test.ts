@@ -33,6 +33,29 @@ function mockMultiClient(responses: unknown[]): OpenAIClient {
   } as unknown as OpenAIClient;
 }
 
+function mockDelayedClient(responseJson: unknown, delayMs: number, onInflightChange: (inflight: number) => void): OpenAIClient {
+  let inflight = 0;
+  return {
+    chat: {
+      completions: {
+        create: vi.fn().mockImplementation(() => {
+          inflight++;
+          onInflightChange(inflight);
+          return new Promise((resolve) => {
+            setTimeout(() => {
+              inflight--;
+              onInflightChange(inflight);
+              resolve({
+                choices: [{ message: { content: JSON.stringify(responseJson) } }],
+              });
+            }, delayMs);
+          });
+        }),
+      },
+    },
+  } as unknown as OpenAIClient;
+}
+
 const validExtraction = {
   metadata: {
     companyName: "AS Tallink Grupp",
@@ -219,7 +242,7 @@ describe("extractFromText — chunked parallel (above threshold)", () => {
     process.env.EXTRACTION_CHUNK_THRESHOLD = "100";
     process.env.EXTRACTION_CHUNK_SIZE = "80";
     process.env.EXTRACTION_CHUNK_OVERLAP = "20";
-    process.env.EXTRACTION_MAX_CONCURRENCY = "2";
+    process.env.LLM_EXTRACTION_CONCURRENCY = "2";
 
     try {
       const client = mockMultiClient([chunk1Extraction, chunk2Extraction]);
@@ -249,7 +272,7 @@ describe("extractFromText — chunked parallel (above threshold)", () => {
       delete process.env.EXTRACTION_CHUNK_THRESHOLD;
       delete process.env.EXTRACTION_CHUNK_SIZE;
       delete process.env.EXTRACTION_CHUNK_OVERLAP;
-      delete process.env.EXTRACTION_MAX_CONCURRENCY;
+      delete process.env.LLM_EXTRACTION_CONCURRENCY;
     }
   });
 
@@ -257,7 +280,7 @@ describe("extractFromText — chunked parallel (above threshold)", () => {
     process.env.EXTRACTION_CHUNK_THRESHOLD = "100";
     process.env.EXTRACTION_CHUNK_SIZE = "80";
     process.env.EXTRACTION_CHUNK_OVERLAP = "20";
-    process.env.EXTRACTION_MAX_CONCURRENCY = "2";
+    process.env.LLM_EXTRACTION_CONCURRENCY = "2";
 
     try {
       // Both chunks return Revenue — merged result should only have one
@@ -275,7 +298,7 @@ describe("extractFromText — chunked parallel (above threshold)", () => {
       delete process.env.EXTRACTION_CHUNK_THRESHOLD;
       delete process.env.EXTRACTION_CHUNK_SIZE;
       delete process.env.EXTRACTION_CHUNK_OVERLAP;
-      delete process.env.EXTRACTION_MAX_CONCURRENCY;
+      delete process.env.LLM_EXTRACTION_CONCURRENCY;
     }
   });
 
@@ -283,7 +306,7 @@ describe("extractFromText — chunked parallel (above threshold)", () => {
     process.env.EXTRACTION_CHUNK_THRESHOLD = "100";
     process.env.EXTRACTION_CHUNK_SIZE = "80";
     process.env.EXTRACTION_CHUNK_OVERLAP = "20";
-    process.env.EXTRACTION_MAX_CONCURRENCY = "2";
+    process.env.LLM_EXTRACTION_CONCURRENCY = "2";
 
     try {
       const client = mockMultiClient([chunk1Extraction, chunk2Extraction]);
@@ -298,7 +321,7 @@ describe("extractFromText — chunked parallel (above threshold)", () => {
       delete process.env.EXTRACTION_CHUNK_THRESHOLD;
       delete process.env.EXTRACTION_CHUNK_SIZE;
       delete process.env.EXTRACTION_CHUNK_OVERLAP;
-      delete process.env.EXTRACTION_MAX_CONCURRENCY;
+      delete process.env.LLM_EXTRACTION_CONCURRENCY;
     }
   });
 
@@ -306,7 +329,7 @@ describe("extractFromText — chunked parallel (above threshold)", () => {
     process.env.EXTRACTION_CHUNK_THRESHOLD = "100";
     process.env.EXTRACTION_CHUNK_SIZE = "80";
     process.env.EXTRACTION_CHUNK_OVERLAP = "20";
-    process.env.EXTRACTION_MAX_CONCURRENCY = "2";
+    process.env.LLM_EXTRACTION_CONCURRENCY = "2";
 
     try {
       const client = mockMultiClient([chunk1Extraction, chunk2Extraction]);
@@ -319,6 +342,102 @@ describe("extractFromText — chunked parallel (above threshold)", () => {
       // Periods from both chunks merged (Q3 2023, Q4 2023, Q1 2024) — no duplicates
       const uniquePeriods = new Set(result.profitabilityTrends!.periods);
       expect(uniquePeriods.size).toBe(result.profitabilityTrends!.periods.length);
+    } finally {
+      delete process.env.EXTRACTION_CHUNK_THRESHOLD;
+      delete process.env.EXTRACTION_CHUNK_SIZE;
+      delete process.env.EXTRACTION_CHUNK_OVERLAP;
+      delete process.env.LLM_EXTRACTION_CONCURRENCY;
+    }
+  });
+
+  it("runs chunk scheduling sequentially when LLM_EXTRACTION_CONCURRENCY=1", async () => {
+    process.env.EXTRACTION_CHUNK_THRESHOLD = "100";
+    process.env.EXTRACTION_CHUNK_SIZE = "80";
+    process.env.EXTRACTION_CHUNK_OVERLAP = "20";
+    process.env.LLM_EXTRACTION_CONCURRENCY = "1";
+
+    let maxInFlight = 0;
+    try {
+      const client = mockDelayedClient(validExtraction, 10, (inflight) => {
+        maxInFlight = Math.max(maxInFlight, inflight);
+      });
+      setClient(client);
+
+      await extractFromText("a".repeat(220));
+
+      expect(maxInFlight).toBe(1);
+    } finally {
+      delete process.env.EXTRACTION_CHUNK_THRESHOLD;
+      delete process.env.EXTRACTION_CHUNK_SIZE;
+      delete process.env.EXTRACTION_CHUNK_OVERLAP;
+      delete process.env.LLM_EXTRACTION_CONCURRENCY;
+    }
+  });
+
+  it("runs chunk scheduling concurrently when LLM_EXTRACTION_CONCURRENCY=2", async () => {
+    process.env.EXTRACTION_CHUNK_THRESHOLD = "100";
+    process.env.EXTRACTION_CHUNK_SIZE = "80";
+    process.env.EXTRACTION_CHUNK_OVERLAP = "20";
+    process.env.LLM_EXTRACTION_CONCURRENCY = "2";
+
+    let maxInFlight = 0;
+    try {
+      const client = mockDelayedClient(validExtraction, 10, (inflight) => {
+        maxInFlight = Math.max(maxInFlight, inflight);
+      });
+      setClient(client);
+
+      await extractFromText("a".repeat(220));
+
+      expect(maxInFlight).toBeGreaterThanOrEqual(2);
+    } finally {
+      delete process.env.EXTRACTION_CHUNK_THRESHOLD;
+      delete process.env.EXTRACTION_CHUNK_SIZE;
+      delete process.env.EXTRACTION_CHUNK_OVERLAP;
+      delete process.env.LLM_EXTRACTION_CONCURRENCY;
+    }
+  });
+
+  it("falls back to safe default when LLM_EXTRACTION_CONCURRENCY is invalid", async () => {
+    process.env.EXTRACTION_CHUNK_THRESHOLD = "100";
+    process.env.EXTRACTION_CHUNK_SIZE = "80";
+    process.env.EXTRACTION_CHUNK_OVERLAP = "20";
+    process.env.LLM_EXTRACTION_CONCURRENCY = "oops";
+
+    let maxInFlight = 0;
+    try {
+      const client = mockDelayedClient(validExtraction, 10, (inflight) => {
+        maxInFlight = Math.max(maxInFlight, inflight);
+      });
+      setClient(client);
+
+      await extractFromText("a".repeat(220));
+
+      expect(maxInFlight).toBe(1);
+    } finally {
+      delete process.env.EXTRACTION_CHUNK_THRESHOLD;
+      delete process.env.EXTRACTION_CHUNK_SIZE;
+      delete process.env.EXTRACTION_CHUNK_OVERLAP;
+      delete process.env.LLM_EXTRACTION_CONCURRENCY;
+    }
+  });
+
+  it("uses legacy EXTRACTION_MAX_CONCURRENCY when LLM_EXTRACTION_CONCURRENCY is unset", async () => {
+    process.env.EXTRACTION_CHUNK_THRESHOLD = "100";
+    process.env.EXTRACTION_CHUNK_SIZE = "80";
+    process.env.EXTRACTION_CHUNK_OVERLAP = "20";
+    process.env.EXTRACTION_MAX_CONCURRENCY = "2";
+
+    let maxInFlight = 0;
+    try {
+      const client = mockDelayedClient(validExtraction, 10, (inflight) => {
+        maxInFlight = Math.max(maxInFlight, inflight);
+      });
+      setClient(client);
+
+      await extractFromText("a".repeat(220));
+
+      expect(maxInFlight).toBeGreaterThanOrEqual(2);
     } finally {
       delete process.env.EXTRACTION_CHUNK_THRESHOLD;
       delete process.env.EXTRACTION_CHUNK_SIZE;
