@@ -488,6 +488,84 @@ describe("extractFromText — retry behavior", () => {
       delete process.env.EXTRACTION_MAX_RETRIES;
     }
   });
+
+  it("caps retry delay using EXTRACTION_RETRY_MAX_DELAY_MS", async () => {
+    process.env.EXTRACTION_MAX_RETRIES = "1";
+    process.env.EXTRACTION_RETRY_BASE_DELAY_MS = "1000";
+    process.env.EXTRACTION_RETRY_MAX_DELAY_MS = "10";
+    const randomSpy = vi.spyOn(Math, "random").mockReturnValue(1);
+    const timeoutSpy = vi.spyOn(global, "setTimeout");
+
+    try {
+      let callCount = 0;
+      const client = {
+        chat: {
+          completions: {
+            create: vi.fn().mockImplementation(() => {
+              callCount++;
+              if (callCount === 1) {
+                const err = new Error("429 Too Many Requests") as unknown as Error & { status: number };
+                (err as unknown as Record<string, unknown>).status = 429;
+                throw err;
+              }
+              return Promise.resolve({
+                choices: [{ message: { content: JSON.stringify(validExtraction) } }],
+              });
+            }),
+          },
+        },
+      } as unknown as OpenAIClient;
+      setClient(client);
+
+      await extractFromText("retry test");
+
+      expect(timeoutSpy).toHaveBeenCalled();
+      const firstDelay = Number(timeoutSpy.mock.calls[0][1]);
+      expect(firstDelay).toBeLessThanOrEqual(10);
+    } finally {
+      delete process.env.EXTRACTION_MAX_RETRIES;
+      delete process.env.EXTRACTION_RETRY_BASE_DELAY_MS;
+      delete process.env.EXTRACTION_RETRY_MAX_DELAY_MS;
+      randomSpy.mockRestore();
+      timeoutSpy.mockRestore();
+    }
+  });
+
+  it("logs retry attempt number and delay", async () => {
+    process.env.EXTRACTION_MAX_RETRIES = "1";
+    process.env.EXTRACTION_RETRY_BASE_DELAY_MS = "1";
+    process.env.EXTRACTION_RETRY_MAX_DELAY_MS = "1";
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => undefined);
+
+    try {
+      const client = {
+        chat: {
+          completions: {
+            create: vi.fn().mockImplementation(() => {
+              const err = new Error("429 Too Many Requests") as unknown as Error & { status: number };
+              (err as unknown as Record<string, unknown>).status = 429;
+              throw err;
+            }),
+          },
+        },
+      } as unknown as OpenAIClient;
+      setClient(client);
+
+      await expect(extractFromText("retry log test")).rejects.toThrow("429 Too Many Requests");
+
+      const retryLog = logSpy.mock.calls
+        .map((call) => String(call[0]))
+        .find((line) => line.includes("attempt 1/2 failed"));
+      expect(retryLog).toBeDefined();
+      expect(retryLog).toContain("retrying in");
+      expect(retryLog).toContain("ms");
+    } finally {
+      delete process.env.EXTRACTION_MAX_RETRIES;
+      delete process.env.EXTRACTION_RETRY_BASE_DELAY_MS;
+      delete process.env.EXTRACTION_RETRY_MAX_DELAY_MS;
+      logSpy.mockRestore();
+    }
+  });
 });
 
 describe("extractFromText — model configuration", () => {

@@ -61,6 +61,9 @@ const DEFAULT_CHUNK_SIZE = 50000;
 const DEFAULT_CHUNK_OVERLAP = 5000;
 const DEFAULT_MAX_CONCURRENCY = 3;
 const DEFAULT_MAX_RETRIES = 3;
+const DEFAULT_RETRY_BASE_DELAY_MS = 1000;
+const DEFAULT_RETRY_MAX_DELAY_MS = 30000;
+const RETRY_JITTER_RATIO = 0.2;
 
 export type OpenAIClient = Pick<OpenAI, "chat">;
 
@@ -91,6 +94,8 @@ interface ChunkConfig {
   overlap: number;
   maxConcurrency: number;
   maxRetries: number;
+  retryBaseDelayMs: number;
+  retryMaxDelayMs: number;
 }
 
 function getChunkConfig(): ChunkConfig {
@@ -99,11 +104,21 @@ function getChunkConfig(): ChunkConfig {
   const overlap = readPositiveEnv("EXTRACTION_CHUNK_OVERLAP", DEFAULT_CHUNK_OVERLAP);
   const maxConcurrency = readPositiveEnv("EXTRACTION_MAX_CONCURRENCY", DEFAULT_MAX_CONCURRENCY);
   const maxRetries = readNonNegativeEnv("EXTRACTION_MAX_RETRIES", DEFAULT_MAX_RETRIES);
+  const retryBaseDelayMs = readPositiveEnv("EXTRACTION_RETRY_BASE_DELAY_MS", DEFAULT_RETRY_BASE_DELAY_MS);
+  const retryMaxDelayMs = readPositiveEnv("EXTRACTION_RETRY_MAX_DELAY_MS", DEFAULT_RETRY_MAX_DELAY_MS);
 
   // Ensure overlap < chunkSize
   const effectiveOverlap = Math.min(overlap, Math.floor(chunkSize * 0.2));
 
-  return { threshold, chunkSize, overlap: effectiveOverlap, maxConcurrency, maxRetries };
+  return {
+    threshold,
+    chunkSize,
+    overlap: effectiveOverlap,
+    maxConcurrency,
+    maxRetries,
+    retryBaseDelayMs,
+    retryMaxDelayMs,
+  };
 }
 
 function readPositiveEnv(name: string, fallback: number): number {
@@ -160,9 +175,11 @@ function isRetryableError(error: unknown): boolean {
   return false;
 }
 
-function getRetryDelay(attempt: number): number {
-  // Exponential backoff: 1000ms, 2000ms, 4000ms, ...
-  return Math.min(1000 * Math.pow(2, attempt), 30000);
+function getRetryDelay(attempt: number, baseDelayMs: number, maxDelayMs: number): number {
+  const exponential = Math.min(baseDelayMs * Math.pow(2, attempt), maxDelayMs);
+  const jitterWindow = exponential * RETRY_JITTER_RATIO;
+  const jitterOffset = (Math.random() * 2 - 1) * jitterWindow;
+  return Math.max(0, Math.min(maxDelayMs, Math.round(exponential + jitterOffset)));
 }
 
 async function callExtract(text: string, openai: OpenAIClient): Promise<ExtractedData> {
@@ -185,9 +202,10 @@ async function callExtract(text: string, openai: OpenAIClient): Promise<Extracte
 async function callExtractWithRetry(
   text: string,
   openai: OpenAIClient,
-  maxRetries: number,
+  retryConfig: { maxRetries: number; baseDelayMs: number; maxDelayMs: number },
   chunkLabel?: string,
 ): Promise<ExtractedData> {
+  const { maxRetries, baseDelayMs, maxDelayMs } = retryConfig;
   let lastError: unknown;
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
@@ -201,7 +219,7 @@ async function callExtractWithRetry(
       lastError = error;
 
       if (attempt < maxRetries && isRetryableError(error)) {
-        const delay = getRetryDelay(attempt);
+        const delay = getRetryDelay(attempt, baseDelayMs, maxDelayMs);
         const label = chunkLabel || "extraction";
         const reason = error instanceof Error ? error.message.slice(0, 80) : String(error).slice(0, 80);
         console.log(`[extractor] ${label}: attempt ${attempt + 1}/${maxRetries + 1} failed (${reason}), retrying in ${delay}ms...`);
@@ -357,11 +375,16 @@ export async function extractFromText(
 ): Promise<ExtractedData> {
   const openai = apiClient ?? getClient();
   const config = getChunkConfig();
+  const retryConfig = {
+    maxRetries: config.maxRetries,
+    baseDelayMs: config.retryBaseDelayMs,
+    maxDelayMs: config.retryMaxDelayMs,
+  };
 
   // For small documents, use the single-call path unchanged
   if (text.length <= config.threshold) {
     console.log(`[extractor] Single-call extraction (${text.length} chars)`);
-    const response = await callExtractWithRetry(text, openai, config.maxRetries);
+    const response = await callExtractWithRetry(text, openai, retryConfig);
     console.log(`[extractor] GPT-4o response: ${JSON.stringify(response).slice(0, 300)}...`);
     logExtractionResult(response);
     return response;
@@ -379,7 +402,7 @@ export async function extractFromText(
     const chunk = chunks[index];
     const label = `Chunk ${index + 1}/${chunks.length}`;
     try {
-      const result = await callExtractWithRetry(chunk, openai, config.maxRetries, label);
+      const result = await callExtractWithRetry(chunk, openai, retryConfig, label);
       results[index] = result;
       completedCount++;
       console.log(
