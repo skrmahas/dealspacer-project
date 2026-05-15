@@ -15,6 +15,7 @@ export async function processJob(
   assemblePdf: (data: ExtractedData) => Promise<Buffer>,
   saveReport: (jobId: string, pdf: Buffer) => Promise<void>,
   saveBrief?: (jobId: string, pdf: Buffer) => Promise<void>,
+  onJobComplete?: (job: Job, data: ExtractedData) => Promise<void>,
 ): Promise<void> {
   const log = (msg: string) => console.log(`[job ${job.id}] ${msg}`);
   const t0 = Date.now();
@@ -112,6 +113,16 @@ export async function processJob(
       extractedText: text,
       extractedJson: JSON.stringify(translated),
     });
+
+    // Post-completion hook: company matching + reports row creation
+    if (onJobComplete) {
+      try {
+        await onJobComplete(job, translated);
+      } catch (err) {
+        log(`Completion hook error (non-fatal): ${err instanceof Error ? err.message : err}`);
+      }
+    }
+
     log("Done!");
     log(`Timing: parse=${tParse - t0}ms classify=${tClassify - tParse}ms prefilter=${tPrefilter - tClassify}ms extract=${tExtract - tPrefilter}ms translate=${tTranslate - tExtract}ms assemble=${tAssemble - tTranslate}ms total=${tAssemble - t0}ms`);
   } catch (err) {

@@ -107,7 +107,11 @@ async function migrate() {
       CREATE INDEX IF NOT EXISTS idx_reports_created_at ON reports(created_at);
     `);
 
-    console.log("Migration complete: jobs, translation cache, leads, companies, and reports ready.");
+    await client.query(`
+      ALTER TABLE jobs ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES companies(id);
+    `);
+
+    console.log("Migration complete: jobs, translation cache, leads, companies, reports ready.");
   } finally {
     client.release();
   }
