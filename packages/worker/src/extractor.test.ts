@@ -33,6 +33,36 @@ function mockMultiClient(responses: unknown[]): OpenAIClient {
   } as unknown as OpenAIClient;
 }
 
+/** Route completions by targeted-extraction system prompt (for multi-stage tests). */
+function mockRoutingClient(payloads: {
+  metrics: unknown;
+  trends: unknown;
+  narratives: unknown;
+}): OpenAIClient {
+  return {
+    chat: {
+      completions: {
+        create: vi.fn().mockImplementation((req: { messages: Array<{ role: string; content: string }> }) => {
+          const sys = req.messages[0]?.content ?? "";
+          let body: unknown;
+          if (sys.includes("Extract metadata and all financial metrics")) {
+            body = payloads.metrics;
+          } else if (sys.includes("Extract multi-period trend data")) {
+            body = payloads.trends;
+          } else if (sys.includes("Extract qualitative narratives")) {
+            body = payloads.narratives;
+          } else {
+            body = { metadata: { companyName: "", reportPeriod: "", sourceLanguage: "" }, metrics: [] };
+          }
+          return Promise.resolve({
+            choices: [{ message: { content: JSON.stringify(body) } }],
+          });
+        }),
+      },
+    },
+  } as unknown as OpenAIClient;
+}
+
 const validExtraction = {
   metadata: {
     companyName: "AS Tallink Grupp",
@@ -152,7 +182,7 @@ const emptyExtraction = {
 };
 
 describe("extractFromText — single call (≤ threshold)", () => {
-  it("calls GPT-4o with the correct model, system prompt, and JSON response format", async () => {
+  it("calls OpenAI with the correct model, system prompt, and JSON response format", async () => {
     const client = mockClient(validExtraction);
     setClient(client);
 
@@ -162,7 +192,7 @@ describe("extractFromText — single call (≤ threshold)", () => {
     expect(createFn).toHaveBeenCalled();
 
     const callArgs = createFn.mock.calls[0][0];
-    expect(callArgs.model).toBe("gpt-4o");
+    expect(callArgs.model).toBe("gpt-4o-mini");
     expect(callArgs.response_format).toEqual({ type: "json_object" });
     expect(callArgs.temperature).toBe(0);
     expect(callArgs.messages[0].role).toBe("system");
@@ -207,6 +237,37 @@ describe("extractFromText — single call (≤ threshold)", () => {
     const createFn = client.chat.completions.create as ReturnType<typeof vi.fn>;
     // Targeted extraction may run 1-2 stages depending on text content
     expect(createFn.mock.calls.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("merges metrics, trends, and narratives when all targeted stages run", async () => {
+    const metricsPayload = {
+      metadata: validExtraction.metadata,
+      metrics: validExtraction.metrics,
+    };
+    const trendsPayload = {
+      revenueBreakdown: validExtraction.revenueBreakdown,
+      profitabilityTrends: validExtraction.profitabilityTrends,
+    };
+    const narrativesPayload = {
+      narratives: validExtraction.narratives,
+      sentiment: validExtraction.sentiment,
+    };
+    const client = mockRoutingClient({
+      metrics: metricsPayload,
+      trends: trendsPayload,
+      narratives: narrativesPayload,
+    });
+    setClient(client);
+
+    const text = `Q1 2024 results. ${"y".repeat(5200)}`;
+    const result = await extractFromText(text);
+
+    const createFn = client.chat.completions.create as ReturnType<typeof vi.fn>;
+    expect(createFn).toHaveBeenCalledTimes(3);
+    expect(result.metadata.companyName).toBe("AS Tallink Grupp");
+    expect(result.metrics.length).toBeGreaterThan(0);
+    expect(result.profitabilityTrends?.periods?.length).toBeGreaterThanOrEqual(2);
+    expect(result.narratives.length).toBeGreaterThan(0);
   });
 });
 

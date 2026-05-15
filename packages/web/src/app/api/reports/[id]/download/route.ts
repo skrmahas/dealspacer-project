@@ -12,7 +12,7 @@ export async function GET(
       return NextResponse.json({ error: "Report not found" }, { status: 404 });
     }
     const fileStore = createAutoFileStore();
-    const buffer = Buffer.from(await fileStore.readReport(report.id));
+    const buffer = Buffer.from(await fileStore.readReport(report.jobId ?? report.id));
     return new NextResponse(new Uint8Array(buffer), {
       headers: {
         "Content-Type": "application/pdf",

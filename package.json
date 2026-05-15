@@ -10,6 +10,9 @@
   "scripts": {
     "build": "npm run build --workspace=@bei/web",
     "start": "npm run start --workspace=@bei/web",
+    "dev:web": "npm run dev --workspace=@bei/web",
+    "dev:worker": "npm run dev --workspace=@bei/worker",
+    "db:migrate": "npm run db:migrate --workspace=@bei/shared",
     "test:all": "npm run test --workspaces --if-present"
   },
   "devDependencies": {

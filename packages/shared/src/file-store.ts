@@ -103,8 +103,9 @@ export function createS3FileStore(config?: Partial<S3Config>): FileStore {
       await client.send(
         new PutObjectCommand({
           Bucket: s3Config!.bucket,
-          Key: `${jobId}-report.pdf`,
+          Key: `reports/${jobId}.pdf`,
           Body: pdf,
+          ContentType: "application/pdf",
         }),
       );
     },
@@ -115,10 +116,10 @@ export function createS3FileStore(config?: Partial<S3Config>): FileStore {
       const response = await client.send(
         new GetObjectCommand({
           Bucket: s3Config!.bucket,
-          Key: `${jobId}-report.pdf`,
+          Key: `reports/${jobId}.pdf`,
         }),
       );
-      if (!response.Body) throw new Error(`Report not found in S3: ${jobId}-report.pdf`);
+      if (!response.Body) throw new Error(`Report not found in S3: reports/${jobId}.pdf`);
       return Buffer.from(await response.Body.transformToByteArray());
     },
   };

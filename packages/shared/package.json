@@ -8,6 +8,7 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "db:migrate": "tsx src/migrate.ts",
+    "sync:nasdaq-seed": "node scripts/sync-nasdaq-baltic-seed.mjs",
     "test": "vitest run"
   },
   "devDependencies": {

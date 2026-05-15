@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="DealSpacer">
+  <defs>
+    <linearGradient id="bei-accent" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#2b79db" />
+      <stop offset="100%" stop-color="#1a5ca8" />
+    </linearGradient>
+  </defs>
+  <rect width="32" height="32" fill="#080b10" />
+  <rect x="0.5" y="0.5" width="31" height="31" fill="none" stroke="url(#bei-accent)" stroke-width="1" opacity="0.45" />
+  <path d="M4 4h5M4 4v5" stroke="#2b79db" stroke-width="1.25" fill="none" stroke-linecap="square" />
+  <path d="M28 28h-5M28 28v-5" stroke="#5a8f8f" stroke-width="1.25" fill="none" stroke-linecap="square" opacity="0.85" />
+  <path
+    fill="#f4f6f9"
+    d="M10 7h6.8c4.6 0 8.2 3.4 8.2 9s-3.6 9-8.2 9H10V7zm3.4 3.2v11.6h3.2c2.7 0 4.8-2.2 4.8-5.8s-2.1-5.8-4.8-5.8h-3.2z"
+  />
+  <rect x="9" y="26" width="14" height="1.5" fill="url(#bei-accent)" />
+</svg>

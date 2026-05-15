@@ -42,7 +42,7 @@ if (!process.env.OPENAI_API_KEY?.trim()) {
   process.exit(1);
 }
 console.log("[worker] OpenAI API key: configured");
-console.log(`[worker] OpenAI model: ${process.env.OPENAI_MODEL?.trim() || "gpt-4o"}`);
+console.log(`[worker] OpenAI model: ${process.env.OPENAI_MODEL?.trim() || "gpt-4o-mini"}`);
 
 // Verify file store accessibility
 const fileStore = createPostgresFileStore();

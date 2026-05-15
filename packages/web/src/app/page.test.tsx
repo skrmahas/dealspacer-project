@@ -1,7 +1,7 @@
 import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
-import LandingPage from "./page";
+import LandingPage from "./landing-page";
 
 describe("LandingPage", () => {
   beforeEach(() => {

@@ -5,7 +5,12 @@ dist/
 *.tsbuildinfo
 .env
 .env.local
+.env.*.local
+packages/web/.env
+packages/web/.env.local
+packages/worker/.env
 data/
+pipeline-output/
 packages/worker/src/__fixtures__/ignitis-strategic-plan.pdf
 nul
 .bak files

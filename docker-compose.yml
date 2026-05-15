@@ -1,0 +1,18 @@
+# Local PostgreSQL for Baltic Earnings Intelligence.
+# Start: docker compose up -d
+# Connection string for packages/web/.env and packages/worker/.env:
+#   DATABASE_URL=postgresql://bei:bei@localhost:5432/bei
+services:
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: bei
+      POSTGRES_PASSWORD: bei
+      POSTGRES_DB: bei
+    volumes:
+      - bei-postgres-data:/var/lib/postgresql/data
+
+volumes:
+  bei-postgres-data:

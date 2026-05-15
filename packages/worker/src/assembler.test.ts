@@ -81,7 +81,7 @@ describe("buildHtml", () => {
   it("includes AI disclaimer", () => {
     const html = buildHtml(minimalData, emptyCharts);
     expect(html).toContain("AI-Generated Disclaimer");
-    expect(html).toContain("GPT-4o");
+    expect(html).toContain("GPT-4o mini");
   });
 
   it("handles empty data gracefully", () => {

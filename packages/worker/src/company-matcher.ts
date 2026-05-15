@@ -1,21 +1,120 @@
-import type { ReportType } from "@bei/shared";
+import type { Company, ReportType } from "@bei/shared";
 import { createCompanyStore } from "@bei/shared";
 
-function levenshtein(a: string, b: string): number {
+/**
+ * Optimal String Alignment (OSA) distance — Levenshtein + adjacent
+ * transposition. Counts "Tallnik" ↔ "Tallink" as 1 op instead of 2,
+ * which matters at the 0.85 confidence threshold for short company names.
+ * O(mn) memory is fine here since names are <50 chars.
+ */
+function osaDistance(a: string, b: string): number {
   const m = a.length, n = b.length;
   if (m === 0) return n;
   if (n === 0) return m;
-  let prev = new Uint16Array(n + 1);
-  let curr = new Uint16Array(n + 1);
-  for (let j = 0; j <= n; j++) prev[j] = j;
+  const d: number[][] = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
+  for (let i = 0; i <= m; i++) d[i]![0] = i;
+  for (let j = 0; j <= n; j++) d[0]![j] = j;
   for (let i = 1; i <= m; i++) {
-    curr[0] = i;
     for (let j = 1; j <= n; j++) {
-      curr[j] = Math.min(prev[j] + 1, curr[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      d[i]![j] = Math.min(
+        d[i - 1]![j]! + 1,
+        d[i]![j - 1]! + 1,
+        d[i - 1]![j - 1]! + cost,
+      );
+      if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) {
+        d[i]![j] = Math.min(d[i]![j]!, d[i - 2]![j - 2]! + 1);
+      }
     }
-    [prev, curr] = [curr, prev];
   }
-  return prev[n];
+  return d[m]![n]!;
+}
+
+// Baltic + common legal forms. Tokenisation is case-insensitive, so listing
+// the lowercase form is enough. "a/s" is handled specially since "/" splits
+// into two tokens otherwise.
+const LEGAL_FORM_TOKENS = new Set([
+  "ab", "as", "ou", "oü", "uab", "sia", "ipas",
+  "asa", "oyj", "plc", "ltd", "inc",
+]);
+
+const A_SLASH_S = /\ba\s*\/\s*s\b/gi;
+
+function tokenize(name: string): string[] {
+  return name
+    .replace(A_SLASH_S, " ")
+    .toLowerCase()
+    .replace(/[.,;:()'"„""''\/\\&]/g, " ")
+    .split(/\s+/)
+    .filter(Boolean);
+}
+
+/**
+ * Strip legal forms and punctuation, lower-case, collapse whitespace.
+ * Designed for Baltic company names which commonly appear in both orders
+ * ("AB Telia Lietuva" ↔ "Telia Lietuva, AB").
+ */
+export function normalizeCompanyName(name: string): string[] {
+  return tokenize(name).filter((t) => !LEGAL_FORM_TOKENS.has(t));
+}
+
+function jaccard(a: Set<string>, b: Set<string>): number {
+  if (a.size === 0 && b.size === 0) return 0;
+  let intersection = 0;
+  for (const t of a) if (b.has(t)) intersection++;
+  const union = a.size + b.size - intersection;
+  return union === 0 ? 0 : intersection / union;
+}
+
+/**
+ * Pure matching function: given a name and a candidate list, return the
+ * best company match with confidence ≥ 0.85, or null. Exposed for direct
+ * unit testing without a database.
+ */
+export function pickBestMatch(
+  extractedName: string,
+  companies: Pick<Company, "id" | "name" | "ticker">[],
+): { companyId: string; confidence: number } | null {
+  const extractedTokens = normalizeCompanyName(extractedName);
+  const extractedNormalized = extractedTokens.join(" ");
+  const extractedTokenSet = new Set(extractedTokens);
+  const rawTokens = tokenize(extractedName);
+
+  if (extractedNormalized.length === 0) return null;
+
+  let best: { companyId: string; confidence: number } | null = null;
+
+  for (const c of companies) {
+    const candTokens = normalizeCompanyName(c.name);
+    const candNormalized = candTokens.join(" ");
+    const candTokenSet = new Set(candTokens);
+
+    // Character-level OSA distance on the normalized strings — catches
+    // typos (incl. adjacent transpositions) and minor spelling variants
+    // without being thrown off by legal-form ordering.
+    const dist = osaDistance(extractedNormalized, candNormalized);
+    const maxLen = Math.max(extractedNormalized.length, candNormalized.length);
+    const levConf = maxLen === 0 ? 0 : 1 - dist / maxLen;
+
+    // Token-set Jaccard — catches arbitrary word reordering and extra
+    // tokens ("Telia Lietuva, AB" ↔ "AB Telia Lietuva").
+    const jaccardConf = jaccard(extractedTokenSet, candTokenSet);
+
+    // Ticker present anywhere in the extracted name → strong signal.
+    let tickerConf = 0;
+    if (c.ticker) {
+      const tickerLower = c.ticker.toLowerCase();
+      if (rawTokens.includes(tickerLower)) tickerConf = 1;
+    }
+
+    const confidence = Math.max(levConf, jaccardConf, tickerConf);
+
+    if (confidence >= 0.85 && (!best || confidence > best.confidence)) {
+      best = { companyId: c.id, confidence };
+    }
+  }
+
+  return best;
 }
 
 /**
@@ -27,29 +126,7 @@ export async function matchCompany(
 ): Promise<{ companyId: string; confidence: number } | null> {
   const store = createCompanyStore();
   const companies = await store.listCompanies();
-
-  let best: { companyId: string; confidence: number } | null = null;
-
-  for (const c of companies) {
-    // Compare against company name
-    const nameDist = levenshtein(extractedName.toLowerCase(), c.name.toLowerCase());
-    const nameConf = 1 - nameDist / Math.max(extractedName.length, c.name.length);
-
-    // Compare against ticker
-    let tickerConf = 0;
-    if (c.ticker) {
-      const tickerDist = levenshtein(extractedName.toLowerCase(), c.ticker.toLowerCase());
-      tickerConf = 1 - tickerDist / Math.max(extractedName.length, c.ticker.length);
-    }
-
-    const confidence = Math.max(nameConf, tickerConf);
-
-    if (confidence >= 0.85 && (!best || confidence > best.confidence)) {
-      best = { companyId: c.id, confidence };
-    }
-  }
-
-  return best;
+  return pickBestMatch(extractedName, companies);
 }
 
 /**
