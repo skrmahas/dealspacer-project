@@ -1,94 +1,205 @@
 import React from "react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import CompanyDetailPage from "./page";
+import CompanyAnalyticsDashboardPage from "./page";
 
-// Mock next/navigation
 vi.mock("next/navigation", () => ({
   useParams: vi.fn().mockReturnValue({ slug: "tallink-grupp" }),
   useRouter: vi.fn().mockReturnValue({ push: vi.fn() }),
 }));
 
-const MOCK_COMPANY = { id: "c1", name: "Tallink Grupp", ticker: "TAL1T", exchange: "Nasdaq Tallinn", slug: "tallink-grupp", country: "EE", sector: "Industrials", reportCount: 2 };
+const MOCK_COMPANY = {
+  id: "c1",
+  name: "Tallink Grupp",
+  ticker: "TAL1T",
+  exchange: "Nasdaq Tallinn",
+  slug: "tallink-grupp",
+  country: "EE",
+  sector: "Industrials",
+  reportCount: 2,
+};
+
 const MOCK_REPORTS = [
-  { id: "r1", companyId: "c1", fiscalYear: 2024, reportType: "annual", language: "en", jobId: "j1", s3Key: "r1.pdf", previewRevenue: 500000000, previewEbitda: 120000000, previewNetProfit: 80000000, createdAt: "2025-03-15", companyName: "Tallink Grupp" },
-  { id: "r2", companyId: "c1", fiscalYear: 2023, reportType: "q4", language: "en", jobId: "j2", s3Key: "r2.pdf", previewRevenue: 480000000, previewEbitda: 110000000, previewNetProfit: 75000000, createdAt: "2024-02-20", companyName: "Tallink Grupp" },
+  {
+    id: "r1",
+    companyId: "c1",
+    fiscalYear: 2024,
+    reportType: "annual",
+    language: "en",
+    jobId: "j1",
+    s3Key: "r1.pdf",
+    previewRevenue: 500000000,
+    previewEbitda: 120000000,
+    previewNetProfit: 80000000,
+    previewFcf: 60000000,
+    createdAt: "2025-03-15",
+    companyName: "Tallink Grupp",
+    extractedJsonSnapshot: {
+      metadata: { companyName: "Tallink Grupp", reportPeriod: "FY2024" },
+      metrics: [],
+      sentiment: {
+        managementTone: "Confident and positive outlook on ferry traffic.",
+        outlook: "Optimistic",
+        riskFactors: [],
+        guidanceDirection: "raised",
+      },
+      revenueBreakdown: {
+        bySegment: [
+          { name: "Ferry", value: 350000000 },
+          { name: "Hotel", value: 150000000 },
+        ],
+      },
+    },
+  },
+  {
+    id: "r2",
+    companyId: "c1",
+    fiscalYear: 2023,
+    reportType: "annual",
+    language: "en",
+    jobId: "j2",
+    s3Key: "r2.pdf",
+    previewRevenue: 400000000,
+    previewEbitda: 100000000,
+    previewNetProfit: 60000000,
+    previewFcf: 50000000,
+    createdAt: "2024-02-20",
+    companyName: "Tallink Grupp",
+    extractedJsonSnapshot: {
+      metadata: { companyName: "Tallink Grupp", reportPeriod: "FY2023" },
+      metrics: [],
+      sentiment: {
+        managementTone: "Cautious recovery from pandemic-era slump.",
+        outlook: "Stable",
+        riskFactors: [],
+        guidanceDirection: "maintained",
+      },
+    },
+  },
 ];
 
-describe("CompanyDetailPage", () => {
+function mockSuccessfulLoad(reports = MOCK_REPORTS, company = MOCK_COMPANY) {
+  vi.stubGlobal(
+    "fetch",
+    vi
+      .fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => [company] })
+      .mockResolvedValueOnce({ ok: true, json: async () => reports }),
+  );
+}
+
+describe("CompanyAnalyticsDashboardPage", () => {
   beforeEach(() => {
     cleanup();
     vi.unstubAllGlobals();
   });
 
-  it("shows company header with name, ticker, and exchange", async () => {
-    vi.stubGlobal("fetch", vi.fn()
-      .mockResolvedValueOnce({ ok: true, json: async () => [MOCK_COMPANY] })
-      .mockResolvedValueOnce({ ok: true, json: async () => MOCK_REPORTS }));
-    render(<CompanyDetailPage />);
+  it("shows company header with name, ticker, exchange badge, and report count", async () => {
+    mockSuccessfulLoad();
+    render(<CompanyAnalyticsDashboardPage />);
     await waitFor(() => expect(screen.getByText("Tallink Grupp")).toBeInTheDocument());
     expect(screen.getByText("TAL1T")).toBeInTheDocument();
     expect(screen.getByText("Nasdaq Tallinn")).toBeInTheDocument();
     expect(screen.getByText("2 reports")).toBeInTheDocument();
   });
 
-  it("shows report rows with inline metric previews", async () => {
-    vi.stubGlobal("fetch", vi.fn()
-      .mockResolvedValueOnce({ ok: true, json: async () => [MOCK_COMPANY] })
-      .mockResolvedValueOnce({ ok: true, json: async () => MOCK_REPORTS }));
-    render(<CompanyDetailPage />);
+  it("shows 'Add Report' button linking to /upload?company=:slug", async () => {
+    mockSuccessfulLoad();
+    render(<CompanyAnalyticsDashboardPage />);
     await waitFor(() => expect(screen.getByText("Tallink Grupp")).toBeInTheDocument());
-    expect(screen.getByText("€500M")).toBeInTheDocument();
-    expect(screen.getByText("€120M")).toBeInTheDocument();
-    expect(screen.getByText("€80M")).toBeInTheDocument();
+    const link = screen.getByText("Add Report").closest("a");
+    expect(link).toHaveAttribute("href", "/upload?company=tallink-grupp");
   });
 
-  it("checkbox selection allows max 2 and shows Compare button", async () => {
-    vi.stubGlobal("fetch", vi.fn()
-      .mockResolvedValueOnce({ ok: true, json: async () => [MOCK_COMPANY] })
-      .mockResolvedValueOnce({ ok: true, json: async () => MOCK_REPORTS }));
-    render(<CompanyDetailPage />);
-    await waitFor(() => expect(screen.getByText("Tallink Grupp")).toBeInTheDocument());
+  it("renders 4 KPI cards with YoY delta and FY label", async () => {
+    mockSuccessfulLoad();
+    render(<CompanyAnalyticsDashboardPage />);
+    await waitFor(() => expect(screen.getAllByText("Revenue")[0]).toBeInTheDocument());
+
+    expect(screen.getAllByText("Revenue").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("EBITDA").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("Net Profit").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("Free Cash Flow").length).toBeGreaterThanOrEqual(1);
+
+    expect(screen.getAllByText(/FY 2024/)[0]).toBeInTheDocument();
+    expect(screen.getAllByText("€500M").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("€120M").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("€80M").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("€60M").length).toBeGreaterThanOrEqual(1);
+
+    expect(screen.getAllByText("+25.0%").length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("renders the trend line chart container", async () => {
+    mockSuccessfulLoad();
+    render(<CompanyAnalyticsDashboardPage />);
+    await waitFor(() => expect(screen.getByTestId("trend-line-chart")).toBeInTheDocument());
+    expect(screen.getByText("Performance trends")).toBeInTheDocument();
+  });
+
+  it("renders the donut chart only when revenue breakdown data exists", async () => {
+    mockSuccessfulLoad();
+    render(<CompanyAnalyticsDashboardPage />);
+    await waitFor(() => expect(screen.getByTestId("donut-chart")).toBeInTheDocument());
+    expect(screen.getByText("Revenue breakdown")).toBeInTheDocument();
+    expect(screen.getByText("Ferry")).toBeInTheDocument();
+    expect(screen.getByText("Hotel")).toBeInTheDocument();
+  });
+
+  it("hides the donut when no revenue breakdown is present in latest report", async () => {
+    const stripped = MOCK_REPORTS.map((r) => ({
+      ...r,
+      extractedJsonSnapshot: {
+        ...r.extractedJsonSnapshot,
+        revenueBreakdown: undefined,
+      },
+    }));
+    mockSuccessfulLoad(stripped);
+    render(<CompanyAnalyticsDashboardPage />);
+    await waitFor(() => expect(screen.getByText("Performance trends")).toBeInTheDocument());
+    expect(screen.queryByText("Revenue breakdown")).not.toBeInTheDocument();
+  });
+
+  it("renders sentiment cards with guidance direction tags", async () => {
+    mockSuccessfulLoad();
+    render(<CompanyAnalyticsDashboardPage />);
+    await waitFor(() => expect(screen.getByText("Sentiment timeline")).toBeInTheDocument());
+    expect(screen.getByText("raised")).toBeInTheDocument();
+    expect(screen.getByText("maintained")).toBeInTheDocument();
+    expect(
+      screen.getByText(/Confident and positive outlook on ferry traffic/),
+    ).toBeInTheDocument();
+  });
+
+  it("renders the reports table with checkboxes and supports Compare button toggle", async () => {
+    mockSuccessfulLoad();
+    render(<CompanyAnalyticsDashboardPage />);
+    await waitFor(() => expect(screen.getByText("Reports")).toBeInTheDocument());
 
     const checkboxes = screen.getAllByRole("checkbox");
     expect(checkboxes).toHaveLength(2);
 
-    // Select first
     fireEvent.click(checkboxes[0]);
     expect(screen.queryByText("Compare Selected")).not.toBeInTheDocument();
 
-    // Select second
     fireEvent.click(checkboxes[1]);
     expect(screen.getByText("Compare Selected")).toBeInTheDocument();
-
-    // Click third (wraps — oldest unselected)
-    fireEvent.click(checkboxes[0]);
-    // Now only r2 is selected
-    expect(screen.queryByText("Compare Selected")).not.toBeInTheDocument();
   });
 
-  it("shows 'Add Report' button linking to /app?company={slug}", async () => {
-    vi.stubGlobal("fetch", vi.fn()
-      .mockResolvedValueOnce({ ok: true, json: async () => [MOCK_COMPANY] })
-      .mockResolvedValueOnce({ ok: true, json: async () => MOCK_REPORTS }));
-    render(<CompanyDetailPage />);
-    await waitFor(() => expect(screen.getByText("Tallink Grupp")).toBeInTheDocument());
-    const link = screen.getAllByText("Add Report")[0].closest("a");
-    expect(link).toHaveAttribute("href", "/app?company=tallink-grupp");
-  });
-
-  it("shows empty state when no reports", async () => {
-    vi.stubGlobal("fetch", vi.fn()
-      .mockResolvedValueOnce({ ok: true, json: async () => [{ ...MOCK_COMPANY, reportCount: 0 }] })
-      .mockResolvedValueOnce({ ok: true, json: async () => [] }));
-    render(<CompanyDetailPage />);
+  it("renders the empty state when the company has no reports", async () => {
+    mockSuccessfulLoad([], { ...MOCK_COMPANY, reportCount: 0 });
+    render(<CompanyAnalyticsDashboardPage />);
     await waitFor(() => expect(screen.getByText(/No reports yet/)).toBeInTheDocument());
+    const link = screen.getByText("Add First Report").closest("a");
+    expect(link).toHaveAttribute("href", "/upload?company=tallink-grupp");
   });
 
-  it("shows 404 when company not found", async () => {
-    vi.stubGlobal("fetch", vi.fn()
-      .mockResolvedValueOnce({ ok: true, json: async () => [] }));
-    render(<CompanyDetailPage />);
+  it("renders the company-not-found state for an unknown slug", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValueOnce({ ok: true, json: async () => [] }),
+    );
+    render(<CompanyAnalyticsDashboardPage />);
     await waitFor(() => expect(screen.getByText("Company not found")).toBeInTheDocument());
   });
 });
