@@ -129,7 +129,7 @@ function getModel(): string {
 function getClient(): OpenAIClient {
   if (!client) {
     const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) throw new Error("OPENAI_API_KEY environment variable is required");
+    if (!apiKey) throw new Error("OPENAI_API_KEY environment variable is required for GPT-4o extraction");
     client = new OpenAI({ apiKey });
   }
   return client;

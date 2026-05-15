@@ -98,6 +98,13 @@ function getExtractionProgress(job: JobInfo): string | undefined {
   return undefined;
 }
 
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+}
+
 export default function Home() {
   const [file, setFile] = useState<File | null>(null);
   const [outputLanguage, setOutputLanguage] = useState<OutputLanguage>("en");
@@ -353,7 +360,7 @@ export default function Home() {
                 style={{ border: "1px solid #cfd8e3", borderRadius: 10, padding: "10px 12px", background: "#f9fbfd" }}
               />
             </label>
-            <p style={{ margin: 0, color: "#6e7d90", fontSize: 13 }}>{file ? file.name : "No file selected"} · Max 1GB · Drop zone</p>
+            <p style={{ margin: 0, color: "#6e7d90", fontSize: 13 }}>{file ? `${file.name} (${formatFileSize(file.size)})` : "No file selected"} · Max 1GB · Drop zone</p>
             {isDragging && !dragError && (
               <p style={{ margin: 0, color: "#0b5974", fontSize: 13, fontWeight: 600 }}>
                 Drop your file here
