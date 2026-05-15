@@ -1,4 +1,4 @@
-export { createPostgresStore, createPostgresFileStore, createCompanyStore, seedCompanies } from "./pg-store";
+export { createPostgresStore, createPostgresFileStore, createCompanyStore, createReportStore, seedCompanies, DuplicateReportError } from "./pg-store";
 export { BALTIC_COMPANIES } from "./seed-companies";
 export { getPool, closePool } from "./db";
 export { createFileStore, createEnvFileStore, createS3FileStore, createAutoFileStore } from "./file-store";
@@ -127,4 +127,48 @@ export interface SeedCompany {
   slug: string;
   country: string | null;
   sector: string | null;
+}
+
+// ── Reports data layer ─────────────────────────────────────────────────────
+
+export type ReportType = 'annual' | 'q1' | 'q2' | 'q3' | 'q4' | 'semi-annual' | 'other';
+
+export interface Report {
+  id: string;
+  companyId: string | null;
+  fiscalYear: number;
+  reportType: ReportType;
+  language: OutputLanguage;
+  jobId: string | null;
+  s3Key: string;
+  extractedJsonSnapshot: ExtractedData | null;
+  createdAt: string;
+}
+
+export interface ReportWithPreview extends Report {
+  companyName?: string | null;
+  previewRevenue?: number | null;
+  previewEbitda?: number | null;
+  previewNetProfit?: number | null;
+}
+
+export interface CreateReportInput {
+  companyId?: string | null;
+  fiscalYear: number;
+  reportType: ReportType;
+  language: OutputLanguage;
+  jobId?: string | null;
+  s3Key: string;
+  extractedJsonSnapshot?: ExtractedData | null;
+}
+
+export interface ReportStore {
+  createReport(input: CreateReportInput): Promise<Report>;
+  getReportById(id: string): Promise<Report | null>;
+  getReportByJobId(jobId: string): Promise<Report | null>;
+  listReportsByCompany(companyId: string): Promise<ReportWithPreview[]>;
+  listUnmatchedReports(): Promise<Report[]>;
+  updateReportCompany(reportId: string, companyId: string): Promise<Report>;
+  replaceReport(reportId: string, newJobId: string, newS3Key: string, newSnapshot: ExtractedData): Promise<Report>;
+  listRecentReports(limit: number): Promise<ReportWithPreview[]>;
 }

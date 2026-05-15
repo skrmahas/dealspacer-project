@@ -1,7 +1,16 @@
 import { withClient } from "./db";
-import type { Job, CreateJobInput, UpdateJobInput, JobStore, TranslationCacheEntry, FileStore, Company, CreateCompanyInput, CompanyStore, SeedCompany } from "./index";
+import type { Job, CreateJobInput, UpdateJobInput, JobStore, TranslationCacheEntry, FileStore, Company, CreateCompanyInput, CompanyStore, SeedCompany, Report, CreateReportInput, ReportWithPreview, ReportStore, ExtractedData } from "./index";
 import { createAutoFileStore } from "./file-store";
 import { BALTIC_COMPANIES } from "./seed-companies";
+
+// Must be defined here (not in index.ts) to avoid circular import
+// since index.ts re-exports from pg-store
+export class DuplicateReportError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "DuplicateReportError";
+  }
+}
 
 function rowToJob(row: Record<string, unknown>): Job {
   return {
@@ -303,4 +312,164 @@ export async function seedCompanies(): Promise<number> {
     count++;
   }
   return count;
+}
+
+// ── Report store ───────────────────────────────────────────────────────────
+
+function rowToReport(row: Record<string, unknown>): Report {
+  return {
+    id: row.id as string,
+    companyId: (row.company_id as string | null) ?? null,
+    fiscalYear: row.fiscal_year as number,
+    reportType: row.report_type as Report["reportType"],
+    language: row.language as Report["language"],
+    jobId: (row.job_id as string | null) ?? null,
+    s3Key: row.s3_key as string,
+    extractedJsonSnapshot: parseJsonSnapshot(row.extracted_json_snapshot),
+    createdAt: row.created_at as string,
+  };
+}
+
+function rowToReportWithPreview(row: Record<string, unknown>): ReportWithPreview {
+  const base = rowToReport(row);
+  const snapshot = base.extractedJsonSnapshot;
+  return {
+    ...base,
+    companyName: (row.company_name as string | null) ?? null,
+    previewRevenue: findMetricValue(snapshot, "revenue"),
+    previewEbitda: findMetricValue(snapshot, "ebitda"),
+    previewNetProfit: findMetricValue(snapshot, "net profit"),
+  };
+}
+
+function findMetricValue(snapshot: ExtractedData | null, search: string): number | null {
+  if (!snapshot?.metrics) return null;
+  const m = snapshot.metrics.find(
+    (m) => m.label.toLowerCase().includes(search) && m.value !== null,
+  );
+  return m?.value ?? null;
+}
+
+function parseJsonSnapshot(raw: unknown): ExtractedData | null {
+  if (!raw) return null;
+  if (typeof raw === "object" && raw !== null && "metadata" in raw) return raw as ExtractedData;
+  if (typeof raw === "string") {
+    try { return JSON.parse(raw) as ExtractedData; }
+    catch { return null; }
+  }
+  return null;
+}
+
+export function createReportStore(): ReportStore {
+  return {
+    async createReport(input: CreateReportInput): Promise<Report> {
+      return withClient(async (client) => {
+        try {
+          const result = await client.query(
+            `INSERT INTO reports (company_id, fiscal_year, report_type, language, job_id, s3_key, extracted_json_snapshot)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)
+             RETURNING *`,
+            [
+              input.companyId ?? null,
+              input.fiscalYear,
+              input.reportType,
+              input.language,
+              input.jobId ?? null,
+              input.s3Key,
+              input.extractedJsonSnapshot ? JSON.stringify(input.extractedJsonSnapshot) : null,
+            ],
+          );
+          return rowToReport(result.rows[0]);
+        } catch (err: any) {
+          if (err?.code === "23505") {
+            throw new DuplicateReportError(
+              `Duplicate report: company=${input.companyId ?? "unmatched"}, year=${input.fiscalYear}, type=${input.reportType}, lang=${input.language}`,
+            );
+          }
+          throw err;
+        }
+      });
+    },
+
+    async getReportById(id: string): Promise<Report | null> {
+      return withClient(async (client) => {
+        const result = await client.query(`SELECT * FROM reports WHERE id = $1`, [id]);
+        return result.rows.length > 0 ? rowToReport(result.rows[0]) : null;
+      });
+    },
+
+    async getReportByJobId(jobId: string): Promise<Report | null> {
+      return withClient(async (client) => {
+        const result = await client.query(`SELECT * FROM reports WHERE job_id = $1`, [jobId]);
+        return result.rows.length > 0 ? rowToReport(result.rows[0]) : null;
+      });
+    },
+
+    async listReportsByCompany(companyId: string): Promise<ReportWithPreview[]> {
+      return withClient(async (client) => {
+        const result = await client.query(
+          `SELECT r.*, c.name AS company_name
+           FROM reports r
+           LEFT JOIN companies c ON c.id = r.company_id
+           WHERE r.company_id = $1
+           ORDER BY r.fiscal_year DESC, r.report_type`,
+          [companyId],
+        );
+        return result.rows.map(rowToReportWithPreview);
+      });
+    },
+
+    async listUnmatchedReports(): Promise<Report[]> {
+      return withClient(async (client) => {
+        const result = await client.query(
+          `SELECT * FROM reports WHERE company_id IS NULL ORDER BY created_at DESC`,
+        );
+        return result.rows.map(rowToReport);
+      });
+    },
+
+    async updateReportCompany(reportId: string, companyId: string): Promise<Report> {
+      return withClient(async (client) => {
+        const result = await client.query(
+          `UPDATE reports SET company_id = $2 WHERE id = $1 RETURNING *`,
+          [reportId, companyId],
+        );
+        if (result.rows.length === 0) throw new Error(`Report ${reportId} not found`);
+        return rowToReport(result.rows[0]);
+      });
+    },
+
+    async replaceReport(
+      reportId: string,
+      newJobId: string,
+      newS3Key: string,
+      newSnapshot: ExtractedData,
+    ): Promise<Report> {
+      return withClient(async (client) => {
+        const result = await client.query(
+          `UPDATE reports
+           SET job_id = $2, s3_key = $3, extracted_json_snapshot = $4
+           WHERE id = $1
+           RETURNING *`,
+          [reportId, newJobId, newS3Key, JSON.stringify(newSnapshot)],
+        );
+        if (result.rows.length === 0) throw new Error(`Report ${reportId} not found`);
+        return rowToReport(result.rows[0]);
+      });
+    },
+
+    async listRecentReports(limit: number): Promise<ReportWithPreview[]> {
+      return withClient(async (client) => {
+        const result = await client.query(
+          `SELECT r.*, c.name AS company_name
+           FROM reports r
+           LEFT JOIN companies c ON c.id = r.company_id
+           ORDER BY r.created_at DESC
+           LIMIT $1`,
+          [limit],
+        );
+        return result.rows.map(rowToReportWithPreview);
+      });
+    },
+  };
 }
