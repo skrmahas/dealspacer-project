@@ -1,24 +1,25 @@
-import { Suspense } from "react";
-
-import HomeClient from "./page-client";
+import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
-export default function AppPage({ searchParams }: { searchParams?: SearchParams }) {
-  const companySlug = searchParams?.company;
-  const initialCompanySlug = Array.isArray(companySlug) ? companySlug[0] : companySlug ?? null;
-
-  return (
-    <Suspense
-      fallback={
-        <div style={{ minHeight: "100vh", padding: "40px", textAlign: "center", color: "#94a3b8" }}>
-          Loading upload workspace...
-        </div>
+export default function LegacyAppRedirectPage({
+  searchParams,
+}: {
+  searchParams?: SearchParams;
+}) {
+  const params = new URLSearchParams();
+  if (searchParams) {
+    for (const [key, value] of Object.entries(searchParams)) {
+      if (value == null) continue;
+      if (Array.isArray(value)) {
+        for (const v of value) params.append(key, v);
+      } else {
+        params.append(key, value);
       }
-    >
-      <HomeClient initialCompanySlug={initialCompanySlug} />
-    </Suspense>
-  );
+    }
+  }
+  const query = params.toString();
+  redirect(query ? `/upload?${query}` : "/upload");
 }

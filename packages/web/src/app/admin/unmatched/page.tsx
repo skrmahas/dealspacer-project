@@ -78,7 +78,7 @@ export default function AdminUnmatchedPage() {
   return (
     <div style={{ maxWidth: 1100, margin: "0 auto", padding: "24px 20px 48px", fontFamily: "\"Avenir Next\", \"Segoe UI\", sans-serif", color: "#21324a" }}>
       <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 20 }}>
-        <Link href="/" style={{ color: "#3b5f93" }}><ArrowLeft size={20} /></Link>
+        <Link href="/companies" style={{ color: "#3b5f93" }} aria-label="Back to catalog"><ArrowLeft size={20} /></Link>
         <h1 style={{ margin: 0, fontSize: 24, color: "#0f2e52" }}>Unmatched Reports</h1>
         <span style={{ fontSize: 12, background: "#edf2ff", borderRadius: 999, padding: "3px 10px", color: "#2d5fbf", fontWeight: 600 }}>
           {reports.length}

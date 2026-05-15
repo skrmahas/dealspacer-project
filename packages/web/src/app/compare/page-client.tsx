@@ -54,7 +54,7 @@ export default function ComparePage({ initialReportA, initialReportB }: CompareC
   }, [idA, idB]);
 
   if (loading) return <div style={{ padding: 40, textAlign: "center", color: "#94a3b8" }}>Loading comparison...</div>;
-  if (error) return <div style={{ padding: 40, textAlign: "center" }}><p style={{ color: "#c0392b" }}>{error}</p><Link href="/" style={{ color: "#365d9c" }}>Back to directory</Link></div>;
+  if (error) return <div style={{ padding: 40, textAlign: "center" }}><p style={{ color: "#c0392b" }}>{error}</p><Link href="/companies" style={{ color: "#365d9c" }}>Back to directory</Link></div>;
   if (!reportA || !reportB) return <div style={{ padding: 40, textAlign: "center" }}>Reports not found.</div>;
 
   const snapA = reportA.extractedJsonSnapshot || {};
@@ -91,7 +91,7 @@ export default function ComparePage({ initialReportA, initialReportB }: CompareC
   return (
     <div style={{ maxWidth: 1000, margin: "0 auto", padding: "24px 20px 48px", fontFamily: "\"Avenir Next\", \"Segoe UI\", sans-serif", color: "#21324a" }}>
       <div style={{ display: "flex", gap: 10, marginBottom: 20, alignItems: "center" }}>
-        <Link href="/" style={{ color: "#3b5f93" }}><ArrowLeft size={20} /></Link>
+        <Link href="/companies" style={{ color: "#3b5f93" }} aria-label="Back to catalog"><ArrowLeft size={20} /></Link>
         <h1 style={{ margin: 0, fontSize: 22, color: "#0f2e52" }}>
           {snapA.metadata?.companyName || "Report A"} · {reportA.fiscalYear} {REPORT_TYPE_LABEL[reportA.reportType] || reportA.reportType}
           {" vs "}
@@ -183,11 +183,8 @@ export default function ComparePage({ initialReportA, initialReportB }: CompareC
       )}
 
       <div style={{ display: "flex", gap: 10 }}>
-        <Link href={`/companies/${reportA.companyId || ""}`} style={{ color: "#365d9c", textDecoration: "none", fontSize: 13, fontWeight: 600 }}>
-          ← {snapA.metadata?.companyName || "Report A"}
-        </Link>
-        <Link href={`/companies/${reportB.companyId || ""}`} style={{ color: "#365d9c", textDecoration: "none", fontSize: 13, fontWeight: 600 }}>
-          ← {snapB.metadata?.companyName || "Report B"}
+        <Link href="/companies" style={{ color: "#365d9c", textDecoration: "none", fontSize: 13, fontWeight: 600 }}>
+          ← Back to catalog
         </Link>
       </div>
     </div>
