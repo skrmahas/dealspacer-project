@@ -57,12 +57,13 @@ BALTIC CONTEXT:
 - Output ONLY the JSON object, no markdown fences, no explanation.`;
 
 const DEFAULT_CHUNK_THRESHOLD = 60000;
-const DEFAULT_CHUNK_SIZE = 50000;
+const DEFAULT_CHUNK_SIZE = 80000;  // ~20k tokens at 4 chars/token, well within GPT-4o 128k context
 const DEFAULT_CHUNK_OVERLAP = 5000;
 const DEFAULT_MAX_CONCURRENCY = 1;
 const DEFAULT_MAX_RETRIES = 3;
 const DEFAULT_RETRY_BASE_DELAY_MS = 1000;
 const DEFAULT_RETRY_MAX_DELAY_MS = 30000;
+const DEFAULT_CHUNK_TOKENS = 15000;
 
 export type OpenAIClient = Pick<OpenAI, "chat">;
 
@@ -95,6 +96,7 @@ interface ChunkConfig {
   maxRetries: number;
   retryBaseDelayMs: number;
   retryMaxDelayMs: number;
+  chunkTokens: number;
 }
 
 function getChunkConfig(): ChunkConfig {
@@ -105,11 +107,20 @@ function getChunkConfig(): ChunkConfig {
   const maxRetries = readNonNegativeEnv("EXTRACTION_MAX_RETRIES", DEFAULT_MAX_RETRIES);
   const retryBaseDelayMs = readPositiveEnv("RETRY_BASE_DELAY_MS", DEFAULT_RETRY_BASE_DELAY_MS);
   const retryMaxDelayMs = readPositiveEnv("RETRY_MAX_DELAY_MS", DEFAULT_RETRY_MAX_DELAY_MS);
+  const chunkTokens = readPositiveEnv("EXTRACTION_CHUNK_TOKENS", DEFAULT_CHUNK_TOKENS);
+
+  // Token-aware sizing: ~4 chars per token for English financial text.
+  // EXTRACTION_CHUNK_TOKENS sets a token budget; effective size is capped by EXTRACTION_CHUNK_SIZE.
+  const charsPerToken = 4;
+  const tokenBasedSize = chunkTokens * charsPerToken;
+  const effectiveChunkSize = chunkTokens !== DEFAULT_CHUNK_TOKENS
+    ? Math.min(tokenBasedSize, chunkSize)  // user set a token target — respect it, capped by chunkSize
+    : chunkSize;  // default: use legacy chunkSize
 
   // Ensure overlap < chunkSize
   const effectiveOverlap = Math.min(overlap, Math.floor(chunkSize * 0.2));
 
-  return { threshold, chunkSize, overlap: effectiveOverlap, maxConcurrency, maxRetries, retryBaseDelayMs, retryMaxDelayMs };
+  return { threshold, chunkSize: effectiveChunkSize, overlap: effectiveOverlap, maxConcurrency, maxRetries, retryBaseDelayMs, retryMaxDelayMs, chunkTokens };
 }
 
 function readPositiveEnv(name: string, fallback: number): number {
