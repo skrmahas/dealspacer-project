@@ -22,6 +22,38 @@ function formatMetricRow(m: ExtractedMetric): string {
     </tr>`;
 }
 
+function compactNarrativeText(text: string, options: { maxSentences: number; maxChars: number }): string[] {
+  const cleaned = text
+    .replace(/\s+/g, " ")
+    .replace(/\s+([.,;:!?])/g, "$1")
+    .trim();
+  if (!cleaned) return [];
+
+  const sentences = cleaned.match(/[^.!?]+[.!?]+|[^.!?]+$/g) ?? [cleaned];
+  const result: string[] = [];
+  let totalChars = 0;
+
+  for (const sentence of sentences) {
+    const normalized = sentence.trim();
+    if (!normalized) continue;
+
+    const projectedLength = totalChars + normalized.length + (result.length > 0 ? 1 : 0);
+    if (result.length >= options.maxSentences || projectedLength > options.maxChars) break;
+
+    result.push(normalized);
+    totalChars = projectedLength;
+  }
+
+  if (result.length > 0) return result;
+  return [cleaned.slice(0, options.maxChars).trimEnd() + (cleaned.length > options.maxChars ? "..." : "")];
+}
+
+function renderNarrativeText(text: string, options: { maxSentences: number; maxChars: number }): string {
+  return compactNarrativeText(text, options)
+    .map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`)
+    .join("\n");
+}
+
 const LABELS: Record<OutputLanguage, {
   earningsReport: string;
   generatedOn: string;
@@ -173,15 +205,11 @@ export function buildHtml(data: ExtractedData, charts: ChartImages): string {
     (n) => n.section === "management_commentary",
   );
   if (execSummary || mgmtCommentary) {
-    const text = (execSummary?.text ?? "") + (mgmtCommentary?.text ?? "");
+    const text = [execSummary?.text, mgmtCommentary?.text].filter(Boolean).join(" ");
     sections.push(`
       <section id="executive-summary">
         <h2>${escapeHtml(labels.executiveSummary)}</h2>
-        ${text
-          .split("\n")
-          .filter((p) => p.trim())
-          .map((p) => `<p>${escapeHtml(p.trim())}</p>`)
-          .join("\n")}
+        ${renderNarrativeText(text, { maxSentences: 4, maxChars: 700 })}
       </section>`);
   }
 
@@ -261,15 +289,11 @@ export function buildHtml(data: ExtractedData, charts: ChartImages): string {
     (n) => n.section === "segment_performance",
   );
   if (businessOverview || segmentPerf) {
-    const text = (businessOverview?.text ?? "") + (segmentPerf?.text ?? "");
+    const text = [businessOverview?.text, segmentPerf?.text].filter(Boolean).join(" ");
     sections.push(`
       <section id="business-highlights">
         <h2>${escapeHtml(labels.businessHighlights)}</h2>
-        ${text
-          .split("\n")
-          .filter((p) => p.trim())
-          .map((p) => `<p>${escapeHtml(p.trim())}</p>`)
-          .join("\n")}
+        ${renderNarrativeText(text, { maxSentences: 4, maxChars: 700 })}
       </section>`);
   }
 
@@ -309,11 +333,7 @@ export function buildHtml(data: ExtractedData, charts: ChartImages): string {
     sections.push(`
       <section id="outlook">
         <h2>${escapeHtml(labels.outlook)}</h2>
-        ${outlookNarrative.text
-          .split("\n")
-          .filter((p) => p.trim())
-          .map((p) => `<p>${escapeHtml(p.trim())}</p>`)
-          .join("\n")}
+        ${renderNarrativeText(outlookNarrative.text, { maxSentences: 3, maxChars: 500 })}
       </section>`);
   }
 

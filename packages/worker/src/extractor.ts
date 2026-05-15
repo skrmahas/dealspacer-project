@@ -20,7 +20,9 @@ Extract the following from the provided document text into a JSON object. Follow
 
 3. narratives: an array of { section, text }
    - section: "executive_summary", "management_commentary", "business_overview", "segment_performance", "strategic_priorities", or "outlook"
-   - text: 2-4 paragraphs per section, summarized and translated to English if the source is not English
+   - text: concise analytical summary, translated to English if the source is not English
+   - Keep each section to 2-3 short sentences or bullets, max ~80 words
+   - Do NOT copy full paragraphs from the source document; synthesize the concrete takeaway
    - Include sections even for strategy documents, annual reports, and investor presentations
    - Only include sections that have meaningful content in the document
 

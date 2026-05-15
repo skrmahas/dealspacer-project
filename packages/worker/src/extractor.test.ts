@@ -165,6 +165,8 @@ describe("extractFromText — single call (≤ threshold)", () => {
     expect(callArgs.temperature).toBe(0);
     expect(callArgs.messages[0].role).toBe("system");
     expect(callArgs.messages[0].content).toContain("financial document extraction specialist");
+    expect(callArgs.messages[0].content).toContain("Keep each section to 2-3 short sentences or bullets");
+    expect(callArgs.messages[0].content).toContain("Do NOT copy full paragraphs");
     expect(callArgs.messages[1].role).toBe("user");
     expect(callArgs.messages[1].content).toContain("Financial report text here");
   });

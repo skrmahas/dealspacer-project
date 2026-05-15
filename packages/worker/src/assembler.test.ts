@@ -50,6 +50,24 @@ describe("buildHtml", () => {
     expect(html).toContain("Strong quarter with revenue growth");
   });
 
+  it("compacts long executive summary text", () => {
+    const longNarrative = [
+      "Revenue increased materially due to higher passenger volumes and better cargo operations.",
+      "EBITDA improved because operating costs were managed more tightly across core routes.",
+      "Net profit returned to positive territory after the prior period was affected by weak demand.",
+      "Management also described multiple operational details, route-level updates, service changes, and internal initiatives that are useful background but should not dominate the generated summary.",
+      "The company provided further commentary on booking flows, vessel schedules, staffing, and maintenance windows that would make the output feel like a copy of the source report.",
+    ].join(" ");
+    const html = buildHtml({
+      ...minimalData,
+      narratives: [{ section: "executive_summary", text: longNarrative }],
+    }, emptyCharts);
+
+    expect(html).toContain("Revenue increased materially");
+    expect(html).toContain("Net profit returned");
+    expect(html).not.toContain("The company provided further commentary");
+  });
+
   it("includes sentiment analysis", () => {
     const html = buildHtml(minimalData, emptyCharts);
     expect(html).toContain("positive");
