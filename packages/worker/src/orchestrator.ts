@@ -9,7 +9,7 @@ export async function processJob(
   store: JobStore,
   readFile: (jobId: string) => Promise<Buffer>,
   parseDocument: (buffer: Buffer, filename: string) => Promise<string>,
-  extractFromText: (text: string) => Promise<ExtractedData>,
+  extractFromText: (text: string, options?: unknown, context?: unknown, onProgress?: (completed: number, total: number) => Promise<void>) => Promise<ExtractedData>,
   translateExtractedData: (data: ExtractedData, language: Job["outputLanguage"], store: JobStore) => Promise<ExtractedData>,
   assemblePdf: (data: ExtractedData) => Promise<Buffer>,
   saveReport: (jobId: string, pdf: Buffer) => Promise<void>,
@@ -45,7 +45,7 @@ export async function processJob(
     }
     tPrefilter = Date.now();
 
-    const extracted = await extractFromText(filteredText, undefined, undefined, async (completed, total) => {
+    const extracted = await extractFromText(filteredText, undefined, undefined, async (completed: number, total: number) => {
       // Update job with progress info so frontend can display it
       try {
         await store.updateJob(job.id, {
