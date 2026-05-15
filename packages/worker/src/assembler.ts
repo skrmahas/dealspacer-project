@@ -180,6 +180,7 @@ export function buildHtml(data: ExtractedData, charts: ChartImages): string {
         ${text
           .split("\n")
           .filter((p) => p.trim())
+          .slice(0, 4) // cap at 4 paragraphs for readability
           .map((p) => `<p>${escapeHtml(p.trim())}</p>`)
           .join("\n")}
       </section>`);
@@ -225,31 +226,58 @@ export function buildHtml(data: ExtractedData, charts: ChartImages): string {
 
   // Revenue Breakdown — charts
   const hasRevenueChart = charts.revenueBarChart || charts.revenueDonutChart;
-  if (hasRevenueChart) {
+  const hasRevenueData = data.revenueBreakdown?.bySegment?.length || data.revenueBreakdown?.byGeography?.length;
+  if (hasRevenueChart || hasRevenueData) {
+    const segments = data.revenueBreakdown?.bySegment || data.revenueBreakdown?.byGeography || [];
     const chartTitle =
       data.revenueBreakdown?.bySegment
         ? labels.revenueBySegment
         : data.revenueBreakdown?.byGeography
           ? labels.revenueByGeography
           : labels.revenueBreakdown;
+
+    const chartHtml = hasRevenueChart
+      ? `<div class="chart-row">
+          ${charts.revenueBarChart ? `<div class="chart-container"><img src="${charts.revenueBarChart}" alt="${escapeHtml(labels.revenueBreakdownChart)}" /></div>` : ""}
+          ${charts.revenueDonutChart ? `<div class="chart-container"><img src="${charts.revenueDonutChart}" alt="${escapeHtml(labels.revenueDonutChart)}" /></div>` : ""}
+        </div>`
+      : "";
+
+    // Fallback data table when charts are missing
+    const tableHtml = !hasRevenueChart && segments.length > 0
+      ? `<table><thead><tr><th>Segment</th><th>Value</th></tr></thead><tbody>
+          ${segments.map((s: { name: string; value: number }) =>
+            `<tr><td>${escapeHtml(s.name)}</td><td>${escapeHtml(s.value.toLocaleString("en-US"))}</td></tr>`).join("")}
+        </tbody></table>`
+      : "";
+
     sections.push(`
       <section id="revenue-breakdown">
         <h2>${escapeHtml(chartTitle)}</h2>
-        <div class="chart-row">
-          ${charts.revenueBarChart ? `<div class="chart-container"><img src="${charts.revenueBarChart}" alt="${escapeHtml(labels.revenueBreakdownChart)}" /></div>` : ""}
-          ${charts.revenueDonutChart ? `<div class="chart-container"><img src="${charts.revenueDonutChart}" alt="${escapeHtml(labels.revenueDonutChart)}" /></div>` : ""}
-        </div>
+        ${chartHtml}
+        ${tableHtml}
       </section>`);
   }
 
-  // Profitability Trends — chart
-  if (charts.profitabilityChart) {
+  // Profitability Trends — chart or fallback table
+  const hasProfitabilityData = data.profitabilityTrends && data.profitabilityTrends.periods.length >= 2;
+  if (charts.profitabilityChart || hasProfitabilityData) {
+    const chartHtml = charts.profitabilityChart
+      ? `<div class="chart-container chart-full"><img src="${charts.profitabilityChart}" alt="${escapeHtml(labels.profitabilityTrendsChart)}" /></div>`
+      : "";
+
+    const tableHtml = !charts.profitabilityChart && hasProfitabilityData
+      ? `<table><thead><tr><th>Period</th>${data.profitabilityTrends!.revenue ? "<th>Revenue</th>" : ""}${data.profitabilityTrends!.ebitda ? "<th>EBITDA</th>" : ""}${data.profitabilityTrends!.netProfit ? "<th>Net Profit</th>" : ""}</tr></thead><tbody>
+          ${data.profitabilityTrends!.periods.map((p, i) =>
+            `<tr><td>${escapeHtml(p)}</td>${data.profitabilityTrends!.revenue ? `<td>${data.profitabilityTrends!.revenue[i]?.toLocaleString("en-US") ?? "—"}</td>` : ""}${data.profitabilityTrends!.ebitda ? `<td>${data.profitabilityTrends!.ebitda[i]?.toLocaleString("en-US") ?? "—"}</td>` : ""}${data.profitabilityTrends!.netProfit ? `<td>${data.profitabilityTrends!.netProfit[i]?.toLocaleString("en-US") ?? "—"}</td>` : ""}</tr>`).join("")}
+        </tbody></table>`
+      : "";
+
     sections.push(`
       <section id="profitability-trends">
         <h2>${escapeHtml(labels.profitabilityTrends)}</h2>
-        <div class="chart-container chart-full">
-          <img src="${charts.profitabilityChart}" alt="${escapeHtml(labels.profitabilityTrendsChart)}" />
-        </div>
+        ${chartHtml}
+        ${tableHtml}
       </section>`);
   }
 
@@ -268,6 +296,7 @@ export function buildHtml(data: ExtractedData, charts: ChartImages): string {
         ${text
           .split("\n")
           .filter((p) => p.trim())
+          .slice(0, 4)
           .map((p) => `<p>${escapeHtml(p.trim())}</p>`)
           .join("\n")}
       </section>`);
@@ -312,6 +341,7 @@ export function buildHtml(data: ExtractedData, charts: ChartImages): string {
         ${outlookNarrative.text
           .split("\n")
           .filter((p) => p.trim())
+          .slice(0, 3)
           .map((p) => `<p>${escapeHtml(p.trim())}</p>`)
           .join("\n")}
       </section>`);
