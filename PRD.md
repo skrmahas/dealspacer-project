@@ -189,12 +189,14 @@ The "Map" dropdown lists all companies in the catalog, plus a "Create new compan
 | Page | Route | Role |
 |---|---|---|
 | Access gate | `/access` | Access code entry (unchanged) |
-| Company directory | `/` | Landing page with sidebar + welcome content |
-| Company detail | `/companies/:slug` | Report timeline with inline metric previews, checkboxes for comparison, "Add Report" button |
+| Marketing landing | `/` | Public landing page — hero, live stats, How it works, Features grid, Exchanges, CTA footer |
+| Company catalog | `/companies` | Sidebar (search, exchange filter pills, grouped list with report-count badges) + welcome state in the main area |
+| Company analytics dashboard | `/companies/:slug` | Company header, 4 KPI cards (Revenue/EBITDA/Net Profit/FCF) with YoY arrows, multi-metric trend chart, revenue breakdown donut, sentiment timeline, reports table with comparison checkboxes |
 | Report view | `/reports/:reportId` | Embedded PDF viewer + extracted metrics summary + share link |
 | Legacy redirect | `/reports/:jobId` | Redirects to the corresponding `/reports/:reportId` for backward compat |
 | Comparison | `/compare?reportA=X&reportB=Y` | Side-by-side metrics, sentiment, and chart comparison |
-| Upload | `/upload` | General upload form (language selector + file input). If `?company=slug` present, pre-fills company context |
+| Upload | `/upload` | Canonical upload form (language selector + file input). If `?company=slug` present, pre-fills company context |
+| Legacy upload redirect | `/app` | Server-side redirect to `/upload`, preserving query string (e.g. `?company=slug`) |
 | Admin: unmatched | `/admin/unmatched` | Table of unmatched reports with company-mapping dropdown |
 | API routes | `/api/jobs/*`, etc. | Mostly unchanged; new `/api/reports/*` and `/api/companies/*` endpoints |
 
@@ -326,18 +328,19 @@ Railway Postgres    S3 Bucket
 
 ### UX
 
-- Simple access code → cookie (no user accounts). Middleware checks `bei_access` cookie; unauthenticated users are redirected to `/access`.
-- **Landing page** = company directory with sidebar (grouped by exchange, report count badges)
-- **Company detail** = report timeline with inline Revenue/EBITDA/Net Profit previews per row, checkboxes for comparison selection
-- **Comparison page** = full-width split view: metrics table with deltas (green ↑ / red ↓), sentiment side-by-side, overlaid client-side charts, "who's doing better" directional callout
-- **Search** in sidebar: filters company list in real time as user types
-- File upload with progress tracker: Parsing → Extracting → Translating → Rendering
-- **Report view**: embedded PDF via iframe + share link + download button
-- **Share page**: `/reports/:reportId` embeds the formatted PDF in-browser
-- **Legacy redirect**: `/reports/:jobId` → `/reports/:reportId`
-- Multiple error paths with clear user-facing messages (unsupported type, non-financial document, file too large, no data found, pipeline timeout, duplicate report)
-- 100 MB file size limit for all types
-- **Mobile responsive**: sidebar collapses to a hamburger-triggered drawer on viewports below 768px
+- Simple access code → cookie (no user accounts). Middleware checks `bei_access` cookie on `/app`, `/upload`, `/admin/*`, and `/reports/*`; unauthenticated visitors are redirected to `/access`. The marketing landing (`/`), the company catalog (`/companies`), the analytics dashboards (`/companies/:slug`), and the comparison view (`/compare`) are public.
+- **Marketing landing** (`/`) = standalone top-nav page with hero, live stats from `/api/companies` + `/api/reports`, "How it works" 3-step, features grid (shadcn/ui Cards), exchanges badges, and CTAs into the catalog and upload. No sidebar.
+- **Company catalog** (`/companies`) = sidebar (search box + exchange filter pills + grouped company list with `Badge` report-count chips + Upload/Access bottom links) and a welcome panel in the main content area. On mobile the sidebar collapses to a hamburger-triggered drawer.
+- **Company analytics dashboard** (`/companies/:slug`) = company header (name, ticker, exchange `Badge`, "Add Report" → `/upload?company=:slug`), 4 KPI cards with YoY % deltas and arrows, multi-metric trend line chart (chart.js v4, togglable legend), revenue breakdown donut (chart.js v4, hidden when no segment/geography data exists), sentiment timeline with `raised`/`maintained`/`lowered` colored tags, and the reports table with comparison checkboxes.
+- **Comparison page** = full-width split view: metrics table with deltas (green ↑ / red ↓), sentiment side-by-side, overlaid client-side charts, "who's doing better" directional callout.
+- **Search** in the catalog sidebar filters the company list (by name and ticker) in real time as the user types.
+- File upload with progress tracker: Parsing → Extracting → Translating → Rendering.
+- **Report view**: embedded PDF via iframe + share link + download button.
+- **Share page**: `/reports/:reportId` embeds the formatted PDF in-browser.
+- **Legacy redirects**: `/reports/:jobId` → `/reports/:reportId`; `/app` → `/upload` (preserves `?company=slug`).
+- Multiple error paths with clear user-facing messages (unsupported type, non-financial document, file too large, no data found, pipeline timeout, duplicate report).
+- 100 MB file size limit for all types.
+- **Mobile responsive**: catalog and analytics layouts stack below 768px; the catalog sidebar collapses to a hamburger-triggered drawer.
 
 ### Modules
 

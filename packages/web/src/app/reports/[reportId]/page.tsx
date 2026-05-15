@@ -36,13 +36,13 @@ export default function ReportViewPage() {
   const shareUrl = typeof window !== "undefined" ? `${window.location.origin}/reports/${reportId}` : "";
 
   if (loading) return <div style={{ padding: 40, textAlign: "center", color: "#94a3b8" }}>Loading...</div>;
-  if (error) return <div style={{ padding: 40, textAlign: "center" }}><p style={{ color: "#c0392b" }}>{error}</p><Link href="/" style={{ color: "#365d9c" }}>Back to directory</Link></div>;
-  if (!report) return <div style={{ padding: 40, textAlign: "center" }}><h2>Report not found</h2><Link href="/" style={{ color: "#365d9c" }}>Back to directory</Link></div>;
+  if (error) return <div style={{ padding: 40, textAlign: "center" }}><p style={{ color: "#c0392b" }}>{error}</p><Link href="/companies" style={{ color: "#365d9c" }}>Back to catalog</Link></div>;
+  if (!report) return <div style={{ padding: 40, textAlign: "center" }}><h2>Report not found</h2><Link href="/companies" style={{ color: "#365d9c" }}>Back to catalog</Link></div>;
 
   return (
     <div style={{ maxWidth: 900, margin: "0 auto", padding: "24px 20px 48px", fontFamily: "\"Avenir Next\", \"Segoe UI\", sans-serif", color: "#21324a" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
-        <Link href="/" style={{ color: "#3b5f93" }}><ArrowLeft size={20} /></Link>
+        <Link href="/companies" style={{ color: "#3b5f93" }} aria-label="Back to catalog"><ArrowLeft size={20} /></Link>
         <div style={{ flex: 1 }}>
           <h1 style={{ margin: 0, fontSize: 24, color: "#0f2e52" }}>Report</h1>
           <div style={{ display: "flex", gap: 8, marginTop: 4, alignItems: "center" }}>

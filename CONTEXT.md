@@ -21,12 +21,14 @@
 User
  │
  ├── Web (Next.js 14, packages/web)
- │   ├── /                          Company directory (landing page, sidebar)
- │   ├── /companies/:slug           Company detail (report timeline)
+ │   ├── /                          Marketing landing page (hero, live stats, features)
+ │   ├── /companies                 Company catalog (sidebar + welcome state)
+ │   ├── /companies/:slug           Company analytics dashboard (KPIs, charts, sentiment, reports table)
  │   ├── /compare                   Side-by-side comparison (primary metrics weighted 2×)
  │   ├── /reports/:reportId         Individual report view (PDF embed)
  │   ├── /reports/:jobId            Legacy redirect → report view
- │   ├── /upload                    Upload form (with optional ?company= context)
+ │   ├── /upload                    Canonical upload form (with optional ?company= context)
+ │   ├── /app                       Legacy upload redirect → /upload (preserves query string)
  │   ├── /admin/unmatched           Admin: map unknown reports to companies
  │   └── /access                    Access code gate
  │
@@ -94,9 +96,16 @@ jobs (+ new column)
 | `packages/shared/src/file-store.ts` | S3 + local disk file storage with auto-detection. |
 | `packages/worker/src/orchestrator.ts` | Pipeline state machine and completion hook. |
 | `packages/worker/src/index.ts` | Worker entry point — polling loop. |
-| `packages/web/src/app/page.tsx` | Landing page (company directory, post-catalog). |
+| `packages/web/src/app/page.tsx` | Marketing landing page at `/`. |
+| `packages/web/src/app/companies/page.tsx` | Company catalog at `/companies` (sidebar + welcome state). |
+| `packages/web/src/app/companies/[slug]/page.tsx` | Company analytics dashboard at `/companies/:slug` (KPIs, charts, sentiment, reports table). |
+| `packages/web/src/app/upload/page.tsx` | Canonical upload form at `/upload` (Suspense + `HomeClient`). |
+| `packages/web/src/app/upload/page-client.tsx` | Upload client component (file picker, language pills, polling, recent jobs). |
+| `packages/web/src/app/app/page.tsx` | Legacy `/app` redirect to `/upload` (server component). |
+| `packages/web/src/components/charts/trend-line-chart.tsx` | chart.js v4 client component for multi-metric trends. |
+| `packages/web/src/components/charts/donut-chart.tsx` | chart.js v4 client component for revenue breakdown. |
 | `packages/web/src/app/layout.tsx` | Root layout. |
-| `packages/web/middleware.ts` | Access code gate. |
+| `packages/web/middleware.ts` | Access code gate (matches `/app`, `/upload`, `/admin/*`, `/reports/*`). |
 
 ## Conventions
 
