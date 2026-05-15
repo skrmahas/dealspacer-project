@@ -41,6 +41,22 @@ if (!process.env.OPENAI_API_KEY?.trim()) {
 }
 console.log("[worker] OpenAI API key: configured");
 
+// Verify file store accessibility
+const fileStore = createPostgresFileStore();
+try {
+  const testBuffer = Buffer.from("healthcheck");
+  await fileStore.saveFile("__healthcheck__", testBuffer);
+  const readBack = await fileStore.readFile("__healthcheck__");
+  if (readBack.toString() !== "healthcheck") {
+    throw new Error("Read-back mismatch");
+  }
+  console.log("[worker] File store accessibility: OK");
+} catch (err) {
+  const message = err instanceof Error ? err.message : String(err);
+  console.error(`[worker] FATAL: File store not accessible: ${message}`);
+  process.exit(1);
+}
+
 console.log("[worker] Health check passed");
 
 // ── Pre-warm browser ──────────────────────────────────────────────────
@@ -55,6 +71,10 @@ const BROWSER_HEALTH_CHECK_INTERVAL_MS = 5 * 60 * 1000;
 const DEFAULT_SHUTDOWN_GRACE_MS = 120_000;
 const DEFAULT_JOB_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 const DEFAULT_JOB_RETENTION_MIN_COUNT = 50;
+const DEFAULT_HEARTBEAT_MS = 60_000;
+
+const startTime = Date.now();
+let jobsProcessed = 0;
 
 function formatMemoryMb(bytes: number): string {
   return (bytes / (1024 * 1024)).toFixed(0);
@@ -128,6 +148,7 @@ const stopWorker = startWorker({
     try {
       await processJob(job, store, readFile, parseDocument, extractFromText, translateExtractedData, assemblePdf, saveReport);
     } finally {
+      jobsProcessed++;
       logMemoryUsage();
     }
   },
@@ -137,6 +158,17 @@ const stopWorker = startWorker({
 });
 
 console.log("Worker started. Polling for pending jobs...");
+
+// Periodic heartbeat for external monitoring
+const heartbeatMs = readPositiveMsEnv("WORKER_HEARTBEAT_MS", DEFAULT_HEARTBEAT_MS);
+let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+heartbeatTimer = setInterval(() => {
+  if (stopped) return;
+  const uptimeMin = Math.round((Date.now() - startTime) / 60000);
+  const mem = process.memoryUsage();
+  const rssMb = (mem.rss / (1024 * 1024)).toFixed(0);
+  console.log(`[worker] Heartbeat: uptime=${uptimeMin}m, jobs=${jobsProcessed}, RSS=${rssMb} MB`);
+}, heartbeatMs);
 
 const shutdown = async () => {
   console.log("Shutting down...");
@@ -149,6 +181,10 @@ const shutdown = async () => {
   if (retentionTimer) {
     clearInterval(retentionTimer);
     retentionTimer = null;
+  }
+  if (heartbeatTimer) {
+    clearInterval(heartbeatTimer);
+    heartbeatTimer = null;
   }
 
   const graceMs = readPositiveMsEnv("WORKER_SHUTDOWN_GRACE_MS", DEFAULT_SHUTDOWN_GRACE_MS);
