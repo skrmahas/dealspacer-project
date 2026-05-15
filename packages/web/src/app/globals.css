@@ -1,0 +1,95 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --radius: 0.75rem;
+
+  /* Existing app tokens */
+  --color-bg: #ffffff;
+  --color-bg-tint: #ffffffd9;
+  --color-surface: #ffffff;
+  --color-border: #dae2eb;
+  --color-text: #1f2a37;
+  --color-text-muted: #556579;
+  --color-heading: #0f2e52;
+  --color-accent: #2b79db;
+  --color-accent-dark: #1a5ca8;
+  --color-success: #1c7c54;
+  --color-error-bg: #fff6f5;
+  --color-error-border: #ffd4cf;
+  --color-error-text: #8f2f23;
+  --color-gradient-start: #ffe8d6;
+  --color-gradient-mid: #f4f8fb;
+  --color-gradient-end: #eef2f8;
+
+  /* shadcn/tailwind semantic tokens (light) */
+  --background: 0 0% 100%;
+  --foreground: 213 29% 18%;
+  --card: 0 0% 100%;
+  --card-foreground: 213 29% 18%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 213 29% 18%;
+  --primary: 211 71% 51%;
+  --primary-foreground: 210 40% 98%;
+  --secondary: 210 40% 96%;
+  --secondary-foreground: 213 29% 18%;
+  --muted: 210 40% 96%;
+  --muted-foreground: 213 18% 40%;
+  --accent: 210 40% 96%;
+  --accent-foreground: 213 29% 18%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 210 40% 98%;
+  --border: 214 23% 88%;
+  --input: 214 23% 88%;
+  --ring: 211 71% 51%;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-bg: #1a1d23;
+    --color-bg-tint: #1a1d23d9;
+    --color-surface: #21242b;
+    --color-border: #333840;
+    --color-text: #d4d9e0;
+    --color-text-muted: #8895a7;
+    --color-heading: #c8d6e5;
+    --color-accent: #5b9fe8;
+    --color-accent-dark: #3d82d0;
+    --color-success: #3ca374;
+    --color-error-bg: #2d1f1e;
+    --color-error-border: #5c3835;
+    --color-error-text: #e8908a;
+    --color-gradient-start: #1a1d23;
+    --color-gradient-mid: #1e2129;
+    --color-gradient-end: #1c1f26;
+
+    --background: 222 15% 12%;
+    --foreground: 220 19% 85%;
+    --card: 222 12% 15%;
+    --card-foreground: 220 19% 85%;
+    --popover: 222 12% 15%;
+    --popover-foreground: 220 19% 85%;
+    --primary: 210 75% 63%;
+    --primary-foreground: 222 47% 11%;
+    --secondary: 222 10% 20%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 222 10% 20%;
+    --muted-foreground: 217 16% 63%;
+    --accent: 222 10% 20%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 63% 31%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 219 12% 23%;
+    --input: 219 12% 23%;
+    --ring: 210 75% 63%;
+  }
+}
+
+html,
+body {
+  margin: 0;
+  font-family: system-ui, sans-serif;
+  background: var(--color-bg);
+  color: var(--color-text);
+}
