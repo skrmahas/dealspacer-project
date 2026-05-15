@@ -34,6 +34,7 @@ export default function SharedReportPage({ params }: { params: { jobId: string }
   const elapsedTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const reportUrl = useMemo(() => `/api/jobs/${params.jobId}/download`, [params.jobId]);
+  const briefUrl = useMemo(() => `/api/jobs/${params.jobId}/download-brief`, [params.jobId]);
 
   const stopPolling = useCallback(() => {
     if (pollTimerRef.current) {
@@ -174,6 +175,23 @@ export default function SharedReportPage({ params }: { params: { jobId: string }
                     }}
                   >
                     Download PDF
+                  </a>
+                  <a
+                    href={briefUrl}
+                    download
+                    style={{
+                      marginTop: 12,
+                      width: "fit-content",
+                      textDecoration: "none",
+                      padding: "10px 16px",
+                      borderRadius: 10,
+                      border: "1px solid var(--color-accent)",
+                      color: "var(--color-accent)",
+                      fontWeight: 700,
+                      background: "transparent",
+                    }}
+                  >
+                    Brief (1-2p)
                   </a>
                 </>
               )}

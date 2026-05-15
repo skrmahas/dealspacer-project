@@ -571,9 +571,16 @@ export default function Home() {
                   <a
                     href={`/api/jobs/${job.jobId}/download`}
                     aria-label="Download PDF report"
-                    style={{ display: "inline-block", padding: "10px 16px", borderRadius: 10, textDecoration: "none", background: "#165f83", color: "#fff", fontWeight: 700 }}
+                    style={{ display: "inline-block", padding: "10px 16px", borderRadius: 10, textDecoration: "none", background: "var(--color-accent-dark)", color: "#fff", fontWeight: 700 }}
                   >
                     Download PDF
+                  </a>
+                  <a
+                    href={`/api/jobs/${job.jobId}/download-brief`}
+                    aria-label="Download executive brief"
+                    style={{ display: "inline-block", padding: "10px 16px", borderRadius: 10, textDecoration: "none", border: "1px solid var(--color-accent)", color: "var(--color-accent)", fontWeight: 700, background: "transparent" }}
+                  >
+                    Brief (1-2p)
                   </a>
                   {shareUrl && (
                     <a
