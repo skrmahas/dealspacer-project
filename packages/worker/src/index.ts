@@ -10,6 +10,7 @@ import { parseDocument } from "./parser.js";
 import { extractFromText } from "./extractor.js";
 import { translateExtractedData } from "./translator.js";
 import { assemblePdf, warmBrowser, checkBrowserHealth, closeBrowser } from "./assembler.js";
+import { startHealthServer } from "./health-server.js";
 import { processJob } from "./orchestrator.js";
 import { startWorker } from "./worker.js";
 import { createPostgresStore, createPostgresFileStore, runMigrations, getPool } from "@bei/shared";
@@ -72,6 +73,7 @@ const DEFAULT_SHUTDOWN_GRACE_MS = 120_000;
 const DEFAULT_JOB_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 const DEFAULT_JOB_RETENTION_MIN_COUNT = 50;
 const DEFAULT_HEARTBEAT_MS = 60_000;
+const DEFAULT_HEALTH_PORT = 3001;
 
 const startTime = Date.now();
 let jobsProcessed = 0;
@@ -159,6 +161,10 @@ const stopWorker = startWorker({
 
 console.log("Worker started. Polling for pending jobs...");
 
+// Start health check HTTP server
+const healthPort = parseInt(process.env.WORKER_HEALTH_PORT || String(DEFAULT_HEALTH_PORT), 10) || DEFAULT_HEALTH_PORT;
+const stopHealthServer = startHealthServer(healthPort);
+
 // Periodic heartbeat for external monitoring
 const heartbeatMs = readPositiveMsEnv("WORKER_HEARTBEAT_MS", DEFAULT_HEARTBEAT_MS);
 let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
@@ -186,6 +192,7 @@ const shutdown = async () => {
     clearInterval(heartbeatTimer);
     heartbeatTimer = null;
   }
+  await stopHealthServer();
 
   const graceMs = readPositiveMsEnv("WORKER_SHUTDOWN_GRACE_MS", DEFAULT_SHUTDOWN_GRACE_MS);
   console.log(`[worker] Shutting down gracefully — waiting up to ${graceMs}ms for current job...`);

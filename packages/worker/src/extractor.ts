@@ -47,6 +47,13 @@ IMPORTANT:
 - DO NOT fabricate numbers. If a figure is not clearly present, do not include it.
 - This document may be an annual report, quarterly filing, strategic plan, investor presentation, or other business financial document. Extract whatever financial data IS present.
 - If genuine financial or strategic content is found, populate the appropriate sections. Only return completely empty arrays/sections if the document truly contains no business or financial content (e.g., a legal contract, a press release about a non-financial topic).
+
+BALTIC CONTEXT:
+- Baltic company names often include legal forms: AS, OU, OÜ, SIA, UAB, AB. The companyName should include the legal form as presented.
+- Baltic annual reports may contain local-language section headers such as "Tegevusaruanne" (ET: management report), "Vadibas zinojums" (LV: management report), "Vadovybes ataskaita" (LT: management report), "Finantsaruanded" (ET: financial statements), "Pelno (nuostoliu) ataskaita" (LT: income statement).
+- Currency is typically EUR (euros). Historical documents may reference EEK (Estonian kroon, pre-2011), LVL (Latvian lats, pre-2014), or LTL (Lithuanian litas, pre-2015). Convert or note historical currencies as appropriate.
+- Nasdaq Baltic (Nasdaq Tallinn, Nasdaq Riga, Nasdaq Vilnius) listed companies file in a specific format following exchange disclosure requirements.
+- Baltic strategic plans and investor presentations often contain multi-year projections (typically 3-5 year horizons) with specific target metrics.
 - Output ONLY the JSON object, no markdown fences, no explanation.`;
 
 const DEFAULT_CHUNK_THRESHOLD = 60000;
