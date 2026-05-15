@@ -80,7 +80,34 @@ async function migrate() {
       CREATE INDEX IF NOT EXISTS idx_companies_slug ON companies(slug);
     `);
 
-    console.log("Migration complete: jobs, translation cache, leads, and companies ready.");
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS reports (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        company_id UUID REFERENCES companies(id) ON DELETE SET NULL,
+        fiscal_year INTEGER NOT NULL,
+        report_type TEXT NOT NULL,
+        language TEXT NOT NULL DEFAULT 'en',
+        job_id UUID REFERENCES jobs(id) ON DELETE SET NULL,
+        s3_key TEXT NOT NULL,
+        extracted_json_snapshot JSONB,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        UNIQUE (company_id, fiscal_year, report_type, language)
+      );
+    `);
+
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_reports_company_id ON reports(company_id);
+    `);
+
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_reports_job_id ON reports(job_id);
+    `);
+
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_reports_created_at ON reports(created_at);
+    `);
+
+    console.log("Migration complete: jobs, translation cache, leads, companies, and reports ready.");
   } finally {
     client.release();
   }

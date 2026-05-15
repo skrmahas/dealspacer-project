@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { createPostgresStore, createPostgresFileStore, createCompanyStore } from "./pg-store";
+import { createPostgresStore, createPostgresFileStore, createCompanyStore, createReportStore, DuplicateReportError } from "./pg-store";
 import * as db from "./db";
 import fs from "node:fs/promises";
 import os from "node:os";
@@ -450,5 +450,92 @@ describe("createCompanyStore", () => {
     const store = createCompanyStore();
     const companies = await store.listCompanies();
     expect(companies).toHaveLength(0);
+  });
+});
+
+describe("createReportStore", () => {
+  it("createReport inserts and returns a report", async () => {
+    const rows = [{ id: "r1", company_id: null, fiscal_year: 2024, report_type: "annual", language: "en", job_id: null, s3_key: "r1-report.pdf", extracted_json_snapshot: null, created_at: "2024-01-01" }];
+    const { query } = setupWithClient(rows);
+    const store = createReportStore();
+    const report = await store.createReport({
+      fiscalYear: 2024, reportType: "annual", language: "en", s3Key: "r1-report.pdf",
+    });
+    expect(report.fiscalYear).toBe(2024);
+    expect(report.reportType).toBe("annual");
+  });
+
+  it("createReport throws DuplicateReportError on unique violation", async () => {
+    const err: any = new Error("duplicate key");
+    err.code = "23505";
+    const query = vi.fn().mockRejectedValue(err);
+    vi.mocked(db.withClient).mockImplementationOnce(
+      async (fn: (c: any) => Promise<unknown>) => fn({ query }),
+    );
+    const store = createReportStore();
+    await expect(
+      store.createReport({ fiscalYear: 2024, reportType: "annual", language: "en", s3Key: "dup.pdf" }),
+    ).rejects.toThrow(DuplicateReportError);
+  });
+
+  it("getReportById returns report or null", async () => {
+    const rows = [{ id: "r1", company_id: null, fiscal_year: 2024, report_type: "q4", language: "en", job_id: null, s3_key: "r1.pdf", extracted_json_snapshot: null, created_at: "2024-01-01" }];
+    setupWithClient(rows);
+    const store = createReportStore();
+    expect(await store.getReportById("r1")).not.toBeNull();
+    setupWithClient([]);
+    expect(await store.getReportById("nonexistent")).toBeNull();
+  });
+
+  it("getReportByJobId finds by job_id", async () => {
+    setupWithClient([{ id: "r1", company_id: null, fiscal_year: 2024, report_type: "annual", language: "en", job_id: "job-1", s3_key: "r1.pdf", extracted_json_snapshot: null, created_at: "2024-01-01" }]);
+    const store = createReportStore();
+    const r = await store.getReportByJobId("job-1");
+    expect(r).not.toBeNull();
+    expect(r!.jobId).toBe("job-1");
+  });
+
+  it("listReportsByCompany returns chronological with metric previews", async () => {
+    const snapshot = { metadata: { companyName: "ACME", reportPeriod: "2024", sourceLanguage: "en" }, metrics: [{ label: "Revenue", value: 100, unit: "EUR" }, { label: "EBITDA", value: 40, unit: "EUR" }], narratives: [], sentiment: { managementTone: "", outlook: "", riskFactors: [] } };
+    const rows = [{ id: "r1", company_id: "c1", fiscal_year: 2024, report_type: "annual", language: "en", job_id: null, s3_key: "r1.pdf", extracted_json_snapshot: JSON.stringify(snapshot), created_at: "2024-01-01", company_name: "ACME" }];
+    setupWithClient(rows);
+    const store = createReportStore();
+    const reports = await store.listReportsByCompany("c1");
+    expect(reports).toHaveLength(1);
+    expect(reports[0].companyName).toBe("ACME");
+    expect(reports[0].previewRevenue).toBe(100);
+    expect(reports[0].previewEbitda).toBe(40);
+    expect(reports[0].previewNetProfit).toBeNull();
+  });
+
+  it("listUnmatchedReports returns only null company_id", async () => {
+    setupWithClient([{ id: "r1", company_id: null, fiscal_year: 2024, report_type: "annual", language: "en", job_id: null, s3_key: "r1.pdf", extracted_json_snapshot: null, created_at: "2024-01-01" }]);
+    const store = createReportStore();
+    const reports = await store.listUnmatchedReports();
+    expect(reports).toHaveLength(1);
+    expect(reports[0].companyId).toBeNull();
+  });
+
+  it("updateReportCompany maps unmatched to company", async () => {
+    setupWithClient([{ id: "r1", company_id: "c1", fiscal_year: 2024, report_type: "annual", language: "en", job_id: null, s3_key: "r1.pdf", extracted_json_snapshot: null, created_at: "2024-01-01" }]);
+    const store = createReportStore();
+    const r = await store.updateReportCompany("r1", "c1");
+    expect(r.companyId).toBe("c1");
+  });
+
+  it("replaceReport updates job, s3 key, and snapshot", async () => {
+    const snap = { metadata: { companyName: "X", reportPeriod: "2025", sourceLanguage: "en" }, metrics: [], narratives: [], sentiment: { managementTone: "", outlook: "", riskFactors: [] } };
+    setupWithClient([{ id: "r1", company_id: null, fiscal_year: 2024, report_type: "annual", language: "en", job_id: "j2", s3_key: "new.pdf", extracted_json_snapshot: JSON.stringify(snap), created_at: "2024-01-01" }]);
+    const store = createReportStore();
+    const r = await store.replaceReport("r1", "j2", "new.pdf", snap);
+    expect(r.jobId).toBe("j2");
+    expect(r.s3Key).toBe("new.pdf");
+  });
+
+  it("listRecentReports returns limited results", async () => {
+    setupWithClient([{ id: "r1", company_id: null, fiscal_year: 2024, report_type: "annual", language: "en", job_id: null, s3_key: "r1.pdf", extracted_json_snapshot: null, created_at: "2024-01-01", company_name: null }]);
+    const store = createReportStore();
+    const reports = await store.listRecentReports(8);
+    expect(reports).toHaveLength(1);
   });
 });
