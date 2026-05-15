@@ -80,8 +80,7 @@ export async function GET(
   }
 
   try {
-    const pdf = await readReport(job.id);
-    const fileBuffer = Buffer.isBuffer(pdf) ? pdf : Buffer.from(pdf);
+    const fileBuffer = Buffer.from(await readReport(job.id));
     const fileSize = fileBuffer.length;
     const filename = buildDownloadFilename(job.originalFilename, job.extractedJson);
 

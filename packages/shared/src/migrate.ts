@@ -45,7 +45,14 @@ async function migrate() {
       CREATE TABLE IF NOT EXISTS leads (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         email TEXT NOT NULL UNIQUE,
+        company TEXT,
+        role TEXT,
+        use_case TEXT,
+        message TEXT,
         source TEXT,
+        utm_source TEXT,
+        utm_medium TEXT,
+        utm_campaign TEXT,
         user_agent TEXT,
         referrer TEXT,
         ip_address TEXT,
@@ -53,6 +60,15 @@ async function migrate() {
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
     `);
+
+    // Backward-compatible schema evolution for existing deployments.
+    await client.query(`ALTER TABLE leads ADD COLUMN IF NOT EXISTS company TEXT;`);
+    await client.query(`ALTER TABLE leads ADD COLUMN IF NOT EXISTS role TEXT;`);
+    await client.query(`ALTER TABLE leads ADD COLUMN IF NOT EXISTS use_case TEXT;`);
+    await client.query(`ALTER TABLE leads ADD COLUMN IF NOT EXISTS message TEXT;`);
+    await client.query(`ALTER TABLE leads ADD COLUMN IF NOT EXISTS utm_source TEXT;`);
+    await client.query(`ALTER TABLE leads ADD COLUMN IF NOT EXISTS utm_medium TEXT;`);
+    await client.query(`ALTER TABLE leads ADD COLUMN IF NOT EXISTS utm_campaign TEXT;`);
 
     await client.query(`
       CREATE INDEX IF NOT EXISTS idx_leads_created_at ON leads(created_at);

@@ -52,10 +52,28 @@ describe("runMigrations", () => {
     const leadsTable = queries.find((q: string) => q.includes("CREATE TABLE IF NOT EXISTS leads"));
     expect(leadsTable).toBeDefined();
     expect(leadsTable).toContain("email TEXT NOT NULL UNIQUE");
+    expect(leadsTable).toContain("company TEXT");
+    expect(leadsTable).toContain("role TEXT");
+    expect(leadsTable).toContain("use_case TEXT");
+    expect(leadsTable).toContain("message TEXT");
     expect(leadsTable).toContain("source TEXT");
+    expect(leadsTable).toContain("utm_source TEXT");
+    expect(leadsTable).toContain("utm_medium TEXT");
+    expect(leadsTable).toContain("utm_campaign TEXT");
     expect(leadsTable).toContain("user_agent TEXT");
     expect(leadsTable).toContain("referrer TEXT");
     expect(leadsTable).toContain("ip_address TEXT");
+  });
+
+  it("adds backward-compatible lead columns for existing tables", async () => {
+    await runMigrations();
+
+    const queries = mockQuery.mock.calls.map((c: unknown[]) => (c as string[])[0]);
+    const alterQueries = queries.filter((q: string) => q.includes("ALTER TABLE leads ADD COLUMN IF NOT EXISTS"));
+    expect(alterQueries.length).toBeGreaterThanOrEqual(7);
+    expect(alterQueries.some((q: string) => q.includes("company"))).toBe(true);
+    expect(alterQueries.some((q: string) => q.includes("use_case"))).toBe(true);
+    expect(alterQueries.some((q: string) => q.includes("utm_campaign"))).toBe(true);
   });
 
   it("creates all required indexes", async () => {

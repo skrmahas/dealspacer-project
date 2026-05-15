@@ -12,11 +12,12 @@ export async function GET(
       return NextResponse.json({ error: "Report not found" }, { status: 404 });
     }
     const fileStore = createAutoFileStore();
-    const buffer = await fileStore.readReport(report.id);
-    return new NextResponse(buffer, {
+    const buffer = Buffer.from(await fileStore.readReport(report.id));
+    return new NextResponse(new Uint8Array(buffer), {
       headers: {
         "Content-Type": "application/pdf",
         "Content-Disposition": `inline; filename="report-${report.fiscalYear}-${report.reportType}.pdf"`,
+        "Content-Length": String(buffer.length),
       },
     });
   } catch (err) {
