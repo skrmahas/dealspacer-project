@@ -1,13 +1,26 @@
 import http from "node:http";
 
+export interface HealthStats {
+  startTime: number;
+  jobsProcessed: number;
+}
+
 /**
  * Start a minimal HTTP health check server.
  * Returns a stop function that closes the server.
  */
-export function startHealthServer(port: number): () => Promise<void> {
+export function startHealthServer(port: number, stats: HealthStats): () => Promise<void> {
   const server = http.createServer((_req, res) => {
+    const uptime = Math.floor((Date.now() - stats.startTime) / 1000);
+    const mem = process.memoryUsage();
+    const body = JSON.stringify({
+      status: "ok",
+      uptime,
+      jobsProcessed: stats.jobsProcessed,
+      rssMb: Math.round(mem.rss / (1024 * 1024)),
+    });
     res.writeHead(200, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({ status: "ok" }));
+    res.end(body);
   });
 
   server.listen(port, () => {

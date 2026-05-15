@@ -163,7 +163,7 @@ console.log("Worker started. Polling for pending jobs...");
 
 // Start health check HTTP server
 const healthPort = parseInt(process.env.WORKER_HEALTH_PORT || String(DEFAULT_HEALTH_PORT), 10) || DEFAULT_HEALTH_PORT;
-const stopHealthServer = startHealthServer(healthPort);
+const stopHealthServer = startHealthServer(healthPort, { startTime, get jobsProcessed() { return jobsProcessed; } });
 
 // Periodic heartbeat for external monitoring
 const heartbeatMs = readPositiveMsEnv("WORKER_HEARTBEAT_MS", DEFAULT_HEARTBEAT_MS);

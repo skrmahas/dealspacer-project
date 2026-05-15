@@ -9,7 +9,8 @@
   ],
   "scripts": {
     "build": "npm run build --workspace=@bei/web",
-    "start": "npm run start --workspace=@bei/web"
+    "start": "npm run start --workspace=@bei/web",
+    "test:all": "npm run test --workspaces --if-present"
   },
   "devDependencies": {
     "jsdom": "^29.1.1"

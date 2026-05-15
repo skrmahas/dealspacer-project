@@ -8,10 +8,46 @@ import type { ExtractedMetric } from "@bei/shared";
 
 /**
  * Normalize a metric label: collapse whitespace, remove embedded newlines,
- * trim. Returns the cleaned label.
+ * trim, and normalize Baltic diacritics for fuzzy matching.
+ * Returns the cleaned label.
  */
 export function normalizeLabel(label: string): string {
-  return label.replace(/\s+/g, " ").trim();
+  return normalizeDiacritics(label.replace(/\s+/g, " ").trim());
+}
+
+/**
+ * Normalize Baltic and common European diacritics to their base Latin forms.
+ * Maps characters with diacritics to their unaccented equivalents for
+ * better fuzzy matching of labels across documents.
+ */
+export function normalizeDiacritics(text: string): string {
+  const map: Record<string, string> = {
+    // Latvian
+    "\u0100": "A", "\u0101": "a", // Ā ā
+    "\u010c": "C", "\u010d": "c", // Č č
+    "\u0112": "E", "\u0113": "e", // Ē ē
+    "\u0122": "G", "\u0123": "g", // Ģ ģ
+    "\u012a": "I", "\u012b": "i", // Ī ī
+    "\u0136": "K", "\u0137": "k", // Ķ ķ
+    "\u013b": "L", "\u013c": "l", // Ļ ļ
+    "\u0145": "N", "\u0146": "n", // Ņ ņ
+    "\u0160": "S", "\u0161": "s", // Š š
+    "\u016a": "U", "\u016b": "u", // Ū ū
+    "\u017d": "Z", "\u017e": "z", // Ž ž
+    // Lithuanian
+    "\u0104": "A", "\u0105": "a", // Ą ą
+    "\u0118": "E", "\u0119": "e", // Ę ę
+    "\u0116": "E", "\u0117": "e", // Ė ė
+    "\u012e": "I", "\u012f": "i", // Į į
+    "\u0172": "U", "\u0173": "u", // Ų ų
+    // Estonian
+    "\u00d5": "O", "\u00f5": "o", // Õ õ
+    "\u00c4": "A", "\u00e4": "a", // Ä ä
+    "\u00d6": "O", "\u00f6": "o", // Ö ö
+    "\u00dc": "U", "\u00fc": "u", // Ü ü
+  };
+
+  return text.replace(/[\u00c0-\u017f]/g, (char) => map[char] || char);
 }
 
 /**
@@ -84,10 +120,10 @@ export function jaccardSimilarity(a: string, b: string): number {
  * Returns the deduplicated array.
  */
 export function deduplicateMetrics(metrics: ExtractedMetric[]): ExtractedMetric[] {
-  // First pass: normalize all labels
+  // First pass: normalize all labels for comparison, but keep originals
   const normalized = metrics.map((m, i) => ({
     ...m,
-    label: normalizeLabel(m.label),
+    _normalizedLabel: normalizeLabel(m.label),
     _originalIndex: i,
   }));
 
@@ -103,8 +139,8 @@ export function deduplicateMetrics(metrics: ExtractedMetric[]): ExtractedMetric[
     for (let j = i + 1; j < normalized.length; j++) {
       if (merged[j]) continue;
 
-      const a = normalized[i].label;
-      const b = normalized[j].label;
+      const a = normalized[i]._normalizedLabel;
+      const b = normalized[j]._normalizedLabel;
 
       const dist = levenshtein(a, b);
       const jaccard = jaccardSimilarity(a, b);

@@ -4,6 +4,7 @@ import {
   levenshtein,
   jaccardSimilarity,
   deduplicateMetrics,
+  normalizeDiacritics,
 } from "./deduplicator.js";
 import type { ExtractedMetric } from "@bei/shared";
 
@@ -163,7 +164,7 @@ describe("deduplicateMetrics", () => {
 
     const result = deduplicateMetrics(metrics);
     expect(result).toHaveLength(1);
-    expect(result[0].label).toBe("Carrying amount of Group's unquoted investments");
+    expect(result[0].label).toBe("Carrying amount of\nGroup's unquoted investments");
   });
 
   it("handles the auditor report scenario: 3 duplicates + clean metrics", () => {
@@ -238,5 +239,24 @@ describe("deduplicateMetrics", () => {
 
     const result = deduplicateMetrics(metrics);
     expect(result).toHaveLength(3); // All different — none merged
+  });
+});
+
+
+describe("normalizeDiacritics", () => {
+  it("normalizes Latvian diacritics", () => {
+    expect(normalizeDiacritics("Kapitāls")).toBe("Kapitals");
+    expect(normalizeDiacritics("Šķērs")).toBe("Skers");
+    expect(normalizeDiacritics("Čužuļš")).toBe("Cuzuls");
+  });
+
+  it("deduplicates diacritic variants of same label", () => {
+    const metrics: ExtractedMetric[] = [
+      { label: "Kapitāls", value: 100, unit: "EUR" },
+      { label: "Kapitals", value: 100, unit: "EUR" },
+    ];
+    const result = deduplicateMetrics(metrics);
+    expect(result).toHaveLength(1);
+    expect(result[0].label).toBe("Kapitāls");
   });
 });
