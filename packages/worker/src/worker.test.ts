@@ -259,4 +259,68 @@ describe("startWorker", () => {
 
     worker.stop();
   });
+
+  it("drain resolves immediately when no jobs are in flight", async () => {
+    const store = createMockStore([]);
+    const processJob = vi.fn();
+
+    const worker = startWorker({
+      store: store as JobStore,
+      processJob,
+      pollIntervalMs: 1000,
+    });
+
+    await vi.advanceTimersByTimeAsync(1);
+
+    worker.stop();
+    await expect(worker.drain(5000)).resolves.toBeUndefined();
+  });
+
+  it("drain waits for in-flight job to complete", async () => {
+    const job: Job = {
+      id: "job-1",
+      state: "pending",
+      originalFilename: "a.pdf",
+      outputLanguage: "en",
+      extractedText: null,
+      extractedJson: null,
+      error: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    const store = createMockStore([job]);
+
+    let jobResolve: (() => void) | null = null;
+    const processJob = vi.fn().mockImplementation(() => {
+      return new Promise<void>((resolve) => {
+        jobResolve = resolve;
+      });
+    });
+
+    const worker = startWorker({
+      store: store as JobStore,
+      processJob,
+      pollIntervalMs: 1000,
+    });
+
+    // Let the worker pick up the job and start processing
+    await vi.advanceTimersByTimeAsync(1);
+    expect(processJob).toHaveBeenCalledTimes(1);
+
+    // Stop polling, start drain
+    worker.stop();
+    const drainPromise = worker.drain(5000);
+
+    // Drain should not resolve yet — job still in flight
+    let drained = false;
+    drainPromise.then(() => { drained = true; });
+    await vi.advanceTimersByTimeAsync(100);
+    expect(drained).toBe(false);
+
+    // Complete the in-flight job
+    jobResolve!();
+    await vi.advanceTimersByTimeAsync(1);
+    await drainPromise;
+    expect(drained).toBe(true);
+  });
 });

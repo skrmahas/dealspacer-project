@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { ExtractedData, TranslationCacheEntry } from "@bei/shared";
-import { translateExtractedData, type OpenAIClient, type TranslationCache } from "./translator.js";
+import { translateExtractedData, collectTranslationItems, type OpenAIClient, type TranslationCache } from "./translator.js";
 
 function mockExtraction(): ExtractedData {
   return {
@@ -106,5 +106,73 @@ describe("translateExtractedData", () => {
         { id: "metric:0:label", text: "Ieņēmumi" },
       ])),
     ).rejects.toThrow("Translation count mismatch");
+  });
+
+  it("skips translation when target language is English", async () => {
+    const data = mockExtraction();
+    const cache = createCache();
+    const client = mockClient([]);
+
+    const result = await translateExtractedData(data, "en", cache, client);
+
+    // Should return data unchanged with outputLanguage set to en
+    expect(result.metadata.outputLanguage).toBe("en");
+    expect(result.metrics[0].label).toBe("Revenue");
+    expect(client.chat.completions.create).not.toHaveBeenCalled();
+  });
+
+  it("skips API call when all items are in cache", async () => {
+    const data = mockExtraction();
+    const cache = createCache([
+      { sourceText: "Revenue", lt: "Pajamos" },
+      { sourceText: "EBITDA", lt: "EBITDA" },
+    ]);
+    const client = mockClient([
+      { id: "narrative:0:text", text: "Tekstas" },
+      { id: "sentiment:managementTone", text: "teigiamas" },
+      { id: "sentiment:outlook", text: "Prognozė" },
+      { id: "sentiment:risk:0", text: "Rizika" },
+    ]);
+
+    await translateExtractedData(data, "lt", cache, client);
+
+    // API was called for narrative + sentiment items (not cached)
+    expect(client.chat.completions.create).toHaveBeenCalledOnce();
+  });
+});
+
+describe("collectTranslationItems", () => {
+  it("collects metric labels, narrative text, and sentiment fields", () => {
+    const data = mockExtraction();
+    const items = collectTranslationItems(data);
+
+    const ids = items.map((i) => i.id);
+    expect(ids).toContain("metric:0:label");
+    expect(ids).toContain("metric:1:label");
+    expect(ids).toContain("narrative:0:text");
+    expect(ids).toContain("sentiment:managementTone");
+    expect(ids).toContain("sentiment:outlook");
+    expect(ids).toContain("sentiment:risk:0");
+  });
+
+  it("handles empty data gracefully", () => {
+    const empty: ExtractedData = {
+      metadata: { companyName: "", reportPeriod: "", sourceLanguage: "en" },
+      metrics: [],
+      narratives: [],
+      sentiment: { managementTone: "", outlook: "", riskFactors: [] },
+    };
+    const items = collectTranslationItems(empty);
+    expect(items).toHaveLength(0);
+  });
+
+  it("marks metric labels as cacheable", () => {
+    const data = mockExtraction();
+    const items = collectTranslationItems(data);
+
+    const metricItems = items.filter((i) => i.id.startsWith("metric"));
+    for (const item of metricItems) {
+      expect(item.cacheableLabel).toBe(true);
+    }
   });
 });

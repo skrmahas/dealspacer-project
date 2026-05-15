@@ -237,4 +237,49 @@ describe("processJob", () => {
     expect(updated!.state).toBe("failed");
     expect(updated!.error).toContain("auditor's report");
   });
+
+  it("fails job when translation throws an error", async () => {
+    const job = await store.createJob({ originalFilename: "report.pdf" });
+    const readFile = vi.fn().mockResolvedValue(Buffer.from("fake pdf"));
+    const parseDocument = vi.fn().mockResolvedValue("Annual report summary financial data revenue ebitda profit margins growth performance business overview segment results");
+    const extractFromText = vi.fn().mockResolvedValue({
+      metadata: { companyName: "Test", reportPeriod: "Q1", sourceLanguage: "en" },
+      metrics: [{ label: "Revenue", value: 100, unit: "EUR" }],
+      narratives: [{ section: "executive_summary", text: "Good results with strong growth across all segments of the business." }],
+      sentiment: { managementTone: "positive", outlook: "Good", riskFactors: [] },
+    });
+    const translateExtractedData = vi.fn().mockRejectedValue(new Error("Translation API error"));
+    const assemblePdf = vi.fn();
+    const saveReport = vi.fn();
+
+    await processJob(job, store, readFile, parseDocument, extractFromText, translateExtractedData, assemblePdf, saveReport);
+
+    const updated = await store.getJob(job.id);
+    expect(updated!.state).toBe("failed");
+    expect(updated!.error).toContain("Translation API error");
+  });
+
+  it("completes job successfully with sanitizer warnings (null metrics dropped)", async () => {
+    const job = await store.createJob({ originalFilename: "report.pdf" });
+    const readFile = vi.fn().mockResolvedValue(Buffer.from("fake pdf"));
+    const parseDocument = vi.fn().mockResolvedValue("Annual report summary financial data revenue ebitda profit margins growth performance business overview segment results");
+    // Extract returns one good metric and one null-value metric (sanitizer will drop the null)
+    const extractFromText = vi.fn().mockResolvedValue({
+      metadata: { companyName: "Test", reportPeriod: "Q1", sourceLanguage: "en" },
+      metrics: [
+        { label: "Revenue", value: 100, unit: "EUR" },
+        { label: "Bad Metric", value: null },
+      ],
+      narratives: [{ section: "executive_summary", text: "Results were strong with good growth across all segments." }],
+      sentiment: { managementTone: "positive", outlook: "Good", riskFactors: [] },
+    });
+    const translateExtractedData = vi.fn().mockImplementation(async (data: ExtractedData) => ({ ...data, metadata: { ...data.metadata, outputLanguage: "en" } }));
+    const assemblePdf = vi.fn().mockResolvedValue(Buffer.from("pdf"));
+    const saveReport = vi.fn();
+
+    await processJob(job, store, readFile, parseDocument, extractFromText, translateExtractedData, assemblePdf, saveReport);
+
+    const updated = await store.getJob(job.id);
+    expect(updated!.state).toBe("complete");
+  });
 });
