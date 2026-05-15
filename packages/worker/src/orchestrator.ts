@@ -2,6 +2,7 @@ import type { Job, JobStore, ExtractedData } from "@bei/shared";
 import { classifyDocument } from "./classifier.js";
 import { deduplicateMetrics } from "./deduplicator.js";
 import { sanitizeExtractedData } from "./sanitizer.js";
+import { prefilterDocumentText } from "./prefilter.js";
 
 export async function processJob(
   job: Job,
@@ -31,7 +32,14 @@ export async function processJob(
     }
 
     await store.updateJob(job.id, { state: "extracting" });
-    const extracted = await extractFromText(text, undefined, undefined, async (completed, total) => {
+
+    // Prefilter boilerplate text to reduce GPT-4o token usage
+    const filteredText = prefilterDocumentText(text);
+    if (filteredText.length < text.length) {
+      log(`Prefiltered: ${text.length} → ${filteredText.length} chars`);
+    }
+
+    const extracted = await extractFromText(filteredText, undefined, undefined, async (completed, total) => {
       // Update job with progress info so frontend can display it
       try {
         await store.updateJob(job.id, {
