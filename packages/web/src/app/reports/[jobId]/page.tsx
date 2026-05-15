@@ -27,6 +27,8 @@ export default function SharedReportPage({ params }: { params: { jobId: string }
   const [loading, setLoading] = useState(true);
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const startedAtRef = useRef<number>(Date.now());
+  const [elapsed, setElapsed] = useState<string | null>(null);
+  const elapsedTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const reportUrl = useMemo(() => `/api/jobs/${params.jobId}/download`, [params.jobId]);
 
@@ -34,6 +36,10 @@ export default function SharedReportPage({ params }: { params: { jobId: string }
     if (pollTimerRef.current) {
       clearInterval(pollTimerRef.current);
       pollTimerRef.current = null;
+    }
+    if (elapsedTimerRef.current) {
+      clearInterval(elapsedTimerRef.current);
+      elapsedTimerRef.current = null;
     }
   }, []);
 
@@ -64,7 +70,22 @@ export default function SharedReportPage({ params }: { params: { jobId: string }
 
   useEffect(() => {
     startedAtRef.current = Date.now();
+    setElapsed("0s");
     void fetchJob();
+
+    // Update elapsed time every second
+    elapsedTimerRef.current = setInterval(() => {
+      const diff = Date.now() - startedAtRef.current;
+      const secs = Math.floor(diff / 1000);
+      if (secs < 60) {
+        setElapsed(`${secs}s`);
+      } else {
+        const mins = Math.floor(secs / 60);
+        const remainSecs = secs % 60;
+        setElapsed(`${mins}m ${remainSecs}s`);
+      }
+    }, 1000);
+
     pollTimerRef.current = setInterval(() => {
       if (Date.now() - startedAtRef.current > MAX_PIPELINE_MS) {
         setError("Pipeline timed out before report generation completed.");
@@ -100,6 +121,9 @@ export default function SharedReportPage({ params }: { params: { jobId: string }
             <div style={{ display: "grid", gap: 12 }}>
               <p style={{ margin: 0, color: "#2c4f6e", fontWeight: 700 }}>
                 Status: {job.state === "assembling" ? "rendering" : job.state}
+                {elapsed && job.state !== "complete" && job.state !== "failed" && (
+                  <span style={{ marginLeft: 10, color: "#6e7d90", fontWeight: 400, fontSize: 13 }}>{elapsed}</span>
+                )}
               </p>
               {job.state !== "complete" && !error && (
                 <p style={{ margin: 0, color: "#54657b" }}>

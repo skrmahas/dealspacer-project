@@ -91,6 +91,8 @@ export default function Home() {
   const [isDragging, setIsDragging] = useState(false);
   const [dragError, setDragError] = useState(false);
   const dragCounterRef = useRef(0);
+  const [elapsed, setElapsed] = useState<string | null>(null);
+  const elapsedTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const shareUrl = useMemo(() => {
     if (!job?.jobId) return null;
@@ -102,6 +104,10 @@ export default function Home() {
       clearInterval(pollTimerRef.current);
       pollTimerRef.current = null;
     }
+    if (elapsedTimerRef.current) {
+      clearInterval(elapsedTimerRef.current);
+      elapsedTimerRef.current = null;
+    }
     setPolling(false);
   }, []);
 
@@ -109,6 +115,20 @@ export default function Home() {
     stopPolling();
     setPolling(true);
     startedAtRef.current = Date.now();
+    setElapsed("0s");
+
+    // Update elapsed time every second
+    elapsedTimerRef.current = setInterval(() => {
+      const diff = Date.now() - startedAtRef.current;
+      const secs = Math.floor(diff / 1000);
+      if (secs < 60) {
+        setElapsed(`${secs}s`);
+      } else {
+        const mins = Math.floor(secs / 60);
+        const remainSecs = secs % 60;
+        setElapsed(`${mins}m ${remainSecs}s`);
+      }
+    }, 1000);
 
     pollTimerRef.current = setInterval(async () => {
       if (Date.now() - startedAtRef.current > MAX_PIPELINE_MS) {
@@ -365,9 +385,14 @@ export default function Home() {
           <section style={{ background: "#ffffff", border: "1px solid #dae2eb", borderRadius: 16, padding: 20 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
               <h2 style={{ margin: 0, color: "#0f2e52", fontSize: 20 }}>Pipeline Status</h2>
-              <span style={{ fontWeight: 700, color: job.state === "failed" ? "#a22e26" : "#28506f" }}>
-                {job.state === "assembling" ? "Rendering" : job.state[0].toUpperCase() + job.state.slice(1)}
-              </span>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                {elapsed && (job.state !== "complete" && job.state !== "failed") && (
+                  <span style={{ color: "#6e7d90", fontSize: 13 }}>{elapsed}</span>
+                )}
+                <span style={{ fontWeight: 700, color: job.state === "failed" ? "#a22e26" : "#28506f" }}>
+                  {job.state === "assembling" ? "Rendering" : job.state[0].toUpperCase() + job.state.slice(1)}
+                </span>
+              </div>
             </div>
 
             <ProgressTracker state={job.state} />
