@@ -34,7 +34,14 @@ describe("POST /api/leads", () => {
 
   it("stores a valid email lead", async () => {
     const request = makeRequest(
-      { email: "TEST@Example.com", source: " landing_hero " },
+      {
+        email: "TEST@Example.com",
+        source: " landing_b2b ",
+        utmSource: "linkedin",
+        utmMedium: "paid_social",
+        utmCampaign: "q3_launch",
+        pageReferrer: "https://example.com/deals",
+      },
       {
         "user-agent": "vitest",
         referer: "http://localhost/",
@@ -50,20 +57,39 @@ describe("POST /api/leads", () => {
     expect(mockPoolQuery).toHaveBeenCalledTimes(1);
     expect(mockPoolQuery.mock.calls[0][1]).toEqual([
       "test@example.com",
-      "landing_hero",
+      null,
+      null,
+      null,
+      null,
+      "landing_b2b",
+      "linkedin",
+      "paid_social",
+      "q3_launch",
       "vitest",
-      "http://localhost/",
+      "https://example.com/deals",
       "203.0.113.9",
     ]);
   });
 
   it("returns 400 for invalid email", async () => {
-    const request = makeRequest({ email: "not-an-email" });
+    const request = makeRequest({
+      email: "not-an-email",
+    });
     const response = await POST(request);
     const payload = await response.json();
 
     expect(response.status).toBe(400);
-    expect(payload.error).toContain("valid email");
+    expect(payload.error).toContain("valid work email");
     expect(mockPoolQuery).not.toHaveBeenCalled();
+  });
+
+  it("accepts email-only payload", async () => {
+    const request = makeRequest({
+      email: "person@example.com",
+    });
+    const response = await POST(request);
+
+    expect(response.status).toBe(200);
+    expect(mockPoolQuery).toHaveBeenCalledTimes(1);
   });
 });
