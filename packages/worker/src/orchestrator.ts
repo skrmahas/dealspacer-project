@@ -13,6 +13,7 @@ export async function processJob(
   translateExtractedData: (data: ExtractedData, language: Job["outputLanguage"], store: JobStore) => Promise<ExtractedData>,
   assemblePdf: (data: ExtractedData) => Promise<Buffer>,
   saveReport: (jobId: string, pdf: Buffer) => Promise<void>,
+  saveBrief?: (jobId: string, pdf: Buffer) => Promise<void>,
 ): Promise<void> {
   const log = (msg: string) => console.log(`[job ${job.id}] ${msg}`);
   try {
@@ -84,6 +85,18 @@ export async function processJob(
     const pdf = await assemblePdf(translated);
     await saveReport(job.id, pdf);
     log(`Report PDF: ${(pdf.length / 1024).toFixed(0)} KB`);
+
+    // Generate executive brief as a second output (non-fatal if it fails)
+    if (saveBrief) {
+      try {
+        const { assembleBriefPdf } = await import("./assembler.js");
+        const brief = await assembleBriefPdf(translated);
+        await saveBrief(job.id, brief);
+        log(`Brief PDF: ${(brief.length / 1024).toFixed(0)} KB`);
+      } catch (err) {
+        log(`Brief PDF generation failed (non-fatal): ${err instanceof Error ? err.message : err}`);
+      }
+    }
 
     await store.updateJob(job.id, {
       state: "complete",

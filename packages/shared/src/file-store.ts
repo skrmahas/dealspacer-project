@@ -6,6 +6,8 @@ export interface FileStore {
   readFile(jobId: string): Promise<Buffer>;
   saveReport(jobId: string, pdf: Buffer): Promise<void>;
   readReport(jobId: string): Promise<Buffer>;
+  saveBrief?(jobId: string, pdf: Buffer): Promise<void>;
+  readBrief?(jobId: string): Promise<Buffer>;
 }
 
 // ── S3-compatible object storage ────────────────────────────────────────────
@@ -149,6 +151,13 @@ export function createFileStore({ dataDir }: { dataDir: string }): FileStore {
     },
     async readReport(jobId) {
       return fs.readFile(path.join(resolvedDataDir, `${jobId}-report.pdf`));
+    },
+    async saveBrief(jobId, pdf) {
+      await ensureDir();
+      await fs.writeFile(path.join(resolvedDataDir, `${jobId}-brief.pdf`), pdf);
+    },
+    async readBrief(jobId) {
+      return fs.readFile(path.join(resolvedDataDir, `${jobId}-brief.pdf`));
     },
   };
 }

@@ -77,7 +77,7 @@ describe("processJob", () => {
       return originalUpdate(id, input);
     });
 
-    await processJob(job, store, readFile, parseDocument, extractFromText, translateExtractedData, assemblePdf, saveReport);
+    await processJob(job, store, readFile, parseDocument, extractFromText, translateExtractedData, assemblePdf, saveReport, undefined);
 
     expect(states).toEqual(["parsing", "extracting", "translating", "assembling", "complete"]);
     expect(readFile).toHaveBeenCalledWith(job.id);
@@ -110,7 +110,7 @@ describe("processJob", () => {
       return originalUpdate(id, input);
     });
 
-    await processJob(job, store, readFile, parseDocument, extractFromText, translateExtractedData, assemblePdf, saveReport);
+    await processJob(job, store, readFile, parseDocument, extractFromText, translateExtractedData, assemblePdf, saveReport, undefined);
 
     expect(states).toEqual(["parsing", "failed"]);
     expect(extractFromText).not.toHaveBeenCalled();
@@ -138,7 +138,7 @@ describe("processJob", () => {
       return originalUpdate(id, input);
     });
 
-    await processJob(job, store, readFile, parseDocument, extractFromText, translateExtractedData, assemblePdf, saveReport);
+    await processJob(job, store, readFile, parseDocument, extractFromText, translateExtractedData, assemblePdf, saveReport, undefined);
 
     expect(states).toEqual(["parsing", "extracting", "failed"]);
     expect(translateExtractedData).not.toHaveBeenCalled();
@@ -165,7 +165,7 @@ describe("processJob", () => {
       return originalUpdate(id, input);
     });
 
-    await processJob(job, store, readFile, parseDocument, extractFromText, translateExtractedData, assemblePdf, saveReport);
+    await processJob(job, store, readFile, parseDocument, extractFromText, translateExtractedData, assemblePdf, saveReport, undefined);
 
     expect(states).toEqual(["parsing", "extracting", "translating", "assembling", "failed"]);
     expect(saveReport).not.toHaveBeenCalled();
@@ -199,7 +199,7 @@ describe("processJob", () => {
       return originalUpdate(id, input);
     });
 
-    await processJob(job, store, readFile, parseDocument, extractFromText, translateExtractedData, assemblePdf, saveReport);
+    await processJob(job, store, readFile, parseDocument, extractFromText, translateExtractedData, assemblePdf, saveReport, undefined);
 
     expect(states).toEqual(["parsing", "extracting", "failed"]);
     expect(translateExtractedData).not.toHaveBeenCalled();
@@ -226,7 +226,7 @@ describe("processJob", () => {
       return originalUpdate(id, input);
     });
 
-    await processJob(job, store, readFile, parseDocument, extractFromText, translateExtractedData, assemblePdf, saveReport);
+    await processJob(job, store, readFile, parseDocument, extractFromText, translateExtractedData, assemblePdf, saveReport, undefined);
 
     expect(states).toEqual(["parsing", "failed"]);
     // GPT-4o extraction should NOT be called for rejected documents
@@ -253,7 +253,7 @@ describe("processJob", () => {
     const assemblePdf = vi.fn();
     const saveReport = vi.fn();
 
-    await processJob(job, store, readFile, parseDocument, extractFromText, translateExtractedData, assemblePdf, saveReport);
+    await processJob(job, store, readFile, parseDocument, extractFromText, translateExtractedData, assemblePdf, saveReport, undefined);
 
     const updated = await store.getJob(job.id);
     expect(updated!.state).toBe("failed");
@@ -278,7 +278,7 @@ describe("processJob", () => {
     const assemblePdf = vi.fn().mockResolvedValue(Buffer.from("pdf"));
     const saveReport = vi.fn();
 
-    await processJob(job, store, readFile, parseDocument, extractFromText, translateExtractedData, assemblePdf, saveReport);
+    await processJob(job, store, readFile, parseDocument, extractFromText, translateExtractedData, assemblePdf, saveReport, undefined);
 
     const updated = await store.getJob(job.id);
     expect(updated!.state).toBe("complete");

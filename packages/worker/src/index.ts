@@ -62,7 +62,7 @@ try {
 console.log("[worker] Health check passed");
 
 const store = createPostgresStore();
-const { readFile, saveReport } = createAutoFileStore();
+const { readFile, saveReport, saveBrief } = createAutoFileStore();
 const DEFAULT_POLL_INTERVAL_MS = 2000;
 const DEFAULT_STALE_JOB_SWEEP_INTERVAL_MS = 30_000;
 const DEFAULT_STALE_JOB_THRESHOLD_MS = 30 * 60 * 1000;
@@ -146,7 +146,7 @@ const stopWorker = startWorker({
   store,
   processJob: async (job, store) => {
     try {
-      await processJob(job, store, readFile, parseDocument, extractFromText, translateExtractedData, assemblePdf, saveReport);
+      await processJob(job, store, readFile, parseDocument, extractFromText, translateExtractedData, assemblePdf, saveReport, saveBrief);
     } finally {
       jobsProcessed++;
       logMemoryUsage();
