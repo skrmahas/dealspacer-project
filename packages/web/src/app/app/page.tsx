@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ReportSummary } from "@/components/report-summary";
+import { BriefSummary } from "@/components/brief-summary";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { uploadFileWithProgress } from "@/lib/upload-progress";
 import type { UploadProgress } from "@/lib/upload-progress";
@@ -566,6 +567,7 @@ export default function Home() {
 
             {job.state === "complete" && (
               <>
+                {job.extractedJson && <BriefSummary extractedJson={job.extractedJson} />}
                 {job.extractedJson && <ReportSummary extractedJson={job.extractedJson} />}
                 <div style={{ marginTop: 16, display: "flex", gap: 10, flexWrap: "wrap" }}>
                   <a
