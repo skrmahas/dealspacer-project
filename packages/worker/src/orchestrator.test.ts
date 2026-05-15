@@ -20,6 +20,7 @@ function createMockStore() {
         state: "pending",
         originalFilename: input.originalFilename,
         outputLanguage: input.outputLanguage ?? "en",
+        companyId: null,
         extractedText: null,
         extractedJson: null,
         error: null,

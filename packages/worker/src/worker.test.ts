@@ -60,6 +60,7 @@ describe("startWorker", () => {
     const job: Job = {
       id: "job-1",
       state: "pending",
+      companyId: null,
       originalFilename: "report.pdf",
       outputLanguage: "en",
       extractedText: null,
@@ -110,6 +111,7 @@ describe("startWorker", () => {
     const job1: Job = {
       id: "job-1",
       state: "pending",
+      companyId: null,
       originalFilename: "a.pdf",
       outputLanguage: "en",
       extractedText: null,
@@ -121,6 +123,7 @@ describe("startWorker", () => {
     const job2: Job = {
       id: "job-2",
       state: "pending",
+      companyId: null,
       originalFilename: "b.pdf",
       outputLanguage: "en",
       extractedText: null,
@@ -157,6 +160,7 @@ describe("startWorker", () => {
     const staleJob: Job = {
       id: "job-stale",
       state: "extracting",
+      companyId: null,
       originalFilename: "stale.pdf",
       outputLanguage: "en",
       extractedText: null,
@@ -190,6 +194,7 @@ describe("startWorker", () => {
     const completeJob: Job = {
       id: "job-complete",
       state: "complete",
+      companyId: null,
       originalFilename: "complete.pdf",
       outputLanguage: "en",
       extractedText: "ok",
@@ -201,6 +206,7 @@ describe("startWorker", () => {
     const failedJob: Job = {
       id: "job-failed",
       state: "failed",
+      companyId: null,
       originalFilename: "failed.pdf",
       outputLanguage: "en",
       extractedText: null,
@@ -233,6 +239,7 @@ describe("startWorker", () => {
     const recentJob: Job = {
       id: "job-recent",
       state: "extracting",
+      companyId: null,
       originalFilename: "recent.pdf",
       outputLanguage: "en",
       extractedText: null,
@@ -280,6 +287,7 @@ describe("startWorker", () => {
     const job: Job = {
       id: "job-1",
       state: "pending",
+      companyId: null,
       originalFilename: "a.pdf",
       outputLanguage: "en",
       extractedText: null,
