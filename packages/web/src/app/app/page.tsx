@@ -4,7 +4,12 @@ import HomeClient from "./page-client";
 
 export const dynamic = "force-dynamic";
 
-export default function AppPage() {
+type SearchParams = Record<string, string | string[] | undefined>;
+
+export default function AppPage({ searchParams }: { searchParams?: SearchParams }) {
+  const companySlug = searchParams?.company;
+  const initialCompanySlug = Array.isArray(companySlug) ? companySlug[0] : companySlug ?? null;
+
   return (
     <Suspense
       fallback={
@@ -13,7 +18,7 @@ export default function AppPage() {
         </div>
       }
     >
-      <HomeClient />
+      <HomeClient initialCompanySlug={initialCompanySlug} />
     </Suspense>
   );
 }

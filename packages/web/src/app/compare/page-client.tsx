@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
 import { ArrowLeft, TrendingUp, TrendingDown } from "lucide-react";
 
 interface ReportData {
@@ -25,10 +24,14 @@ function labelKey(label: string): string {
   return label.toLowerCase().replace(/\s+/g, " ").trim();
 }
 
-export default function ComparePage() {
-  const params = useSearchParams();
-  const idA = params.get("reportA");
-  const idB = params.get("reportB");
+type CompareClientProps = {
+  initialReportA: string | null;
+  initialReportB: string | null;
+};
+
+export default function ComparePage({ initialReportA, initialReportB }: CompareClientProps) {
+  const idA = initialReportA;
+  const idB = initialReportB;
 
   const [reportA, setReportA] = useState<ReportData | null>(null);
   const [reportB, setReportB] = useState<ReportData | null>(null);

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { ReportSummary } from "@/components/report-summary";
 import { BriefSummary } from "@/components/brief-summary";
 import { ErrorBoundary } from "@/components/error-boundary";
@@ -88,10 +88,13 @@ function PollingSkeleton() {
   );
 }
 
-export default function Home() {
-  const searchParams = useSearchParams();
+type HomeClientProps = {
+  initialCompanySlug: string | null;
+};
+
+export default function Home({ initialCompanySlug }: HomeClientProps) {
   const router = useRouter();
-  const companySlug = searchParams.get("company");
+  const companySlug = initialCompanySlug;
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [companyName, setCompanyName] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
