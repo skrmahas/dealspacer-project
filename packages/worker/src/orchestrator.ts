@@ -16,6 +16,8 @@ export async function processJob(
   saveBrief?: (jobId: string, pdf: Buffer) => Promise<void>,
 ): Promise<void> {
   const log = (msg: string) => console.log(`[job ${job.id}] ${msg}`);
+  const t0 = Date.now();
+  let tParse = t0, tClassify = t0, tPrefilter = t0, tExtract = t0, tTranslate = t0, tAssemble = t0;
   try {
     log(`Starting: ${job.originalFilename} (${job.outputLanguage})`);
 
@@ -23,7 +25,8 @@ export async function processJob(
     const buffer = await readFile(job.id);
     log(`File loaded: ${(buffer.length / 1024).toFixed(0)} KB`);
     const text = await parseDocument(buffer, job.originalFilename);
-    log(`Parsed: ${text.length} chars`);
+    tParse = Date.now();
+    log(`Parsed: ${text.length} chars (${tParse - t0}ms)`);
 
     // Classify document type BEFORE GPT-4o extraction (saves API cost on invalid uploads)
     const classification = classifyDocument(text);
@@ -31,6 +34,7 @@ export async function processJob(
       log(`Rejected: ${classification.docClass} — "${classification.rejectionMessage}"`);
       throw new Error(classification.rejectionMessage);
     }
+    tClassify = Date.now();
 
     await store.updateJob(job.id, { state: "extracting" });
 
@@ -39,6 +43,7 @@ export async function processJob(
     if (filteredText.length < text.length) {
       log(`Prefiltered: ${text.length} → ${filteredText.length} chars`);
     }
+    tPrefilter = Date.now();
 
     const extracted = await extractFromText(filteredText, undefined, undefined, async (completed, total) => {
       // Update job with progress info so frontend can display it
@@ -51,6 +56,7 @@ export async function processJob(
       }
     });
     log(`Extracted: ${extracted.metrics.length} metrics, ${extracted.narratives.length} narratives`);
+    tExtract = Date.now();
 
     // Deduplicate near-duplicate metrics before further processing
     const dedupedMetrics = deduplicateMetrics(extracted.metrics);
@@ -80,11 +86,13 @@ export async function processJob(
     await store.updateJob(job.id, { state: "translating" });
     const translated = await translateExtractedData(sanitized, job.outputLanguage, store);
     log("Translation complete");
+    tTranslate = Date.now();
 
     await store.updateJob(job.id, { state: "assembling" });
     const pdf = await assemblePdf(translated);
     await saveReport(job.id, pdf);
     log(`Report PDF: ${(pdf.length / 1024).toFixed(0)} KB`);
+    tAssemble = Date.now();
 
     // Generate executive brief as a second output (non-fatal if it fails)
     if (saveBrief) {
@@ -104,6 +112,7 @@ export async function processJob(
       extractedJson: JSON.stringify(translated),
     });
     log("Done!");
+    log(`Timing: parse=${tParse - t0}ms classify=${tClassify - tParse}ms prefilter=${tPrefilter - tClassify}ms extract=${tExtract - tPrefilter}ms translate=${tTranslate - tExtract}ms assemble=${tAssemble - tTranslate}ms total=${tAssemble - t0}ms`);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
     log(`FAILED: ${message}`);

@@ -17,13 +17,15 @@ const BOILERPLATE_PATTERNS = [
   /^\s*Responsibilities of (the )?(Board|Management|Auditor)/i,
   /^\s*Going concern\s*$/i,
   /^\s*Material(ity)? (and|&) (uncertainty|risk)/i,
-  // Accounting policy boilerplate
+  // Accounting policy boilerplate — expanded
   /^\s*(Summary of )?(Significant )?Accounting Policies?\s*$/i,
   /^\s*(Principles? of )?(Consolidation|Basis of (Preparation|Accounting))\s*$/i,
-  /^\s*(Property|Plant|Equipment|Intangible|Goodwill|Inventory|Revenue|Leases?|Tax|Pension|Share.based)\s+(and|&)\s+(Equipment|Recognition|Measurement|Policy)/i,
+  /^\s*(Property|Plant|Equipment|Intangible|Goodwill|Inventory|Revenue|Leases?|Tax|Pension|Share.based|Financial\s+(instruments|assets|liabilities)|Employee\s+benefits|Provisions?|Contingent|Foreign\s+currency|Segment|Cash\s+flow|Earnings\s+per)\s+(and|&)\s+(Equipment|Recognition|Measurement|Policy|presentation)/i,
   /^\s*The (financial|consolidated|Group) statements (have been|are) prepared/i,
   /^\s*IFRS\s+\d+/i,
   /^\s*IAS\s+\d+/i,
+  /^\s*(Critical|Significant)\s+(accounting\s+)?(judgements?|judgments?|estimates?)\s*$/i,
+  /^\s*(Note|Notes?)\s+(\d+[\.\)]?\s+)?(to the|accompanying|financial|consolidated)/i,
   // Common page artifacts
   /^\s*Page\s+\d+\s+of\s+\d+\s*$/i,
   /^\s*\d+\s*$/m,                             // Standalone page numbers
