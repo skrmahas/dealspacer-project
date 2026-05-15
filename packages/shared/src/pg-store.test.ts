@@ -496,7 +496,7 @@ describe("createReportStore", () => {
   });
 
   it("listReportsByCompany returns chronological with metric previews", async () => {
-    const snapshot = { metadata: { companyName: "ACME", reportPeriod: "2024", sourceLanguage: "en" }, metrics: [{ label: "Revenue", value: 100, unit: "EUR" }, { label: "EBITDA", value: 40, unit: "EUR" }], narratives: [], sentiment: { managementTone: "", outlook: "", riskFactors: [] } };
+    const snapshot = { metadata: { companyName: "ACME", reportPeriod: "2024", sourceLanguage: "en" }, metrics: [{ label: "Revenue", value: 100, unit: "EUR" }, { label: "EBITDA", value: 40, unit: "EUR" }, { label: "Free Cash Flow", value: 25, unit: "EUR" }], narratives: [], sentiment: { managementTone: "positive", outlook: "Good", riskFactors: [], guidanceDirection: "raised" } };
     const rows = [{ id: "r1", company_id: "c1", fiscal_year: 2024, report_type: "annual", language: "en", job_id: null, s3_key: "r1.pdf", extracted_json_snapshot: JSON.stringify(snapshot), created_at: "2024-01-01", company_name: "ACME" }];
     setupWithClient(rows);
     const store = createReportStore();
@@ -506,6 +506,8 @@ describe("createReportStore", () => {
     expect(reports[0].previewRevenue).toBe(100);
     expect(reports[0].previewEbitda).toBe(40);
     expect(reports[0].previewNetProfit).toBeNull();
+    expect(reports[0].previewFcf).toBe(25);
+    expect(reports[0].previewGuidanceSentiment).toBe("raised");
   });
 
   it("listUnmatchedReports returns only null company_id", async () => {
