@@ -28,7 +28,10 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  const t0 = Date.now();
+
   const formData = await request.formData();
+  const t1 = Date.now();
   const file = formData.get("file");
   const outputLanguageValue = formData.get("outputLanguage");
   const outputLanguage = typeof outputLanguageValue === "string" && OUTPUT_LANGUAGES.has(outputLanguageValue as OutputLanguage)
@@ -60,11 +63,37 @@ export async function POST(request: NextRequest) {
 
   const store = createPostgresStore();
   const buffer = Buffer.from(await file.arrayBuffer());
-  console.log("Creating job for:", file.name, "size:", buffer.length);
+  const t2 = Date.now();
   const job = await store.createJob({ originalFilename: file.name, outputLanguage });
-  console.log("Job created:", job.id);
-  await saveFile(job.id, buffer);
-  console.log("File saved for job:", job.id);
+  const t3 = Date.now();
 
+  // Fire-and-forget S3 upload: respond to client immediately, persist in
+  // background. If S3 fails we mark the job as failed so the worker skips it.
+  saveFile(job.id, buffer)
+    .then(() => {
+      const t4 = Date.now();
+      console.log(`[DEBUG-a4f2] Upload timing for ${file.name} (${(buffer.length / (1024 * 1024)).toFixed(1)} MB):`);
+      console.log(`[DEBUG-a4f2]   formData parse: ${t1 - t0}ms`);
+      console.log(`[DEBUG-a4f2]   arrayBuffer+convert: ${t2 - t1}ms`);
+      console.log(`[DEBUG-a4f2]   createJob (DB): ${t3 - t2}ms`);
+      console.log(`[DEBUG-a4f2]   saveFile (S3): ${t4 - t3}ms`);
+      console.log(`[DEBUG-a4f2]   TOTAL background: ${t4 - t0}ms`);
+    })
+    .catch(async (err) => {
+      const message = err instanceof Error ? err.message : "Unknown S3 error";
+      console.error(`[DEBUG-a4f2] S3 upload failed for job ${job.id}: ${message}`);
+      try {
+        await store.updateJob(job.id, {
+          state: "failed",
+          error: `S3 upload failed: ${message}`,
+        });
+      } catch (updateErr) {
+        console.error(`[DEBUG-a4f2] Failed to update job ${job.id} after S3 error:`, updateErr);
+      }
+    });
+
+  // Respond immediately — the S3 upload continues in the background.
+  const tResponse = Date.now();
+  console.log(`[DEBUG-a4f2] Response sent for ${file.name} in ${tResponse - t0}ms (S3 still uploading in background)`);
   return NextResponse.json({ jobId: job.id, state: job.state }, { status: 201 });
 }
