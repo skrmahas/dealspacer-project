@@ -67,33 +67,18 @@ export async function POST(request: NextRequest) {
   const job = await store.createJob({ originalFilename: file.name, outputLanguage });
   const t3 = Date.now();
 
-  // Fire-and-forget S3 upload: respond to client immediately, persist in
-  // background. If S3 fails we mark the job as failed so the worker skips it.
-  saveFile(job.id, buffer)
-    .then(() => {
-      const t4 = Date.now();
-      console.log(`[DEBUG-a4f2] Upload timing for ${file.name} (${(buffer.length / (1024 * 1024)).toFixed(1)} MB):`);
-      console.log(`[DEBUG-a4f2]   formData parse: ${t1 - t0}ms`);
-      console.log(`[DEBUG-a4f2]   arrayBuffer+convert: ${t2 - t1}ms`);
-      console.log(`[DEBUG-a4f2]   createJob (DB): ${t3 - t2}ms`);
-      console.log(`[DEBUG-a4f2]   saveFile (S3): ${t4 - t3}ms`);
-      console.log(`[DEBUG-a4f2]   TOTAL background: ${t4 - t0}ms`);
-    })
-    .catch(async (err) => {
-      const message = err instanceof Error ? err.message : "Unknown S3 error";
-      console.error(`[DEBUG-a4f2] S3 upload failed for job ${job.id}: ${message}`);
-      try {
-        await store.updateJob(job.id, {
-          state: "failed",
-          error: `S3 upload failed: ${message}`,
-        });
-      } catch (updateErr) {
-        console.error(`[DEBUG-a4f2] Failed to update job ${job.id} after S3 error:`, updateErr);
-      }
+  try {
+    await saveFile(job.id, buffer);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown file storage error";
+    await store.updateJob(job.id, {
+      state: "failed",
+      error: `File upload failed: ${message}`,
     });
+    return NextResponse.json({ error: "File upload failed" }, { status: 500 });
+  }
 
-  // Respond immediately — the S3 upload continues in the background.
-  const tResponse = Date.now();
-  console.log(`[DEBUG-a4f2] Response sent for ${file.name} in ${tResponse - t0}ms (S3 still uploading in background)`);
+  const t4 = Date.now();
+  console.log(`[upload-timing] ${file.name} (${(buffer.length / (1024 * 1024)).toFixed(1)} MB): formData=${t1 - t0}ms arrayBuffer=${t2 - t1}ms createJob=${t3 - t2}ms saveFile=${t4 - t3}ms total=${t4 - t0}ms`);
   return NextResponse.json({ jobId: job.id, state: job.state }, { status: 201 });
 }
