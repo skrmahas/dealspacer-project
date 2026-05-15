@@ -21,6 +21,7 @@ function rowToJob(row: Record<string, unknown>): Job {
     extractedText: (row.extracted_text as string | null) ?? null,
     extractedJson: (row.extracted_json as string | null) ?? null,
     error: (row.error as string | null) ?? null,
+    companyId: (row.company_id as string | null) ?? null,
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
   };
@@ -40,10 +41,10 @@ export function createPostgresStore(): JobStore {
     async createJob(input: CreateJobInput): Promise<Job> {
       return withClient(async (client) => {
         const result = await client.query(
-          `INSERT INTO jobs (original_filename, output_language)
-           VALUES ($1, $2)
+          `INSERT INTO jobs (original_filename, output_language, company_id)
+           VALUES ($1, $2, $3)
            RETURNING *`,
-          [input.originalFilename, input.outputLanguage ?? "en"],
+          [input.originalFilename, input.outputLanguage ?? "en", input.companyId ?? null],
         );
         return rowToJob(result.rows[0]);
       });

@@ -5,7 +5,7 @@ export { createFileStore, createEnvFileStore, createS3FileStore, createAutoFileS
 export type { FileStore, EnvFileStoreOptions } from "./file-store";
 export { runMigrations } from "./migrate";
 
-export type JobState = "pending" | "parsing" | "extracting" | "translating" | "assembling" | "complete" | "failed";
+export type JobState = "pending" | "parsing" | "extracting" | "translating" | "assembling" | "complete" | "failed" | "duplicate";
 export type OutputLanguage = "en" | "et" | "lv" | "lt";
 
 export interface Job {
@@ -16,12 +16,14 @@ export interface Job {
   extractedText: string | null;
   extractedJson: string | null;
   error: string | null;
+  companyId: string | null;
   createdAt: string;
   updatedAt: string;
 }
 
 export type CreateJobInput = Pick<Job, "originalFilename"> & {
   outputLanguage?: OutputLanguage;
+  companyId?: string | null;
 };
 export type UpdateJobInput = {
   state?: JobState;
