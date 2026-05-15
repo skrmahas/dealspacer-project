@@ -13,6 +13,7 @@
     "dev:web": "npm run dev --workspace=@bei/web",
     "dev:worker": "npm run dev --workspace=@bei/worker",
     "db:migrate": "npm run db:migrate --workspace=@bei/shared",
+    "db:seed": "npm run db:seed --workspace=@bei/shared",
     "test:all": "npm run test --workspaces --if-present"
   },
   "devDependencies": {

@@ -10,12 +10,23 @@ function readPositiveIntEnv(name: string, fallback: number): number {
   return parsed;
 }
 
+/** Prefer public URL when DATABASE_URL is Railway private DNS (unreachable from local CLI). */
+function resolveConnectionString(): string {
+  const primary = process.env.DATABASE_URL;
+  const fallbackPublic = process.env.DATABASE_PUBLIC_URL;
+  if (primary?.includes(".railway.internal") && fallbackPublic) {
+    return fallbackPublic;
+  }
+  const connectionString = primary ?? fallbackPublic;
+  if (!connectionString) {
+    throw new Error("DATABASE_URL environment variable is required");
+  }
+  return connectionString;
+}
+
 export function getPool(): Pool {
   if (!pool) {
-    const connectionString = process.env.DATABASE_URL;
-    if (!connectionString) {
-      throw new Error("DATABASE_URL environment variable is required");
-    }
+    const connectionString = resolveConnectionString();
     pool = new Pool({
       connectionString,
       max: readPositiveIntEnv("DATABASE_POOL_MAX", 5),
