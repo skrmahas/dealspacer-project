@@ -18,11 +18,11 @@ type JobInfo = {
 const ACCEPTED_EXTENSIONS = [".pdf", ".csv", ".html", ".htm", ".xhtml"];
 const MAX_PIPELINE_MS = 9 * 60 * 1000;
 
-const STAGES: { key: JobState; label: string }[] = [
-  { key: "parsing", label: "Parsing" },
-  { key: "extracting", label: "Extracting" },
-  { key: "translating", label: "Translating" },
-  { key: "assembling", label: "Rendering" },
+const STAGES: { key: JobState; label: string; description: string }[] = [
+  { key: "parsing", label: "Parsing", description: "Reading document text and structure" },
+  { key: "extracting", label: "Extracting", description: "AI analyzing financial data with GPT-4o" },
+  { key: "translating", label: "Translating", description: "Translating metrics and narratives" },
+  { key: "assembling", label: "Rendering", description: "Generating the final PDF report" },
 ];
 
 function stageIndex(state: JobState): number {
@@ -41,6 +41,7 @@ function describeFailure(error: string | undefined): string {
 
 function ProgressTracker({ state }: { state: JobState }) {
   const currentIndex = stageIndex(state);
+  const activeStage = currentIndex >= 0 && currentIndex < STAGES.length ? STAGES[currentIndex] : null;
   return (
     <div style={{ marginTop: 14 }}>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
@@ -64,6 +65,11 @@ function ProgressTracker({ state }: { state: JobState }) {
           );
         })}
       </div>
+      {activeStage && state !== "complete" && state !== "failed" && (
+        <p style={{ margin: "8px 0 0", fontSize: 13, color: "#6e7d90", fontStyle: "italic" }}>
+          {activeStage.description}
+        </p>
+      )}
     </div>
   );
 }
