@@ -126,6 +126,12 @@ export default function SharedReportPage({ params }: { params: { jobId: string }
                 {elapsed && job.state !== "complete" && job.state !== "failed" && (
                   <span style={{ marginLeft: 10, color: "#6e7d90", fontWeight: 400, fontSize: 13 }}>{elapsed}</span>
                 )}
+                {elapsed && job.state === "complete" && (
+                  <span style={{ marginLeft: 10, color: "#6e7d90", fontWeight: 400, fontSize: 13 }}>Completed in {elapsed}</span>
+                )}
+                {elapsed && job.state === "failed" && (
+                  <span style={{ marginLeft: 10, color: "#6e7d90", fontWeight: 400, fontSize: 13 }}>Failed after {elapsed}</span>
+                )}
               </p>
               {job.state !== "complete" && !error && (
                 <p style={{ margin: 0, color: "var(--color-text-muted)" }}>

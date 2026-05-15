@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ReportSummary } from "@/components/report-summary";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { uploadFileWithProgress } from "@/lib/upload-progress";
@@ -94,6 +94,7 @@ export default function Home() {
   const [pipelineError, setPipelineError] = useState<string | null>(null);
   const [polling, setPolling] = useState(false);
   const [retrying, setRetrying] = useState(false);
+  const [recentJobs, setRecentJobs] = useState<JobInfo[]>([]);
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const startedAtRef = useRef<number>(0);
   const [isDragging, setIsDragging] = useState(false);
@@ -155,11 +156,13 @@ export default function Home() {
         if (data.state === "complete") {
           setPipelineError(null);
           stopPolling();
+          void fetchRecentJobs();
           return;
         }
         if (data.state === "failed") {
           setPipelineError(describeFailure(data.error));
           stopPolling();
+          void fetchRecentJobs();
         }
       } catch {
         // Keep polling transient network failures.
@@ -219,13 +222,30 @@ export default function Home() {
 
   // ── Upload ──────────────────────────────────────────────────────────────
 
+  const fetchRecentJobs = useCallback(async () => {
+    try {
+      const res = await fetch("/api/jobs");
+      if (res.ok) {
+        const data = await res.json() as JobInfo[];
+        setRecentJobs(data);
+      }
+    } catch {
+      // Silently fail — recent jobs are non-critical
+    }
+  }, []);
+
+  // Fetch recent jobs on mount
+  useEffect(() => {
+    void fetchRecentJobs();
+  }, [fetchRecentJobs]);
+
   const onUpload = useCallback(async () => {
     if (!file) return;
     setPipelineError(null);
 
     if (!ACCEPTED_EXTENSIONS.some((ext) => file.name.toLowerCase().endsWith(ext))) {
       setJob({ jobId: "", state: "failed", error: "Only PDF, CSV, HTML, and XHTML files are accepted" });
-      setPipelineError("Upload failed: unsupported file type.");
+      setPipelineError("Unsupported file type. Please upload a PDF, CSV, or HTML document.");
       return;
     }
 
@@ -430,6 +450,12 @@ export default function Home() {
                 {elapsed && (job.state !== "complete" && job.state !== "failed") && (
                   <span style={{ color: "#6e7d90", fontSize: 13 }}>{elapsed}</span>
                 )}
+                {elapsed && job.state === "complete" && (
+                  <span style={{ color: "#6e7d90", fontSize: 13 }}>Completed in {elapsed}</span>
+                )}
+                {elapsed && job.state === "failed" && (
+                  <span style={{ color: "#6e7d90", fontSize: 13 }}>Failed after {elapsed}</span>
+                )}
                 <span style={{ fontWeight: 700, color: job.state === "failed" ? "#a22e26" : "#28506f" }}>
                   {job.state === "assembling" ? "Rendering" : job.state[0].toUpperCase() + job.state.slice(1)}
                 </span>
@@ -533,6 +559,47 @@ export default function Home() {
           animation: pulseStage 1.4s ease-in-out infinite;
         }
       `}</style>
+
+      {(recentJobs.length > 0 && (!job || job.state === "complete" || job.state === "failed")) && (
+        <section style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: 16, padding: 20 }}>
+          <h2 style={{ margin: "0 0 12px", color: "var(--color-heading)", fontSize: 18 }}>Recent Reports</h2>
+          <div style={{ display: "grid", gap: 6 }}>
+            {recentJobs.slice(0, 8).map((j) => (
+              <div
+                key={j.jobId}
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  padding: "8px 10px",
+                  borderRadius: 8,
+                  background: "var(--color-bg-tint)",
+                  fontSize: 13,
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 8, overflow: "hidden" }}>
+                  <span style={{ color: j.state === "failed" ? "var(--color-error-text)" : "var(--color-success)", fontWeight: 700, fontSize: 11 }}>
+                    {j.state === "complete" ? "✓" : j.state === "failed" ? "✗" : "○"}
+                  </span>
+                  <span style={{ color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {j.originalFilename || "Untitled"}
+                  </span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+                  <span style={{ color: "var(--color-text-muted)", fontSize: 11 }}>
+                    {new Date(j.createdAt || "").toLocaleDateString()}
+                  </span>
+                  {j.state === "complete" && (
+                    <a href={`/reports/${j.jobId}`} style={{ color: "var(--color-accent)", fontSize: 12, fontWeight: 600, textDecoration: "none" }}>
+                      View
+                    </a>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
     </main>
     </ErrorBoundary>
   );
