@@ -21,9 +21,9 @@ export async function GET(
     updatedAt: job.updatedAt,
   };
 
-  // Only include large payload fields when the job has reached a terminal state.
-  // During active processing, these are empty anyway and waste polling bandwidth.
-  if (job.state === "complete" || job.state === "failed") {
+  // Include large payload fields for terminal states, or progress data during extraction
+  const hasProgress = job.extractedJson?.includes("_extractionProgress");
+  if (job.state === "complete" || job.state === "failed" || (job.state === "extracting" && hasProgress)) {
     return NextResponse.json({
       ...base,
       extractedText: job.extractedText,

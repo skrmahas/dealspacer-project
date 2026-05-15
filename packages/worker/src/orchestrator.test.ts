@@ -82,7 +82,8 @@ describe("processJob", () => {
     expect(states).toEqual(["parsing", "extracting", "translating", "assembling", "complete"]);
     expect(readFile).toHaveBeenCalledWith(job.id);
     expect(parseDocument).toHaveBeenCalledWith(Buffer.from("fake pdf"), "report.pdf");
-    expect(extractFromText).toHaveBeenCalledWith("Annual report extracted financial data showing revenue ebitda profit margins growth performance summary business overview segment results");
+    expect(extractFromText).toHaveBeenCalled();
+    expect(extractFromText.mock.calls[0][0]).toBe("Annual report extracted financial data showing revenue ebitda profit margins growth performance summary business overview segment results");
     expect(translateExtractedData).toHaveBeenCalledWith(mockExtraction(), "lt", store);
     expect(assemblePdf).toHaveBeenCalledWith(translated);
     expect(saveReport).toHaveBeenCalledWith(job.id, Buffer.from("fake pdf"));

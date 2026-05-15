@@ -31,7 +31,16 @@ export async function processJob(
     }
 
     await store.updateJob(job.id, { state: "extracting" });
-    const extracted = await extractFromText(text);
+    const extracted = await extractFromText(text, undefined, undefined, async (completed, total) => {
+      // Update job with progress info so frontend can display it
+      try {
+        await store.updateJob(job.id, {
+          extractedJson: JSON.stringify({ _extractionProgress: { completed, total } }),
+        });
+      } catch {
+        // Progress update failure is non-critical
+      }
+    });
     log(`Extracted: ${extracted.metrics.length} metrics, ${extracted.narratives.length} narratives`);
 
     // Deduplicate near-duplicate metrics before further processing

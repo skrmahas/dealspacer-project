@@ -376,6 +376,7 @@ export async function extractFromText(
   text: string,
   apiClient?: OpenAIClient,
   partialResults?: ExtractedData[],
+  onProgress?: (completed: number, total: number) => void,
 ): Promise<ExtractedData> {
   const openai = apiClient ?? getClient();
   const config = getChunkConfig();
@@ -430,6 +431,8 @@ export async function extractFromText(
       };
       completedCount++;
     }
+
+    onProgress?.(completedCount, chunks.length);
   }
 
   // Process with concurrency limit using a simple semaphore
