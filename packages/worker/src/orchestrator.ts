@@ -112,6 +112,7 @@ export async function processJob(
       state: "complete",
       extractedText: text,
       extractedJson: JSON.stringify(translated),
+      error: null,
     });
 
     // Post-completion hook: company matching + reports row creation

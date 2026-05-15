@@ -1,19 +1,213 @@
+import Link from "next/link";
+import { Building2, ArrowLeft, Shield } from "lucide-react";
+
+const sections = [
+  {
+    n: "01",
+    title: "Overview",
+    body: (
+      <>
+        <p>
+          Baltic Earnings Intelligence (operated by DealSpacer) is currently in
+          private preview. This policy describes how we handle information you
+          provide when requesting access or using the service.
+        </p>
+      </>
+    ),
+  },
+  {
+    n: "02",
+    title: "Data we collect",
+    body: (
+      <>
+        <p>
+          We collect the work email address you submit when requesting access.
+          This is used solely to evaluate your request and manage onboarding
+          communication.
+        </p>
+        <p className="mt-3">
+          When you upload a filing, the document is transmitted to our
+          processing pipeline for analysis. We do not retain raw uploaded files
+          beyond the period required to generate your report.
+        </p>
+      </>
+    ),
+  },
+  {
+    n: "03",
+    title: "How we use your data",
+    body: (
+      <>
+        <p>
+          Submitted emails are used to manage access requests and product
+          communications. They are not sold or shared with third parties for
+          marketing purposes.
+        </p>
+        <p className="mt-3">
+          Uploaded filings are processed to generate structured reports for the
+          requesting user only. They are not used to train public or
+          third-party machine-learning models.
+        </p>
+      </>
+    ),
+  },
+  {
+    n: "04",
+    title: "Data retention & deletion",
+    body: (
+      <>
+        <p>
+          Access to operational data is limited to what is necessary to provide
+          and support the service. You may request deletion of your email or
+          associated data at any time by contacting us.
+        </p>
+      </>
+    ),
+  },
+  {
+    n: "05",
+    title: "Contact",
+    body: (
+      <>
+        <p>
+          For privacy questions, data requests, or deletion inquiries, reach us
+          at{" "}
+          <a
+            href="mailto:hello@dealspacer.com"
+            className="text-[#2b79db] transition hover:text-[#3d8de8]"
+          >
+            hello@dealspacer.com
+          </a>
+          .
+        </p>
+      </>
+    ),
+  },
+];
+
 export default function PrivacyPage() {
   return (
-    <main style={{ minHeight: "100vh", padding: "48px 20px", background: "#f7fbff", color: "#21324a", fontFamily: "system-ui, sans-serif" }}>
-      <article style={{ maxWidth: 760, margin: "0 auto", background: "#ffffff", border: "1px solid #d7e2f2", borderRadius: 16, padding: 28 }}>
-        <a href="/" style={{ color: "#365d9c", fontWeight: 700, textDecoration: "none" }}>Back to DealSpacer</a>
-        <h1 style={{ margin: "24px 0 0", color: "#0f2e52" }}>Privacy Policy</h1>
-        <p style={{ color: "#5f6f83", lineHeight: 1.6 }}>
-          DealSpacer is currently in private preview. We collect submitted work emails to manage access requests and product onboarding.
-        </p>
-        <p style={{ color: "#5f6f83", lineHeight: 1.6 }}>
-          Uploaded filings are processed to generate reports for the requesting user. They are not used to train public models. Access to operational data is limited to what is necessary to provide and support the service.
-        </p>
-        <p style={{ color: "#5f6f83", lineHeight: 1.6 }}>
-          For privacy questions or deletion requests, contact us at <a href="mailto:hello@dealspacer.com" style={{ color: "#365d9c" }}>hello@dealspacer.com</a>.
-        </p>
-      </article>
-    </main>
+    <div
+      className="relative min-h-screen bg-[#080b10] text-[#e8ecf2] font-[family-name:var(--font-body)]"
+    >
+      <div className="landing-grain pointer-events-none fixed inset-0 z-[1]" aria-hidden />
+      <div className="landing-aurora pointer-events-none fixed inset-0 z-0" aria-hidden />
+
+      <div className="relative z-10 flex min-h-screen flex-col">
+        {/* Header */}
+        <header className="sticky top-0 z-40 border-b border-[#2b79db]/12 bg-[#080b10]/85 backdrop-blur-md">
+          <div className="mx-auto flex w-full max-w-[1180px] items-center justify-between px-6 py-4 md:px-10">
+            <Link
+              href="/"
+              className="flex items-center gap-2 font-[family-name:var(--font-mono)] text-[11px] uppercase tracking-[0.14em] text-[#8b9aad] transition hover:text-[#e8ecf2]"
+            >
+              <ArrowLeft className="size-3.5" />
+              Back
+            </Link>
+            <span className="flex items-center gap-2 font-[family-name:var(--font-mono)] text-[11px] uppercase tracking-[0.14em] text-[#5a8f8f]">
+              <Shield className="size-3.5" />
+              Privacy Policy
+            </span>
+          </div>
+        </header>
+
+        {/* Document */}
+        <main className="mx-auto w-full max-w-[820px] flex-1 px-6 py-16 md:px-10 md:py-24">
+          {/* Document meta strip */}
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-1 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.2em] text-[#6b7d92]">
+            <span>Baltic Earnings Intelligence</span>
+            <span className="text-[#2a3544]">·</span>
+            <span>Classification: Public</span>
+            <span className="text-[#2a3544]">·</span>
+            <span>Version 1.0</span>
+          </div>
+
+          {/* Title block */}
+          <div className="relative mt-6 border-l-2 border-[#2b79db] pl-6">
+            <h1 className="font-[family-name:var(--font-display)] text-[clamp(2rem,5vw,3.5rem)] font-medium leading-[1.05] tracking-[-0.02em] text-[#f4f6f9]">
+              Privacy Policy
+            </h1>
+            <p className="mt-3 max-w-lg text-base leading-relaxed text-[#8b9aad]">
+              How Baltic Earnings Intelligence handles your data, why we collect
+              it, and how you can request its deletion.
+            </p>
+          </div>
+
+          {/* Divider */}
+          <div className="mt-10 flex items-center gap-4">
+            <div className="h-px flex-1 bg-gradient-to-r from-[#2b79db]/40 via-[#2a3544] to-transparent" />
+            <span className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.18em] text-[#3d4d62]">
+              Document
+            </span>
+          </div>
+
+          {/* Sections */}
+          <div className="mt-10 space-y-0">
+            {sections.map((section, i) => (
+              <div
+                key={section.n}
+                className="group relative grid grid-cols-[56px_1fr] gap-6 border-b border-[#1e2733] py-8 last:border-b-0"
+              >
+                {/* Vertical connector */}
+                {i < sections.length - 1 && (
+                  <div
+                    className="pointer-events-none absolute bottom-0 left-[27px] top-8 w-px bg-gradient-to-b from-[#2a3544] to-transparent"
+                    aria-hidden
+                  />
+                )}
+
+                {/* Number */}
+                <div className="relative z-10 pt-0.5">
+                  <span className="font-[family-name:var(--font-mono)] text-[11px] tabular-nums text-[#5a8f8f]">
+                    {section.n}
+                  </span>
+                </div>
+
+                {/* Content */}
+                <div>
+                  <h2 className="font-[family-name:var(--font-display)] text-xl font-medium text-[#f4f6f9]">
+                    {section.title}
+                  </h2>
+                  <div className="mt-3 text-[15px] leading-relaxed text-[#8b9aad]">
+                    {section.body}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Document footer note */}
+          <div className="mt-12 flex items-start gap-3 border border-[#2a3544] bg-[#0c1018]/60 p-5">
+            <span className="mt-0.5 block size-1.5 shrink-0 rounded-full bg-[#5a8f8f]" />
+            <p className="font-[family-name:var(--font-mono)] text-[11px] leading-relaxed text-[#6b7d92]">
+              This policy applies to the Baltic Earnings Intelligence service in
+              private preview. It may be updated as the product evolves. Material
+              changes will be communicated to registered users by email.
+            </p>
+          </div>
+        </main>
+
+        {/* Footer */}
+        <footer className="border-t border-[#1e2733] py-10">
+          <div className="mx-auto flex w-full max-w-[1180px] flex-wrap items-center justify-between gap-4 px-6 text-sm text-[#6b7d92] md:px-10">
+            <span className="flex items-center gap-2 font-[family-name:var(--font-mono)] text-[11px] uppercase tracking-[0.1em]">
+              <Building2 className="size-3.5 text-[#2b79db]" />
+              © Baltic Earnings Intelligence
+            </span>
+            <nav className="flex gap-6 font-[family-name:var(--font-mono)] text-[11px] uppercase tracking-[0.1em]">
+              <Link href="/privacy" className="text-[#e8ecf2]">
+                Privacy
+              </Link>
+              <Link href="/terms" className="transition hover:text-[#e8ecf2]">
+                Terms
+              </Link>
+              <Link href="/access" className="transition hover:text-[#e8ecf2]">
+                Access
+              </Link>
+            </nav>
+          </div>
+        </footer>
+      </div>
+    </div>
   );
 }

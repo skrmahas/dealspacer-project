@@ -314,9 +314,9 @@ function Sidebar({
                     {EXCHANGE_SHORT[exchange] ?? exchange} ({list.length})
                   </span>
                 </div>
-                <ul>
+                <ul className="m-0 list-none p-0">
                   {list.map((c) => (
-                    <li key={c.id}>
+                    <li key={c.id} className="list-none">
                       <Link
                         href={`/companies/${c.slug}`}
                         onClick={onClose}

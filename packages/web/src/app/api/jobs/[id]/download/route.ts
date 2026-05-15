@@ -124,7 +124,7 @@ export async function GET(
     });
   } catch {
     return NextResponse.json(
-      { error: "Report PDF not found" },
+      { error: "Report PDF not found. The report may have been generated with a different storage configuration. Please re-upload your file to generate a new report." },
       { status: 404 },
     );
   }

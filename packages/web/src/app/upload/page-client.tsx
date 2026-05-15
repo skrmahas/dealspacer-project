@@ -12,8 +12,7 @@ import {
   KeyRound,
   Layers,
 } from "lucide-react";
-import { ReportSummary } from "@/components/report-summary";
-import { BriefSummary } from "@/components/brief-summary";
+import { ReportPreview, parseExtractedJson } from "@/components/report-view";
 import { DealSpacerLogoLink } from "@/components/deal-spacer-logo";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { Button } from "@/components/ui/button";
@@ -633,18 +632,11 @@ export default function Home({ initialCompanySlug }: HomeClientProps) {
 
                 {job.state === "complete" && (
                   <>
-                    <div className="mt-6 grid gap-4">
-                      {job.extractedJson && (
-                        <div className="border border-[#2a3544] bg-[#eef1f5] p-5 text-[#1f2a37]">
-                          <BriefSummary extractedJson={job.extractedJson} />
-                        </div>
-                      )}
-                      {job.extractedJson && (
-                        <div className="border border-[#2a3544] bg-[#eef1f5] p-5 text-[#1f2a37]">
-                          <ReportSummary extractedJson={job.extractedJson} />
-                        </div>
-                      )}
-                    </div>
+                    {job.extractedJson && (
+                      <div className="mt-6">
+                        <ReportPreview extracted={parseExtractedJson(job.extractedJson)} />
+                      </div>
+                    )}
 
                     <div className="mt-6 flex flex-wrap gap-3">
                       <DownloadLink
