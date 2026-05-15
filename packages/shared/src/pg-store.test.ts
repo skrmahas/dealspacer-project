@@ -19,12 +19,6 @@ vi.mock("./db", () => {
   };
 });
 
-// Helper to get the mocked query function for assertions
-function getMockQuery() {
-  return (db.getPool() as ReturnType<typeof vi.fn>).mock.results[0]?.value?.connect.mock.results[0]
-    ?.value?.query as ReturnType<typeof vi.fn>;
-}
-
 function setupWithClient(rows: Record<string, unknown>[], rowCount = rows.length) {
   const query = vi.fn().mockResolvedValue({ rows, rowCount });
   const client = { query, release: vi.fn() };

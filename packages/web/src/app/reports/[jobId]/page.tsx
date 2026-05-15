@@ -1,3 +1,5 @@
+"use client";
+
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ReportSummary } from "@/components/report-summary";
 import { ErrorBoundary } from "@/components/error-boundary";
