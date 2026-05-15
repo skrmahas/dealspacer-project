@@ -56,6 +56,59 @@ BALTIC CONTEXT:
 - Baltic strategic plans and investor presentations often contain multi-year projections (typically 3-5 year horizons) with specific target metrics.
 - Output ONLY the JSON object, no markdown fences, no explanation.`;
 
+// ── Targeted extraction prompts ─────────────────────────────────────────────
+
+const METRICS_PROMPT = `You are a financial data extraction specialist. Extract metadata and all financial metrics from the document.
+
+Return a JSON object with:
+1. metadata: { companyName, reportPeriod, sourceLanguage }
+   - companyName: the legal entity name as it appears in the document (include legal form: AS, OU, OÜ, SIA, UAB, AB)
+   - reportPeriod: e.g. "Q1 2024", "FY 2023", "2026-2029" for a multi-year plan
+   - sourceLanguage: one of "et", "lv", "lt", or "en"
+
+2. metrics: array of { label, value, unit?, period? }
+   - Extract ALL financial figures: revenue, EBITDA, net profit, operating profit, CAPEX, assets, equity, liabilities, cash flow, EPS, dividends, targets, projections
+   - Include historical AND forward-looking targets. Mark targets with period like "2026 target"
+   - value must be a number (null if unclear). unit: "EUR", "EUR m", "EUR bn", "thousand EUR"
+   - Translate labels to English; DO NOT fabricate numbers
+
+BALTIC: Local section names may include "Tegevusaruanne", "Vadibas zinojums", "Vadovybes ataskaita". Currency is EUR (historical EEK/LVL/LTL possible).
+
+Output ONLY the JSON object, no markdown.`;
+
+const TRENDS_PROMPT = `You are a financial data extraction specialist. Extract multi-period trend data and revenue breakdowns from the document.
+
+Return a JSON object with:
+1. revenueBreakdown: { bySegment?, byGeography? }
+   - bySegment: array of { name, value } — revenue by business segment
+   - byGeography: array of { name, value } — revenue by geography
+   - Omit entirely if no breakdown found
+
+2. profitabilityTrends: { periods, revenue?, ebitda?, netProfit? }
+   - periods: array of period labels (e.g. "Q3 2023", "Q4 2023", "Q1 2024" or "2026", "2027", "2028")
+   - revenue/ebitda/netProfit: arrays of numbers (null if not reported for a period)
+   - Extract from comparative tables, prior-year comparisons, or multi-year projections
+   - Omit section entirely if fewer than 2 periods found
+
+DO NOT fabricate numbers. Translate to English. Output ONLY the JSON object, no markdown.`;
+
+const NARRATIVES_PROMPT = `You are a financial document analyst. Extract qualitative narratives and sentiment from the document.
+
+Return a JSON object with:
+1. narratives: array of { section, text }
+   - section: "executive_summary", "management_commentary", "business_overview", "segment_performance", "strategic_priorities", or "outlook"
+   - text: 1-3 concise paragraphs per section, translated to English, summarizing key points
+   - Only include sections with meaningful content
+
+2. sentiment: { managementTone, outlook, riskFactors }
+   - managementTone: "very positive", "positive", "neutral", "cautious", or "negative"
+   - outlook: 1-2 sentence summary of forward-looking statements in English
+   - riskFactors: array of concise risk factor strings
+
+Translate to English. DO NOT fabricate. Output ONLY the JSON object, no markdown.`;
+
+// ── Stage detection ─────────────────────────────────────────────────────────
+
 const DEFAULT_CHUNK_THRESHOLD = 60000;
 const DEFAULT_CHUNK_SIZE = 80000;  // ~20k tokens at 4 chars/token, well within GPT-4o 128k context
 const DEFAULT_CHUNK_OVERLAP = 3000;
@@ -238,6 +291,160 @@ async function callExtractWithRetry(
   throw lastError;
 }
 
+// ── Targeted extraction passes ──────────────────────────────────────────────
+
+interface TargetedCallFn {
+  (text: string, openai: OpenAIClient, maxRetries: number, retryBaseDelayMs: number, retryMaxDelayMs: number): Promise<Record<string, unknown>>;
+}
+
+async function callTargetedExtract(
+  text: string,
+  openai: OpenAIClient,
+  systemPrompt: string,
+  stageName: string,
+  maxRetries: number,
+  retryBaseDelayMs: number,
+  retryMaxDelayMs: number,
+): Promise<Record<string, unknown>> {
+  const t0 = Date.now();
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const response = await openai.chat.completions.create({
+        model: getModel(),
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: `Extract from this document:\n\n${text}` },
+        ],
+        response_format: { type: "json_object" },
+        temperature: 0,
+      });
+
+      const content = response.choices[0]?.message?.content;
+      if (!content) throw new Error("GPT-4o returned empty response");
+
+      const result = JSON.parse(content) as Record<string, unknown>;
+      const ms = Date.now() - t0;
+      console.log(`[extractor] Stage ${stageName}: completed in ${ms}ms`);
+      return result;
+    } catch (error) {
+      if (attempt < maxRetries && isRetryableError(error)) {
+        const delay = getRetryDelay(attempt, retryBaseDelayMs, retryMaxDelayMs);
+        const reason = error instanceof Error ? error.message.slice(0, 80) : String(error).slice(0, 80);
+        console.log(`[extractor] Stage ${stageName}: attempt ${attempt + 1}/${maxRetries + 1} failed (${reason}), retrying in ${delay}ms...`);
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        continue;
+      }
+      throw error;
+    }
+  }
+
+  throw new Error(`Stage ${stageName} failed after ${maxRetries + 1} attempts`);
+}
+
+/**
+ * Detect which additional extraction stages should run based on text content.
+ * Stage 1 (metrics) always runs. Stages 2-3 are conditional.
+ */
+export function detectExtractionStages(text: string): {
+  needsTrends: boolean;
+  needsNarratives: boolean;
+} {
+  const lower = text.toLowerCase();
+
+  // Trends: text contains multi-period indicators or segment breakdowns
+  const trendIndicators = [
+    /\b(q[1-4]|fy|h[1-2])\s*(20\d{2}|'?\d{2})\b/i,  // Q1 2024, FY 2023
+    /\b(20\d{2})\s+(20\d{2})\b/,                        // 2023 2024 side by side
+    /by\s+(segment|geography|division|region)/i,
+    /\b(revenue|ebitda|net\s+(profit|income))\s+(by|per)\s+(segment|geography)/i,
+    /\b(segment|geographic)\s+(breakdown|revenue|information)/i,
+    /\bcompar(ative|ison)\s+(period|year|table)/i,
+    /\b(prior|previous)\s+year\b/i,
+    /\byear[\s-]on[\s-]year\b/i,
+    /\bmulti[\s-]year\b/i,
+    /\b(periods?|years?)\s+(20\d{2}[,\s]+)*(20\d{2})\b/i,  // "for the years 2024, 2025, 2026"
+  ];
+  const needsTrends = trendIndicators.some((p) => p.test(lower));
+
+  // Narratives: text is long enough to contain meaningful commentary
+  const needsNarratives = text.length > 5000;
+
+  return { needsTrends, needsNarratives };
+}
+
+/**
+ * Run targeted extraction passes and merge results into the ExtractedData shape.
+ */
+async function targetedExtract(
+  text: string,
+  openai: OpenAIClient,
+  maxRetries: number,
+  retryBaseDelayMs: number,
+  retryMaxDelayMs: number,
+): Promise<ExtractedData> {
+  const stages = detectExtractionStages(text);
+  const stagesToRun: string[] = ["metrics"];
+  if (stages.needsTrends) stagesToRun.push("trends");
+  if (stages.needsNarratives) stagesToRun.push("narratives");
+
+  console.log(`[extractor] Targeted extraction: running stages [${stagesToRun.join(", ")}]`);
+  const t0 = Date.now();
+
+  // Stage 1: Metrics + Metadata (always)
+  const metricsResult = await callTargetedExtract(
+    text, openai, METRICS_PROMPT, "metrics", maxRetries, retryBaseDelayMs, retryMaxDelayMs,
+  );
+
+  const extracted: ExtractedData = {
+    metadata: (metricsResult.metadata as ExtractedData["metadata"]) || { companyName: "", reportPeriod: "", sourceLanguage: "" },
+    metrics: (metricsResult.metrics as ExtractedMetric[]) || [],
+    narratives: [],
+    sentiment: { managementTone: "", outlook: "", riskFactors: [] },
+  };
+
+  // Stage 2: Trends + Breakdowns (conditional)
+  if (stages.needsTrends) {
+    try {
+      const trendsResult = await callTargetedExtract(
+        text, openai, TRENDS_PROMPT, "trends", maxRetries, retryBaseDelayMs, retryMaxDelayMs,
+      );
+      if (trendsResult.revenueBreakdown) {
+        extracted.revenueBreakdown = trendsResult.revenueBreakdown as RevenueBreakdown;
+      }
+      if (trendsResult.profitabilityTrends) {
+        const pt = trendsResult.profitabilityTrends as ProfitabilityTrends;
+        if (pt.periods && pt.periods.length >= 2) {
+          extracted.profitabilityTrends = pt;
+        }
+      }
+    } catch (err) {
+      console.warn(`[extractor] Stage trends failed (non-fatal):`, err instanceof Error ? err.message : err);
+    }
+  }
+
+  // Stage 3: Narratives + Sentiment (conditional)
+  if (stages.needsNarratives) {
+    try {
+      const narrativeResult = await callTargetedExtract(
+        text, openai, NARRATIVES_PROMPT, "narratives", maxRetries, retryBaseDelayMs, retryMaxDelayMs,
+      );
+      if (narrativeResult.narratives) {
+        extracted.narratives = narrativeResult.narratives as ExtractedNarrative[];
+      }
+      if (narrativeResult.sentiment) {
+        extracted.sentiment = narrativeResult.sentiment as ExtractedData["sentiment"];
+      }
+    } catch (err) {
+      console.warn(`[extractor] Stage narratives failed (non-fatal):`, err instanceof Error ? err.message : err);
+    }
+  }
+
+  const totalMs = Date.now() - t0;
+  console.log(`[extractor] Targeted extraction complete: ${stagesToRun.length} stage(s) in ${totalMs}ms`);
+  return extracted;
+}
+
 // ── Result merging ───────────────────────────────────────────────────────────
 
 function mergeExtractions(results: ExtractedData[]): ExtractedData {
@@ -381,11 +588,10 @@ export async function extractFromText(
   const openai = apiClient ?? getClient();
   const config = getChunkConfig();
 
-  // For small documents, use the single-call path unchanged
+  // For small documents, use targeted extraction passes (metrics + optional trends/narratives)
   if (text.length <= config.threshold) {
-    console.log(`[extractor] Single-call extraction (${text.length} chars)`);
-    const response = await callExtractWithRetry(text, openai, config.maxRetries, undefined, config.retryBaseDelayMs, config.retryMaxDelayMs);
-    console.log(`[extractor] GPT-4o response: ${JSON.stringify(response).slice(0, 300)}...`);
+    console.log(`[extractor] Targeted extraction (${text.length} chars)`);
+    const response = await targetedExtract(text, openai, config.maxRetries, config.retryBaseDelayMs, config.retryMaxDelayMs);
     logExtractionResult(response);
     return response;
   }
