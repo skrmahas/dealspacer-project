@@ -59,8 +59,10 @@ BALTIC CONTEXT:
 const DEFAULT_CHUNK_THRESHOLD = 60000;
 const DEFAULT_CHUNK_SIZE = 50000;
 const DEFAULT_CHUNK_OVERLAP = 5000;
-const DEFAULT_MAX_CONCURRENCY = 3;
+const DEFAULT_MAX_CONCURRENCY = 1;
 const DEFAULT_MAX_RETRIES = 3;
+const DEFAULT_RETRY_BASE_DELAY_MS = 1000;
+const DEFAULT_RETRY_MAX_DELAY_MS = 30000;
 
 export type OpenAIClient = Pick<OpenAI, "chat">;
 
@@ -91,6 +93,8 @@ interface ChunkConfig {
   overlap: number;
   maxConcurrency: number;
   maxRetries: number;
+  retryBaseDelayMs: number;
+  retryMaxDelayMs: number;
 }
 
 function getChunkConfig(): ChunkConfig {
@@ -99,11 +103,13 @@ function getChunkConfig(): ChunkConfig {
   const overlap = readPositiveEnv("EXTRACTION_CHUNK_OVERLAP", DEFAULT_CHUNK_OVERLAP);
   const maxConcurrency = readPositiveEnv("EXTRACTION_MAX_CONCURRENCY", DEFAULT_MAX_CONCURRENCY);
   const maxRetries = readNonNegativeEnv("EXTRACTION_MAX_RETRIES", DEFAULT_MAX_RETRIES);
+  const retryBaseDelayMs = readPositiveEnv("RETRY_BASE_DELAY_MS", DEFAULT_RETRY_BASE_DELAY_MS);
+  const retryMaxDelayMs = readPositiveEnv("RETRY_MAX_DELAY_MS", DEFAULT_RETRY_MAX_DELAY_MS);
 
   // Ensure overlap < chunkSize
   const effectiveOverlap = Math.min(overlap, Math.floor(chunkSize * 0.2));
 
-  return { threshold, chunkSize, overlap: effectiveOverlap, maxConcurrency, maxRetries };
+  return { threshold, chunkSize, overlap: effectiveOverlap, maxConcurrency, maxRetries, retryBaseDelayMs, retryMaxDelayMs };
 }
 
 function readPositiveEnv(name: string, fallback: number): number {
@@ -160,9 +166,11 @@ function isRetryableError(error: unknown): boolean {
   return false;
 }
 
-function getRetryDelay(attempt: number): number {
-  // Exponential backoff: 1000ms, 2000ms, 4000ms, ...
-  return Math.min(1000 * Math.pow(2, attempt), 30000);
+function getRetryDelay(attempt: number, baseMs: number, maxMs: number): number {
+  // Exponential backoff with jitter: base * 2^attempt, capped at max, ±25% jitter
+  const base = Math.min(baseMs * Math.pow(2, attempt), maxMs);
+  const jitter = base * 0.25 * (Math.random() * 2 - 1); // ±25%
+  return Math.round(base + jitter);
 }
 
 async function callExtract(text: string, openai: OpenAIClient): Promise<ExtractedData> {
@@ -187,6 +195,8 @@ async function callExtractWithRetry(
   openai: OpenAIClient,
   maxRetries: number,
   chunkLabel?: string,
+  retryBaseDelayMs = DEFAULT_RETRY_BASE_DELAY_MS,
+  retryMaxDelayMs = DEFAULT_RETRY_MAX_DELAY_MS,
 ): Promise<ExtractedData> {
   let lastError: unknown;
 
@@ -201,7 +211,7 @@ async function callExtractWithRetry(
       lastError = error;
 
       if (attempt < maxRetries && isRetryableError(error)) {
-        const delay = getRetryDelay(attempt);
+        const delay = getRetryDelay(attempt, retryBaseDelayMs, retryMaxDelayMs);
         const label = chunkLabel || "extraction";
         const reason = error instanceof Error ? error.message.slice(0, 80) : String(error).slice(0, 80);
         console.log(`[extractor] ${label}: attempt ${attempt + 1}/${maxRetries + 1} failed (${reason}), retrying in ${delay}ms...`);
@@ -361,7 +371,7 @@ export async function extractFromText(
   // For small documents, use the single-call path unchanged
   if (text.length <= config.threshold) {
     console.log(`[extractor] Single-call extraction (${text.length} chars)`);
-    const response = await callExtractWithRetry(text, openai, config.maxRetries);
+    const response = await callExtractWithRetry(text, openai, config.maxRetries, undefined, config.retryBaseDelayMs, config.retryMaxDelayMs);
     console.log(`[extractor] GPT-4o response: ${JSON.stringify(response).slice(0, 300)}...`);
     logExtractionResult(response);
     return response;
@@ -379,7 +389,7 @@ export async function extractFromText(
     const chunk = chunks[index];
     const label = `Chunk ${index + 1}/${chunks.length}`;
     try {
-      const result = await callExtractWithRetry(chunk, openai, config.maxRetries, label);
+      const result = await callExtractWithRetry(chunk, openai, config.maxRetries, label, config.retryBaseDelayMs, config.retryMaxDelayMs);
       results[index] = result;
       completedCount++;
       console.log(
