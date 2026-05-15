@@ -54,6 +54,16 @@ function CollapsibleSection({ title, defaultOpen = true, children }: {
   );
 }
 
+function toneBadgeStyle(tone: string): Record<string, string> {
+  const lower = tone.toLowerCase();
+  if (lower.includes("very positive")) return { background: "#c8e6c9", color: "#1b5e20" };
+  if (lower.includes("positive")) return { background: "#e8f5e9", color: "#2e7d32" };
+  if (lower.includes("neutral")) return { background: "#e3f2fd", color: "#1565c0" };
+  if (lower.includes("cautious")) return { background: "#fff3e0", color: "#e65100" };
+  if (lower.includes("negative")) return { background: "#ffebee", color: "#c62828" };
+  return { background: "#f5f5f5", color: "#666" };
+}
+
 export function ReportSummary({ extractedJson }: { extractedJson: string }) {
   let data: ExtractedPayload;
   try {
@@ -115,8 +125,22 @@ export function ReportSummary({ extractedJson }: { extractedJson: string }) {
       </CollapsibleSection>
 
       <CollapsibleSection title="Sentiment">
-        <p style={{ margin: "0 0 8px", fontSize: 14, color: "var(--color-text)" }}>
-          <strong>Management Tone:</strong> {sentiment.managementTone || "Not available"}
+        <p style={{ margin: "0 0 8px", fontSize: 14, color: "var(--color-text)", display: "flex", alignItems: "center", gap: 8 }}>
+          <strong>Management Tone:</strong>
+          {sentiment.managementTone ? (
+            <span style={{
+              display: "inline-block",
+              padding: "2px 10px",
+              borderRadius: 12,
+              fontSize: 13,
+              fontWeight: 700,
+              ...toneBadgeStyle(sentiment.managementTone),
+            }}>
+              {sentiment.managementTone}
+            </span>
+          ) : (
+            <span style={{ color: "var(--color-text-muted)" }}>Not available</span>
+          )}
         </p>
         <p style={{ margin: "0 0 8px", fontSize: 14, color: sentiment.outlook ? "var(--color-text)" : "var(--color-text-muted)" }}>
           <strong>Outlook:</strong> {sentiment.outlook || "No outlook extracted."}

@@ -429,6 +429,11 @@ export function buildHtml(data: ExtractedData, charts: ChartImages): string {
       border-bottom: 2px solid #2b79db;
       padding-bottom: 6pt;
       margin-bottom: 12pt;
+      page-break-before: always;
+    }
+    /* First h2 should not push a page break before itself */
+    section:first-of-type h2 {
+      page-break-before: auto;
     }
     p {
       margin-bottom: 8pt;
