@@ -14,6 +14,7 @@ type JobInfo = {
   extractedText?: string;
   extractedJson?: string;
   error?: string;
+  createdAt?: string;
 };
 
 const ACCEPTED_EXTENSIONS = [".pdf", ".csv", ".html", ".htm", ".xhtml"];

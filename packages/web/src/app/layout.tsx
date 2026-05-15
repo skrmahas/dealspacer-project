@@ -11,7 +11,7 @@ export default function RootLayout({
       <body style={{ margin: 0, fontFamily: "system-ui, sans-serif" }}>
         {children}
       </body>
-      <style jsx global>{`
+      <style>{`
         :root {
           --color-bg: #ffffff;
           --color-bg-tint: #ffffffd9;
