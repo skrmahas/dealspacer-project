@@ -58,8 +58,14 @@ function AccessForm() {
 
   return (
     <section style={{ width: "100%", maxWidth: 440, background: "#ffffff", border: "1px solid #d8e2ec", borderRadius: 16, padding: 24 }}>
-      <h1 style={{ margin: 0, fontSize: 28, color: "#0f2e52" }}>Access Required</h1>
-      <p style={{ margin: "10px 0 16px", color: "#556579", fontSize: 15 }}>
+      <div style={{ textAlign: "center", marginBottom: 20 }}>
+        <h1 style={{ margin: 0, fontSize: 22, color: "#0f2e52" }}>Baltic Earnings Intelligence</h1>
+        <p style={{ margin: "8px 0 0", color: "#556579", fontSize: 14 }}>
+          Automated financial analysis for Baltic company reports
+        </p>
+        <div style={{ margin: "14px auto 0", width: 40, height: 3, borderRadius: 2, background: "#0b7ea4" }} />
+      </div>
+      <p style={{ margin: "0 0 16px", color: "#556579", fontSize: 15 }}>
         Enter the report access code to continue.
       </p>
       <input
