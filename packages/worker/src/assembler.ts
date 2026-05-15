@@ -149,7 +149,7 @@ const LABELS: Record<OutputLanguage, {
   },
 };
 
-function buildHtml(data: ExtractedData, charts: ChartImages): string {
+export function buildHtml(data: ExtractedData, charts: ChartImages): string {
   const labels = LABELS[data.metadata.outputLanguage ?? "en"];
   const companyName = data.metadata.companyName || "Company Report";
   const reportPeriod = data.metadata.reportPeriod || "";

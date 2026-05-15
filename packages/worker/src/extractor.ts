@@ -59,6 +59,10 @@ export type OpenAIClient = Pick<OpenAI, "chat">;
 
 let client: OpenAIClient | null = null;
 
+function getModel(): string {
+  return (process.env.OPENAI_MODEL?.trim() || "gpt-4o");
+}
+
 function getClient(): OpenAIClient {
   if (!client) {
     const apiKey = process.env.OPENAI_API_KEY;
@@ -156,7 +160,7 @@ function getRetryDelay(attempt: number): number {
 
 async function callExtract(text: string, openai: OpenAIClient): Promise<ExtractedData> {
   const response = await openai.chat.completions.create({
-    model: "gpt-4o",
+    model: getModel(),
     messages: [
       { role: "system", content: SYSTEM_PROMPT },
       { role: "user", content: `Extract financial data from this document:\n\n${text}` },

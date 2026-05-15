@@ -489,3 +489,20 @@ describe("extractFromText — retry behavior", () => {
     }
   });
 });
+
+describe("extractFromText — model configuration", () => {
+  it("uses OPENAI_MODEL env var when set", async () => {
+    process.env.OPENAI_MODEL = "gpt-4o-mini";
+    try {
+      const client = mockClient(validExtraction);
+      setClient(client);
+
+      await extractFromText("test");
+
+      const createFn = client.chat.completions.create as ReturnType<typeof vi.fn>;
+      expect(createFn.mock.calls[0][0].model).toBe("gpt-4o-mini");
+    } finally {
+      delete process.env.OPENAI_MODEL;
+    }
+  });
+});
