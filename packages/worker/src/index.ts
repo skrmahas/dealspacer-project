@@ -12,6 +12,7 @@ import { translateExtractedData } from "./translator.js";
 import { assemblePdf, warmBrowser, checkBrowserHealth, closeBrowser } from "./assembler.js";
 import { startHealthServer } from "./health-server.js";
 import { processJob } from "./orchestrator.js";
+import { onJobComplete } from "./completion-hook.js";
 import { startWorker } from "./worker.js";
 import { createPostgresStore, createAutoFileStore, createPostgresFileStore, runMigrations, getPool } from "@bei/shared";
 
@@ -146,7 +147,18 @@ const stopWorker = startWorker({
   store,
   processJob: async (job, store) => {
     try {
-      await processJob(job, store, readFile, parseDocument, extractFromText, translateExtractedData, assemblePdf, saveReport, saveBrief);
+      await processJob(
+        job,
+        store,
+        readFile,
+        parseDocument,
+        extractFromText,
+        translateExtractedData,
+        assemblePdf,
+        saveReport,
+        saveBrief,
+        async (completedJob, translated) => onJobComplete(completedJob, translated, store),
+      );
     } finally {
       jobsProcessed++;
       logMemoryUsage();
