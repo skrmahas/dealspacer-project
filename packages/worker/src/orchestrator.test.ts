@@ -62,7 +62,7 @@ describe("processJob", () => {
   it("transitions pending → parsing → extracting → translating → assembling → complete on success", async () => {
     const job = await store.createJob({ originalFilename: "report.pdf", outputLanguage: "lt" });
     const readFile = vi.fn().mockResolvedValue(Buffer.from("fake pdf"));
-    const parseDocument = vi.fn().mockResolvedValue("Extracted financial data");
+    const parseDocument = vi.fn().mockResolvedValue("Annual report extracted financial data showing revenue ebitda profit margins growth performance summary business overview segment results");
     const extractFromText = vi.fn().mockResolvedValue(mockExtraction());
     const translated = { ...mockExtraction(), metadata: { ...mockExtraction().metadata, outputLanguage: "lt" as const } };
     const translateExtractedData = vi.fn().mockResolvedValue(translated);
@@ -81,14 +81,14 @@ describe("processJob", () => {
     expect(states).toEqual(["parsing", "extracting", "translating", "assembling", "complete"]);
     expect(readFile).toHaveBeenCalledWith(job.id);
     expect(parseDocument).toHaveBeenCalledWith(Buffer.from("fake pdf"), "report.pdf");
-    expect(extractFromText).toHaveBeenCalledWith("Extracted financial data");
+    expect(extractFromText).toHaveBeenCalledWith("Annual report extracted financial data showing revenue ebitda profit margins growth performance summary business overview segment results");
     expect(translateExtractedData).toHaveBeenCalledWith(mockExtraction(), "lt", store);
     expect(assemblePdf).toHaveBeenCalledWith(translated);
     expect(saveReport).toHaveBeenCalledWith(job.id, Buffer.from("fake pdf"));
 
     const updated = await store.getJob(job.id);
     expect(updated!.state).toBe("complete");
-    expect(updated!.extractedText).toBe("Extracted financial data");
+    expect(updated!.extractedText).toBe("Annual report extracted financial data showing revenue ebitda profit margins growth performance summary business overview segment results");
     expect(updated!.extractedJson).toBe(JSON.stringify(translated));
   });
 
@@ -123,7 +123,7 @@ describe("processJob", () => {
   it("transitions pending → parsing → extracting → failed on extraction error", async () => {
     const job = await store.createJob({ originalFilename: "report.pdf" });
     const readFile = vi.fn().mockResolvedValue(Buffer.from("fake pdf"));
-    const parseDocument = vi.fn().mockResolvedValue("Some text");
+    const parseDocument = vi.fn().mockResolvedValue("Annual report summary financial data revenue ebitda profit margins growth performance business overview segment results");
     const extractFromText = vi.fn().mockRejectedValue(new Error("GPT-4o rate limit"));
     const translateExtractedData = vi.fn();
     const assemblePdf = vi.fn();
@@ -150,7 +150,7 @@ describe("processJob", () => {
   it("transitions pending → parsing → extracting → translating → assembling → failed on assembly error", async () => {
     const job = await store.createJob({ originalFilename: "report.pdf" });
     const readFile = vi.fn().mockResolvedValue(Buffer.from("fake pdf"));
-    const parseDocument = vi.fn().mockResolvedValue("Some text");
+    const parseDocument = vi.fn().mockResolvedValue("Annual report summary financial data revenue ebitda profit margins growth performance business overview segment results");
     const extractFromText = vi.fn().mockResolvedValue(mockExtraction());
     const translateExtractedData = vi.fn().mockResolvedValue(mockExtraction());
     const assemblePdf = vi.fn().mockRejectedValue(new Error("PDF rendering failed"));
@@ -176,7 +176,10 @@ describe("processJob", () => {
   it("fails with 'No financial data found' when extraction returns empty", async () => {
     const job = await store.createJob({ originalFilename: "not-financial.pdf" });
     const readFile = vi.fn().mockResolvedValue(Buffer.from("fake pdf"));
-    const parseDocument = vi.fn().mockResolvedValue("Some random text");
+    // Must have 10+ unique 4-letter words to pass the classifier quality gate
+    const parseDocument = vi.fn().mockResolvedValue(
+      "annual report overview management summary company performance financial statements revenue ebitda profit presentation document business",
+    );
     const extractFromText = vi.fn().mockResolvedValue({
       metadata: { companyName: "", reportPeriod: "", sourceLanguage: "" },
       metrics: [],
