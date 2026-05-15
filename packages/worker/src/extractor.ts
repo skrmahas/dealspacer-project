@@ -375,6 +375,7 @@ function mergeExtractions(results: ExtractedData[]): ExtractedData {
 export async function extractFromText(
   text: string,
   apiClient?: OpenAIClient,
+  partialResults?: ExtractedData[],
 ): Promise<ExtractedData> {
   const openai = apiClient ?? getClient();
   const config = getChunkConfig();
@@ -393,10 +394,20 @@ export async function extractFromText(
   console.log(`[extractor] Chunked extraction: ${chunks.length} chunks (${text.length} chars total)`);
 
   // Process chunks in parallel with concurrency limit
-  const results: ExtractedData[] = new Array(chunks.length);
-  let completedCount = 0;
+  // Use partial results for already-completed chunks (resume after failure)
+  const results: ExtractedData[] = partialResults && partialResults.length === chunks.length
+    ? [...partialResults]
+    : new Array(chunks.length);
+  let completedCount = results.filter((r) => r != null).length;
+
+  if (completedCount > 0) {
+    console.log(`[extractor] Resuming from ${completedCount}/${chunks.length} previously completed chunks`);
+  }
 
   async function processChunk(index: number): Promise<void> {
+    // Skip already-completed chunks (from partial resume)
+    if (results[index] != null) return;
+
     const chunk = chunks[index];
     const label = `Chunk ${index + 1}/${chunks.length}`;
     try {
