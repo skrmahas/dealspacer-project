@@ -60,9 +60,6 @@ try {
 
 console.log("[worker] Health check passed");
 
-// ── Pre-warm browser ──────────────────────────────────────────────────
-await warmBrowser();
-
 const store = createPostgresStore();
 const { readFile, saveReport } = createAutoFileStore();
 const DEFAULT_POLL_INTERVAL_MS = 2000;
@@ -164,6 +161,12 @@ console.log("Worker started. Polling for pending jobs...");
 // Start health check HTTP server
 const healthPort = parseInt(process.env.WORKER_HEALTH_PORT || String(DEFAULT_HEALTH_PORT), 10) || DEFAULT_HEALTH_PORT;
 const stopHealthServer = startHealthServer(healthPort, { startTime, get jobsProcessed() { return jobsProcessed; } });
+
+// Warm the PDF browser after polling starts. Browser startup can be slow or
+// flaky on hosted runtimes; it must not prevent pending jobs from being claimed.
+void warmBrowser().catch((error) => {
+  console.warn("[worker] Browser warm-up failed; will retry during PDF assembly:", error instanceof Error ? error.message : error);
+});
 
 // Periodic heartbeat for external monitoring
 const heartbeatMs = readPositiveMsEnv("WORKER_HEARTBEAT_MS", DEFAULT_HEARTBEAT_MS);

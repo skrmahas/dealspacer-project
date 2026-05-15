@@ -11,7 +11,7 @@ vi.mock("@bei/shared", () => ({
   closePool: vi.fn(),
 }));
 
-import { GET } from "./[id]/route";
+import { GET } from "./route";
 
 function makeJob(overrides: Record<string, unknown> = {}) {
   return {
