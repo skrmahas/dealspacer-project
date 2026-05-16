@@ -205,7 +205,7 @@ export function PanelFrame({
     <section className="relative border border-[#2a3544] bg-[#0c1018]/90">
       <span className="pointer-events-none absolute -left-px -top-px block size-2 border-l border-t border-[#2b79db]" aria-hidden />
       <span className="pointer-events-none absolute -right-px -top-px block size-2 border-r border-t border-[#2b79db]" aria-hidden />
-      <header className="flex items-center justify-between border-b border-[#1e2733] px-5 py-3.5">
+      <header className="flex flex-wrap items-center justify-between gap-2 border-b border-[#1e2733] px-4 py-3 sm:px-5 sm:py-3.5">
         <div className="flex items-center gap-2">
           <span className="grid size-7 place-items-center border border-[#2a3544] bg-[#080b10] text-[#2b79db]">
             <Icon className="size-3.5" />
@@ -220,7 +220,7 @@ export function PanelFrame({
           </div>
         </div>
       </header>
-      <div className={cn("p-5", contentClassName)}>{children}</div>
+      <div className={cn("p-4 sm:p-5", contentClassName)}>{children}</div>
     </section>
   );
 }

@@ -16,7 +16,7 @@ import {
 import type { ExtractedData, Report } from "@bei/shared";
 import { TrendLineChart } from "@/components/charts/trend-line-chart";
 import { BreakdownBarChart } from "@/components/charts/breakdown-bar-chart";
-import { DealSpacerLogoLink } from "@/components/deal-spacer-logo";
+import { AppSiteHeader } from "@/components/app-site-header";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
@@ -286,24 +286,15 @@ export default function ComparePage({ initialReportA, initialReportB }: CompareC
 
   return (
     <BeiShell>
-      <header className="sticky top-0 z-30 border-b border-[#2b79db]/12 bg-[#080b10]/90 px-4 py-3 backdrop-blur-md sm:px-6">
-        <div className="mx-auto flex w-full max-w-6xl items-center gap-3">
-          <DealSpacerLogoLink className="shrink-0 text-[#6b7d92] hover:text-[#f4f6f9]" />
-          <span className="font-[family-name:var(--font-mono)] text-[10px] text-[#3d4d62]">/</span>
-          <Link
-            href="/companies"
-            className="inline-flex items-center gap-1.5 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.12em] text-[#5a8f8f] transition hover:text-[#2b79db]"
-          >
-            <ArrowLeft className="size-3" aria-hidden />
-            Catalog
-          </Link>
-          <span className="hidden font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.14em] text-[#3d4d62] sm:inline">
-            / Compare
-          </span>
-        </div>
-      </header>
+      <AppSiteHeader
+        maxWidthClass="max-w-6xl"
+        breadcrumbs={[
+          { label: "Catalog", href: "/companies" },
+          { label: "Compare" },
+        ]}
+      />
 
-      <main className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:py-12">
+      <main className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-8 lg:py-12">
         <motion.div
           initial={{ opacity: 0, y: 14 }}
           animate={{ opacity: 1, y: 0 }}
@@ -412,7 +403,7 @@ export default function ComparePage({ initialReportA, initialReportB }: CompareC
           )}
 
           <DashboardSection title="Metrics" eyebrow="Shared extracted figures">
-            <div className="overflow-x-auto">
+            <div className="-mx-1 overflow-x-auto overscroll-x-contain">
               <table className="w-full min-w-[640px] border-collapse text-left">
                 <thead>
                   <tr className="border-b border-[#1e2733] font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.14em] text-[#6b7d92]">
