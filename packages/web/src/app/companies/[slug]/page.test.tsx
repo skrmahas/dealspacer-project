@@ -121,7 +121,7 @@ describe("CompanyAnalyticsDashboardPage", () => {
     expect(screen.getAllByText("Net Profit").length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText("Free Cash Flow").length).toBeGreaterThanOrEqual(1);
 
-    expect(screen.getAllByText(/FY 2024/)[0]).toBeInTheDocument();
+    expect(screen.getAllByText(/FY\s*2024/i)[0]).toBeInTheDocument();
     expect(screen.getAllByText("€500M").length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText("€120M").length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText("€80M").length).toBeGreaterThanOrEqual(1);
@@ -137,16 +137,19 @@ describe("CompanyAnalyticsDashboardPage", () => {
     expect(screen.getByText("Performance trends")).toBeInTheDocument();
   });
 
-  it("renders the donut chart only when revenue breakdown data exists", async () => {
+  it("renders the breakdown bar chart only when revenue breakdown data exists", async () => {
     mockSuccessfulLoad();
     render(<CompanyAnalyticsDashboardPage />);
-    await waitFor(() => expect(screen.getByTestId("donut-chart")).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByTestId("breakdown-bar-chart")).toBeInTheDocument(),
+    );
     expect(screen.getByText("Revenue breakdown")).toBeInTheDocument();
-    expect(screen.getByText("Ferry")).toBeInTheDocument();
+    // "Ferry" appears both in the bar row and in the "Top stream" header cell
+    expect(screen.getAllByText("Ferry").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("Hotel")).toBeInTheDocument();
   });
 
-  it("hides the donut when no revenue breakdown is present in latest report", async () => {
+  it("hides the breakdown bar chart when no revenue breakdown is present in latest report", async () => {
     const stripped = MOCK_REPORTS.map((r) => ({
       ...r,
       extractedJsonSnapshot: {

@@ -16,10 +16,22 @@ import {
   Wallet,
 } from "lucide-react";
 import { TrendLineChart, type TrendSeries } from "@/components/charts/trend-line-chart";
-import { DonutChart, type DonutSegment } from "@/components/charts/donut-chart";
+import {
+  BreakdownBarChart,
+  type BreakdownSegment,
+} from "@/components/charts/breakdown-bar-chart";
 import { DealSpacerLogoLink } from "@/components/deal-spacer-logo";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import {
+  buildTrendChartFromSnapshot,
+  formatReportPeriodLabel,
+  hasProfitabilityTrendSeries,
+  pickHeadlineReports,
+  pickTrendReports,
+  resolvePriorPreviewMetric,
+  type PreviewMetricKey,
+} from "@bei/shared";
 
 interface Company {
   id: string;
@@ -122,12 +134,37 @@ function yoyDelta(curr: number | null | undefined, prev: number | null | undefin
   return ((curr - prev) / Math.abs(prev)) * 100;
 }
 
-function getMetric(report: Report | undefined, key: "revenue" | "ebitda" | "netProfit" | "fcf"): number | null | undefined {
+const PREVIEW_FIELD: Record<
+  PreviewMetricKey,
+  keyof Pick<Report, "previewRevenue" | "previewEbitda" | "previewNetProfit" | "previewFcf">
+> = {
+  revenue: "previewRevenue",
+  ebitda: "previewEbitda",
+  netProfit: "previewNetProfit",
+  fcf: "previewFcf",
+};
+
+function getMetric(
+  report: Report | undefined,
+  key: PreviewMetricKey,
+  opts?: { prior?: boolean },
+): number | null | undefined {
   if (!report) return null;
-  if (key === "revenue") return report.previewRevenue;
-  if (key === "ebitda") return report.previewEbitda;
-  if (key === "netProfit") return report.previewNetProfit;
-  return report.previewFcf;
+  if (opts?.prior) {
+    return resolvePriorPreviewMetric(report.extractedJsonSnapshot ?? null, key);
+  }
+  return report[PREVIEW_FIELD[key]] ?? null;
+}
+
+function getComparablePrior(
+  latest: Report | undefined,
+  previous: Report | undefined,
+  key: PreviewMetricKey,
+): number | null | undefined {
+  const fromPriorReport = getMetric(previous, key);
+  if (fromPriorReport != null) return fromPriorReport;
+  if (latest && !previous) return getMetric(latest, key, { prior: true });
+  return null;
 }
 
 function BeiShell({ children }: { children: React.ReactNode }) {
@@ -216,12 +253,9 @@ export default function CompanyAnalyticsDashboardPage() {
     };
   }, [slug]);
 
-  const sortedByYear = useMemo(
-    () => [...reports].sort((a, b) => a.fiscalYear - b.fiscalYear),
-    [reports],
-  );
-  const latest = sortedByYear[sortedByYear.length - 1];
-  const previous = sortedByYear[sortedByYear.length - 2];
+  const trendReports = useMemo(() => pickTrendReports(reports), [reports]);
+  const { latest, previous } = useMemo(() => pickHeadlineReports(reports), [reports]);
+  const periodLabel = latest ? formatReportPeriodLabel(latest) : null;
 
   const kpiCards = useMemo(
     () => [
@@ -229,28 +263,28 @@ export default function CompanyAnalyticsDashboardPage() {
         key: "revenue" as const,
         label: "Revenue",
         value: getMetric(latest, "revenue"),
-        prev: getMetric(previous, "revenue"),
+        prev: getComparablePrior(latest, previous, "revenue"),
         accent: METRIC_COLORS.revenue,
       },
       {
         key: "ebitda" as const,
         label: "EBITDA",
         value: getMetric(latest, "ebitda"),
-        prev: getMetric(previous, "ebitda"),
+        prev: getComparablePrior(latest, previous, "ebitda"),
         accent: METRIC_COLORS.ebitda,
       },
       {
         key: "netProfit" as const,
         label: "Net Profit",
         value: getMetric(latest, "netProfit"),
-        prev: getMetric(previous, "netProfit"),
+        prev: getComparablePrior(latest, previous, "netProfit"),
         accent: METRIC_COLORS.netProfit,
       },
       {
         key: "fcf" as const,
         label: "Free Cash Flow",
         value: getMetric(latest, "fcf"),
-        prev: getMetric(previous, "fcf"),
+        prev: getComparablePrior(latest, previous, "fcf"),
         accent: METRIC_COLORS.fcf,
       },
     ],
@@ -258,37 +292,72 @@ export default function CompanyAnalyticsDashboardPage() {
   );
 
   const trendData = useMemo(() => {
-    const labels = sortedByYear.map((r) => String(r.fiscalYear));
+    const embedded =
+      trendReports.length <= 1 && latest && hasProfitabilityTrendSeries(latest.extractedJsonSnapshot ?? null)
+        ? buildTrendChartFromSnapshot(latest.extractedJsonSnapshot ?? null)
+        : null;
+
+    if (embedded) {
+      const series: TrendSeries[] = [
+        {
+          key: "revenue",
+          label: "Revenue",
+          color: METRIC_COLORS.revenue,
+          values: embedded.revenue,
+        },
+        {
+          key: "ebitda",
+          label: "EBITDA",
+          color: METRIC_COLORS.ebitda,
+          values: embedded.ebitda,
+        },
+        {
+          key: "netProfit",
+          label: "Net Profit",
+          color: METRIC_COLORS.netProfit,
+          values: embedded.netProfit,
+        },
+        {
+          key: "fcf",
+          label: "Free Cash Flow",
+          color: METRIC_COLORS.fcf,
+          values: embedded.fcf,
+        },
+      ];
+      return { labels: embedded.labels, series };
+    }
+
+    const labels = trendReports.map((r) => formatReportPeriodLabel(r));
     const series: TrendSeries[] = [
       {
         key: "revenue",
         label: "Revenue",
         color: METRIC_COLORS.revenue,
-        values: sortedByYear.map((r) => r.previewRevenue ?? null),
+        values: trendReports.map((r) => r.previewRevenue ?? null),
       },
       {
         key: "ebitda",
         label: "EBITDA",
         color: METRIC_COLORS.ebitda,
-        values: sortedByYear.map((r) => r.previewEbitda ?? null),
+        values: trendReports.map((r) => r.previewEbitda ?? null),
       },
       {
         key: "netProfit",
         label: "Net Profit",
         color: METRIC_COLORS.netProfit,
-        values: sortedByYear.map((r) => r.previewNetProfit ?? null),
+        values: trendReports.map((r) => r.previewNetProfit ?? null),
       },
       {
         key: "fcf",
         label: "Free Cash Flow",
         color: METRIC_COLORS.fcf,
-        values: sortedByYear.map((r) => r.previewFcf ?? null),
+        values: trendReports.map((r) => r.previewFcf ?? null),
       },
     ];
     return { labels, series };
-  }, [sortedByYear]);
+  }, [trendReports, latest]);
 
-  const donutSegments: DonutSegment[] = useMemo(() => {
+  const breakdownSegments: BreakdownSegment[] = useMemo(() => {
     const breakdown = latest?.extractedJsonSnapshot?.revenueBreakdown;
     const source = breakdown?.bySegment ?? breakdown?.byGeography ?? [];
     return source
@@ -399,7 +468,7 @@ export default function CompanyAnalyticsDashboardPage() {
             transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
             className="flex flex-col gap-6"
           >
-            <KpiCardsRow cards={kpiCards} year={latest?.fiscalYear ?? null} />
+            <KpiCardsRow cards={kpiCards} periodLabel={periodLabel} />
 
             <DashboardSection title="Performance trends" eyebrow="Historical series">
               {trendData.labels.length >= 1 ? (
@@ -413,13 +482,17 @@ export default function CompanyAnalyticsDashboardPage() {
               )}
             </DashboardSection>
 
-            {donutSegments.length > 0 && (
+            {breakdownSegments.length > 0 && (
               <DashboardSection title="Revenue breakdown" eyebrow="Latest filing">
-                <DonutChart segments={donutSegments} title="Revenue breakdown" surface="beiDark" />
+                <BreakdownBarChart
+                  segments={breakdownSegments}
+                  title="Revenue breakdown"
+                  surface="beiDark"
+                />
               </DashboardSection>
             )}
 
-            <SentimentTimeline reports={[...sortedByYear].reverse()} />
+            <SentimentTimeline reports={[...trendReports].reverse()} />
 
             <ReportsTable
               reports={reports}
@@ -494,7 +567,7 @@ function CompanyHeader({ company, reportCount }: { company: Company; reportCount
 
 function KpiCardsRow({
   cards,
-  year,
+  periodLabel,
 }: {
   cards: {
     key: string;
@@ -503,7 +576,7 @@ function KpiCardsRow({
     prev: number | null | undefined;
     accent: string;
   }[];
-  year: number | null;
+  periodLabel: string | null;
 }) {
   return (
     <div className="grid gap-px border border-[#2a3544] bg-[#2a3544] sm:grid-cols-2 lg:grid-cols-4">
@@ -535,7 +608,7 @@ function KpiCardsRow({
                   {fmtPct(delta)}
                 </span>
               )}
-              {year != null && <span className="text-[#5a8f8f]">FY {year}</span>}
+              {periodLabel != null && <span className="text-[#5a8f8f]">{periodLabel}</span>}
             </div>
           </div>
         );

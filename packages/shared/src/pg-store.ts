@@ -1,7 +1,23 @@
 import { withClient } from "./db";
-import type { Job, CreateJobInput, UpdateJobInput, JobStore, TranslationCacheEntry, FileStore, Company, CreateCompanyInput, CompanyStore, SeedCompany, Report, CreateReportInput, ReportWithPreview, ReportStore, ExtractedData } from "./index";
+import type {
+  Job,
+  CreateJobInput,
+  UpdateJobInput,
+  JobStore,
+  TranslationCacheEntry,
+  Company,
+  CreateCompanyInput,
+  CompanyStore,
+  Report,
+  CreateReportInput,
+  ReportWithPreview,
+  ReportStore,
+  ExtractedData,
+} from "./contracts";
+import type { FileStore } from "./file-store";
 import { createAutoFileStore } from "./file-store";
 import { BALTIC_COMPANIES } from "./seed-companies";
+import { buildReportPreview } from "./preview-metrics";
 
 // Must be defined here (not in index.ts) to avoid circular import
 // since index.ts re-exports from pg-store
@@ -347,23 +363,13 @@ function rowToReport(row: Record<string, unknown>): Report {
 function rowToReportWithPreview(row: Record<string, unknown>): ReportWithPreview {
   const base = rowToReport(row);
   const snapshot = base.extractedJsonSnapshot;
+  const preview = buildReportPreview(snapshot);
   return {
     ...base,
     companyName: (row.company_name as string | null) ?? null,
-    previewRevenue: findMetricValue(snapshot, "revenue"),
-    previewEbitda: findMetricValue(snapshot, "ebitda"),
-    previewNetProfit: findMetricValue(snapshot, "net profit"),
-    previewFcf: findMetricValue(snapshot, "free cash flow") ?? findMetricValue(snapshot, "fcf"),
+    ...preview,
     previewGuidanceSentiment: snapshot?.sentiment?.guidanceDirection ?? null,
   };
-}
-
-function findMetricValue(snapshot: ExtractedData | null, search: string): number | null {
-  if (!snapshot?.metrics) return null;
-  const m = snapshot.metrics.find(
-    (m) => m.label.toLowerCase().includes(search) && m.value !== null,
-  );
-  return m?.value ?? null;
 }
 
 function parseJsonSnapshot(raw: unknown): ExtractedData | null {

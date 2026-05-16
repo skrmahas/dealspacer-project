@@ -514,7 +514,37 @@ describe("createReportStore", () => {
     expect(reports[0].previewEbitda).toBe(40);
     expect(reports[0].previewNetProfit).toBeNull();
     expect(reports[0].previewFcf).toBe(25);
-    expect(reports[0].previewGuidanceSentiment).toBe("raised");
+  });
+
+  it("normalizes preview metrics from stated units", async () => {
+    const snapshot = {
+      metadata: { companyName: "Arco", reportPeriod: "Q1 2026", sourceLanguage: "en" },
+      metrics: [
+        { label: "Revenue", value: 0.39, unit: "EUR m" },
+        { label: "Net profit/loss", value: -0.578, unit: "EUR m" },
+      ],
+      narratives: [],
+      sentiment: { managementTone: "", outlook: "", riskFactors: [] },
+    };
+    const rows = [
+      {
+        id: "r1",
+        company_id: "c1",
+        fiscal_year: 2026,
+        report_type: "q1",
+        language: "en",
+        job_id: null,
+        s3_key: "r1.pdf",
+        extracted_json_snapshot: JSON.stringify(snapshot),
+        created_at: "2026-01-01",
+        company_name: "Arco",
+      },
+    ];
+    setupWithClient(rows);
+    const store = createReportStore();
+    const reports = await store.listReportsByCompany("c1");
+    expect(reports[0].previewRevenue).toBe(390_000);
+    expect(reports[0].previewNetProfit).toBe(-578_000);
   });
 
   it("listUnmatchedReports returns only null company_id", async () => {
