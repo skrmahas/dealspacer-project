@@ -15,7 +15,7 @@ import {
   Share2,
   XCircle,
 } from "lucide-react";
-import { DealSpacerLogoLink } from "@/components/deal-spacer-logo";
+import { AppSiteHeader } from "@/components/app-site-header";
 import {
   BreakdownPanel,
   EmptyNarratives,
@@ -187,13 +187,18 @@ export default function ReportViewPage() {
 
   return (
     <PageShell>
-      <SiteHeader companyName={companyName} />
+      <AppSiteHeader
+        breadcrumbs={[
+          { label: "Catalog", href: "/companies" },
+          { label: companyName },
+        ]}
+      />
 
       <motion.main
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-        className="mx-auto w-full max-w-[1240px] px-5 pb-24 pt-8 sm:px-6 lg:px-10 lg:pt-12"
+        className="mx-auto w-full max-w-[1240px] px-4 pb-20 pt-6 sm:px-6 sm:pb-24 sm:pt-8 lg:px-10 lg:pt-12"
       >
         <ReportHero
           companyName={companyName}
@@ -270,41 +275,6 @@ function PageShell({ children }: { children: React.ReactNode }) {
   );
 }
 
-function SiteHeader({ companyName }: { companyName: string }) {
-  return (
-    <header className="sticky top-0 z-40 border-b border-[#2b79db]/12 bg-[#080b10]/85 backdrop-blur-md">
-      <div className="mx-auto flex w-full max-w-[1240px] items-center justify-between gap-4 px-5 py-4 sm:px-6 lg:px-10">
-        <div className="flex min-w-0 items-center gap-3">
-          <DealSpacerLogoLink className="shrink-0 text-[#8b9aad] hover:text-[#f4f6f9]" />
-          <span className="font-[family-name:var(--font-mono)] text-[10px] text-[#3d4d62]">
-            /
-          </span>
-          <Link
-            href="/companies"
-            className="shrink-0 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.16em] text-[#5a8f8f] transition hover:text-[#2b79db]"
-          >
-            Catalog
-          </Link>
-          <span className="font-[family-name:var(--font-mono)] text-[10px] text-[#3d4d62]">
-            /
-          </span>
-          <span className="truncate font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.14em] text-[#8b9aad]">
-            {companyName}
-          </span>
-        </div>
-        <nav className="hidden items-center gap-1 font-[family-name:var(--font-mono)] text-[11px] uppercase tracking-[0.14em] sm:flex">
-          <Link
-            href="/upload"
-            className="inline-flex items-center gap-1.5 border border-[#2b79db]/40 bg-[#2b79db]/10 px-3 py-2 text-[#b8d4f5] transition hover:bg-[#2b79db]/18"
-          >
-            Upload
-            <ArrowUpRight className="size-3" />
-          </Link>
-        </nav>
-      </div>
-    </header>
-  );
-}
 
 // ─────────────────────────────────────────────────────────────────────────
 // Hero
@@ -345,7 +315,7 @@ function ReportHero({
       </Link>
 
       <div className="mt-6 grid gap-8 md:grid-cols-[1fr_auto] md:items-end">
-        <div className="border-l-[3px] border-[#2b79db] pl-6">
+        <div className="border-l-[3px] border-[#2b79db] pl-4 sm:pl-6">
           <p className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.24em] text-[#5a8f8f]">
             Filing brief · {fiscalYear} {typeLabel}
           </p>
@@ -374,10 +344,10 @@ function ReportHero({
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-2.5">
+        <div className="flex flex-col gap-2.5 sm:flex-row sm:flex-wrap">
           <a
             href={`/api/reports/${reportId}/download`}
-            className="inline-flex h-11 items-center gap-2 border border-[#2b79db] bg-[#2b79db] px-5 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.14em] text-white transition hover:bg-[#3d8de8]"
+            className="inline-flex h-11 w-full items-center justify-center gap-2 border border-[#2b79db] bg-[#2b79db] px-5 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.14em] text-white transition hover:bg-[#3d8de8] sm:w-auto"
           >
             <Download className="size-3.5" />
             Download PDF
@@ -385,7 +355,7 @@ function ReportHero({
           <button
             onClick={onCopy}
             className={cn(
-              "inline-flex h-11 items-center gap-2 border px-5 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.14em] transition",
+              "inline-flex h-11 w-full items-center justify-center gap-2 border px-5 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.14em] transition sm:w-auto",
               copied
                 ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-200"
                 : "border-[#3d4d62] bg-transparent text-[#c5d0de] hover:border-[#5a8f8f]/60 hover:bg-[#5a8f8f]/8",
@@ -407,7 +377,7 @@ function ReportHero({
           {companySlug && (
             <Link
               href={`/companies/${companySlug}`}
-              className="inline-flex h-11 items-center gap-2 border border-[#3d4d62] bg-transparent px-5 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.14em] text-[#c5d0de] transition hover:border-[#5a8f8f]/60 hover:bg-[#5a8f8f]/8"
+              className="inline-flex h-11 w-full items-center justify-center gap-2 border border-[#3d4d62] bg-transparent px-5 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.14em] text-[#c5d0de] transition hover:border-[#5a8f8f]/60 hover:bg-[#5a8f8f]/8 sm:w-auto"
             >
               <Building2 className="size-3.5" />
               Open Company
@@ -459,7 +429,7 @@ function PdfPanel({
       <div className="relative bg-[#05080c]">
         <iframe
           src={`/api/reports/${reportId}/download#toolbar=0&navpanes=0`}
-          className="block h-[78vh] min-h-[640px] w-full border-0"
+          className="block h-[min(70vh,560px)] min-h-[240px] w-full border-0 sm:min-h-[420px] lg:min-h-[640px] lg:h-[78vh]"
           title="Source report PDF"
         />
       </div>

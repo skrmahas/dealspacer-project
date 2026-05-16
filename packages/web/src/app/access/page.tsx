@@ -3,9 +3,9 @@
 import Link from "next/link";
 import React, { Suspense, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { ArrowLeft, KeyRound, Lock } from "lucide-react";
+import { KeyRound, Lock } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { DealSpacerLogoLink } from "@/components/deal-spacer-logo";
+import { AppSiteHeader } from "@/components/app-site-header";
 import { Button } from "@/components/ui/button";
 import { ACCESS_REQUEST_TIMEOUT_MS } from "@/lib/access-timeout";
 import { cn } from "@/lib/utils";
@@ -290,32 +290,22 @@ export default function AccessPage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
       >
-        <header className="border-b border-[#2b79db]/12 bg-[#080b10]/80 backdrop-blur-md">
-          <motion.div
-            initial={{ opacity: 0, y: -8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-            className="mx-auto flex w-full max-w-[1180px] items-center justify-between px-6 py-4 md:px-10"
-          >
-            <DealSpacerLogoLink />
-            <Link
-              href="/"
-              className="inline-flex items-center gap-2 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.14em] text-[#6b7d92] transition hover:text-[#e8ecf2]"
-            >
-              <ArrowLeft className="size-3.5" strokeWidth={1.5} aria-hidden />
-              Back to site
-            </Link>
-          </motion.div>
-        </header>
+        <AppSiteHeader
+          maxWidthClass="max-w-[1180px]"
+          navItems={[
+            { href: "/", label: "Home", emphasis: "muted" },
+            { href: "/companies", label: "Catalog" },
+          ]}
+        />
 
-        <main className="mx-auto flex w-full max-w-[1180px] flex-1 flex-col items-center justify-center gap-12 px-6 py-14 md:px-10 lg:flex-row lg:items-center lg:justify-between lg:gap-20 lg:py-20">
+        <main className="mx-auto flex w-full max-w-[1180px] flex-1 flex-col items-center justify-center gap-10 px-4 py-10 sm:px-6 sm:py-14 md:px-10 lg:flex-row lg:items-center lg:justify-between lg:gap-20 lg:py-20">
           <AccessHero />
           <Suspense fallback={<AccessFallback />}>
             <AccessForm />
           </Suspense>
         </main>
 
-        <footer className="border-t border-[#2a3544]/60 px-6 py-5 md:px-10">
+        <footer className="border-t border-[#2a3544]/60 px-4 py-5 sm:px-6 md:px-10">
           <div className="mx-auto flex w-full max-w-[1180px] flex-wrap items-center justify-between gap-3 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.12em] text-[#6b7d92]">
             <span>DealSpacer · Private preview</span>
             <Link href="/privacy" className="transition hover:text-[#9aa8bc]">

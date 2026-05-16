@@ -16,7 +16,7 @@ import {
   Upload,
   type LucideIcon,
 } from "lucide-react";
-import { DealSpacerLogoLink } from "@/components/deal-spacer-logo";
+import { AppSiteHeader } from "@/components/app-site-header";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -102,33 +102,7 @@ export default function LandingPage() {
 }
 
 function SiteHeader() {
-  return (
-    <header className="sticky top-0 z-40 border-b border-[#2b79db]/12 bg-[#080b10]/85 backdrop-blur-md">
-      <motion.div
-        initial={{ opacity: 0, y: -8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-        className="mx-auto flex w-full max-w-[1180px] items-center justify-between px-6 py-4 md:px-10"
-      >
-        <DealSpacerLogoLink />
-        <nav className="flex items-center gap-1 font-[family-name:var(--font-mono)] text-[11px] uppercase tracking-[0.14em]">
-          <Link
-            href="/companies"
-            className="rounded-sm px-3 py-2 text-[#8b9aad] transition hover:bg-[#2b79db]/8 hover:text-[#e8ecf2]"
-          >
-            Catalog
-          </Link>
-          <Link
-            href="/upload"
-            className="ml-1 inline-flex items-center gap-1.5 border border-[#2b79db]/40 bg-[#2b79db]/10 px-3 py-2 text-[#b8d4f5] transition hover:bg-[#2b79db]/18"
-          >
-            Upload
-            <ArrowRight className="size-3" />
-          </Link>
-        </nav>
-      </motion.div>
-    </header>
-  );
+  return <AppSiteHeader maxWidthClass="max-w-[1180px]" />;
 }
 
 function Hero() {
@@ -144,7 +118,7 @@ function Hero() {
             transition: { staggerChildren: 0.1, delayChildren: 0.05 },
           },
         }}
-        className="relative mx-auto grid w-full max-w-[1180px] gap-12 px-6 pb-20 pt-16 md:grid-cols-[1.1fr_0.9fr] md:items-end md:gap-8 md:px-10 md:pb-28 md:pt-24"
+        className="relative mx-auto grid w-full max-w-[1180px] gap-12 px-4 pb-16 pt-12 sm:px-6 md:grid-cols-[1.1fr_0.9fr] md:items-end md:gap-8 md:px-10 md:pb-28 md:pt-24"
       >
         <motion.div variants={stagger} className="max-w-xl">
           <p className="font-[family-name:var(--font-mono)] text-[11px] uppercase tracking-[0.22em] text-[#5a8f8f]">
@@ -306,7 +280,7 @@ function StatsBar({
   return (
     <motion.section
       {...fadeUp}
-      className="mx-auto w-full max-w-[1180px] px-6 md:px-10"
+      className="mx-auto w-full max-w-[1180px] px-4 sm:px-6 md:px-10"
     >
       <motion.div
         className="grid border border-[#2a3544] bg-[#0c1018]/60 sm:grid-cols-2 lg:grid-cols-4"
@@ -350,7 +324,7 @@ function HowItWorks() {
   return (
     <motion.section
       {...fadeUp}
-      className="mx-auto w-full max-w-[1180px] px-6 py-20 md:px-10 md:py-28"
+      className="mx-auto w-full max-w-[1180px] px-4 py-14 sm:px-6 md:px-10 md:py-28"
     >
       <div className="grid gap-12 lg:grid-cols-[0.42fr_1fr] lg:gap-16">
         <SectionHeading
@@ -414,7 +388,7 @@ function FeaturesGrid() {
       {...fadeUp}
       className="border-t border-[#1e2733] bg-[#0a0e14]"
     >
-      <motion.div className="mx-auto w-full max-w-[1180px] px-6 py-20 md:px-10 md:py-28">
+      <motion.div className="mx-auto w-full max-w-[1180px] px-4 py-14 sm:px-6 md:px-10 md:py-28">
         <SectionHeading
           eyebrow="Capabilities"
           title="Features"
@@ -455,7 +429,7 @@ function ExchangesSection() {
   return (
     <motion.section
       {...fadeUp}
-      className="mx-auto w-full max-w-[1180px] px-6 py-20 md:px-10 md:py-28"
+      className="mx-auto w-full max-w-[1180px] px-4 py-14 sm:px-6 md:px-10 md:py-28"
     >
       <SectionHeading
         eyebrow="Coverage"
@@ -510,7 +484,7 @@ function CtaFooter() {
   return (
     <motion.section
       {...fadeUp}
-      className="mx-auto w-full max-w-[1180px] px-6 pb-20 md:px-10 md:pb-28"
+      className="mx-auto w-full max-w-[1180px] px-4 pb-14 sm:px-6 md:px-10 md:pb-28"
     >
       <div className="relative overflow-hidden border border-[#2b79db]/25 bg-gradient-to-br from-[#141a24] via-[#0f141c] to-[#0a0e14] px-8 py-12 md:px-12 md:py-14">
         <motion.div
@@ -554,7 +528,7 @@ function CtaFooter() {
 function SiteFooter() {
   return (
     <footer className="border-t border-[#1e2733] py-10">
-      <div className="mx-auto flex w-full max-w-[1180px] flex-wrap items-center justify-between gap-4 px-6 text-sm text-[#6b7d92] md:px-10">
+      <div className="mx-auto flex w-full max-w-[1180px] flex-wrap items-center justify-between gap-4 px-4 text-sm text-[#6b7d92] sm:px-6 md:px-10">
         <span className="flex items-center gap-2 font-[family-name:var(--font-mono)] text-[11px] uppercase tracking-[0.1em]">
           <Building2 className="size-3.5 text-[#2b79db]" />
           © Baltic Earnings Intelligence

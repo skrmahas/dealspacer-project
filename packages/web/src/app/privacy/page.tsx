@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { Building2, ArrowLeft, Shield } from "lucide-react";
+import { Building2, Shield } from "lucide-react";
+import { AppSiteHeader } from "@/components/app-site-header";
 
 const sections = [
   {
@@ -94,25 +95,17 @@ export default function PrivacyPage() {
       <div className="landing-aurora pointer-events-none fixed inset-0 z-0" aria-hidden />
 
       <div className="relative z-10 flex min-h-screen flex-col">
-        {/* Header */}
-        <header className="sticky top-0 z-40 border-b border-[#2b79db]/12 bg-[#080b10]/85 backdrop-blur-md">
-          <div className="mx-auto flex w-full max-w-[1180px] items-center justify-between px-6 py-4 md:px-10">
-            <Link
-              href="/"
-              className="flex items-center gap-2 font-[family-name:var(--font-mono)] text-[11px] uppercase tracking-[0.14em] text-[#8b9aad] transition hover:text-[#e8ecf2]"
-            >
-              <ArrowLeft className="size-3.5" />
-              Back
-            </Link>
-            <span className="flex items-center gap-2 font-[family-name:var(--font-mono)] text-[11px] uppercase tracking-[0.14em] text-[#5a8f8f]">
+        <AppSiteHeader
+          maxWidthClass="max-w-[1180px]"
+          trailing={
+            <span className="hidden items-center gap-2 font-[family-name:var(--font-mono)] text-[11px] uppercase tracking-[0.14em] text-[#5a8f8f] sm:flex">
               <Shield className="size-3.5" />
-              Privacy Policy
+              Privacy
             </span>
-          </div>
-        </header>
+          }
+        />
 
-        {/* Document */}
-        <main className="mx-auto w-full max-w-[820px] flex-1 px-6 py-16 md:px-10 md:py-24">
+        <main className="mx-auto w-full max-w-[820px] flex-1 px-4 py-12 sm:px-6 md:px-10 md:py-24">
           {/* Document meta strip */}
           <div className="flex flex-wrap items-center gap-x-6 gap-y-1 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.2em] text-[#6b7d92]">
             <span>Baltic Earnings Intelligence</span>
@@ -146,7 +139,7 @@ export default function PrivacyPage() {
             {sections.map((section, i) => (
               <div
                 key={section.n}
-                className="group relative grid grid-cols-[56px_1fr] gap-6 border-b border-[#1e2733] py-8 last:border-b-0"
+                className="group relative grid grid-cols-[40px_1fr] gap-4 border-b border-[#1e2733] py-6 last:border-b-0 sm:grid-cols-[56px_1fr] sm:gap-6 sm:py-8"
               >
                 {/* Vertical connector */}
                 {i < sections.length - 1 && (
@@ -189,7 +182,7 @@ export default function PrivacyPage() {
 
         {/* Footer */}
         <footer className="border-t border-[#1e2733] py-10">
-          <div className="mx-auto flex w-full max-w-[1180px] flex-wrap items-center justify-between gap-4 px-6 text-sm text-[#6b7d92] md:px-10">
+          <div className="mx-auto flex w-full max-w-[1180px] flex-wrap items-center justify-between gap-4 px-4 text-sm text-[#6b7d92] sm:px-6 md:px-10">
             <span className="flex items-center gap-2 font-[family-name:var(--font-mono)] text-[11px] uppercase tracking-[0.1em]">
               <Building2 className="size-3.5 text-[#2b79db]" />
               © Baltic Earnings Intelligence

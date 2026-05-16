@@ -4,16 +4,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import {
-  ArrowLeft,
-  ArrowRight,
-  Building2,
-  FileUp,
-  KeyRound,
-  Layers,
-} from "lucide-react";
+import { ArrowRight, FileUp, Layers } from "lucide-react";
 import { ReportPreview, parseExtractedJson } from "@/components/report-view";
-import { DealSpacerLogoLink } from "@/components/deal-spacer-logo";
+import { AppSiteHeader } from "@/components/app-site-header";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { Button } from "@/components/ui/button";
 import { uploadFileWithProgress } from "@/lib/upload-progress";
@@ -448,7 +441,16 @@ export default function Home({ initialCompanySlug }: HomeClientProps) {
         <div className="landing-grain pointer-events-none fixed inset-0 z-[1]" aria-hidden />
         <div className="landing-aurora pointer-events-none fixed inset-0 z-0" aria-hidden />
 
-        <div className="relative z-10 mx-auto max-w-[920px] px-6 py-10 md:px-10 md:py-14">
+        <div className="relative z-10">
+          <AppSiteHeader
+            maxWidthClass="max-w-[920px]"
+            navItems={[
+              { href: "/companies", label: "Catalog" },
+              { href: "/", label: "Home", emphasis: "muted" },
+              { href: "/access", label: "Access", emphasis: "muted" },
+            ]}
+          />
+          <div className="mx-auto max-w-[920px] px-4 py-8 sm:px-6 md:px-10 md:py-14">
           <UploadHeader companyName={companyName} />
 
           <motion.div
@@ -891,6 +893,7 @@ export default function Home({ initialCompanySlug }: HomeClientProps) {
               </section>
             )}
           </motion.div>
+          </div>
         </div>
       </div>
     </ErrorBoundary>
@@ -899,43 +902,18 @@ export default function Home({ initialCompanySlug }: HomeClientProps) {
 
 function UploadHeader({ companyName }: { companyName: string | null }) {
   return (
-    <header className="flex flex-wrap items-start justify-between gap-6 border-b border-[#1e2733] pb-8">
-      <div>
-        <DealSpacerLogoLink />
-
-        <h1 className="mt-6 font-[family-name:var(--font-display)] text-[clamp(1.75rem,4vw,2.5rem)] font-medium leading-tight tracking-tight text-[#f4f6f9]">
-          {companyName ? `Report upload · ${companyName}` : "Upload workspace"}
-        </h1>
-        <p className="mt-3 max-w-xl text-pretty text-sm leading-relaxed text-[#8b9aad] md:text-base">
-          {companyName
-            ? `Uploading a report for ${companyName}`
-            : "Upload Baltic earnings reports and generate shareable localized PDF summaries."}
-        </p>
-      </div>
-
-      <nav className="flex flex-wrap gap-2 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.12em]">
-        <Link
-          href="/companies"
-          className="inline-flex items-center gap-1.5 border border-[#2a3544] px-3 py-2 text-[#9aa8bc] transition hover:border-[#3d4d62] hover:text-[#e8ecf2]"
-        >
-          <Building2 className="size-3.5" />
-          Catalog
-        </Link>
-        <Link
-          href="/"
-          className="inline-flex items-center gap-1.5 border border-[#2a3544] px-3 py-2 text-[#9aa8bc] transition hover:border-[#3d4d62] hover:text-[#e8ecf2]"
-        >
-          <ArrowLeft className="size-3.5" />
-          Home
-        </Link>
-        <Link
-          href="/access"
-          className="inline-flex items-center gap-1.5 border border-[#2a3544] px-3 py-2 text-[#6b7d92] transition hover:border-[#3d4d62] hover:text-[#e8ecf2]"
-        >
-          <KeyRound className="size-3.5" />
-          Access
-        </Link>
-      </nav>
+    <header className="border-b border-[#1e2733] pb-8">
+      <p className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.2em] text-[#5a8f8f]">
+        Workspace
+      </p>
+      <h1 className="mt-4 font-[family-name:var(--font-display)] text-[clamp(1.75rem,4vw,2.5rem)] font-medium leading-tight tracking-tight text-[#f4f6f9]">
+        {companyName ? `Report upload · ${companyName}` : "Upload workspace"}
+      </h1>
+      <p className="mt-3 max-w-xl text-pretty text-sm leading-relaxed text-[#8b9aad] md:text-base">
+        {companyName
+          ? `Uploading a report for ${companyName}`
+          : "Upload Baltic earnings reports and generate shareable localized PDF summaries."}
+      </p>
     </header>
   );
 }

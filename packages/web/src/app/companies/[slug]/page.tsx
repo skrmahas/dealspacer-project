@@ -20,7 +20,7 @@ import {
   BreakdownBarChart,
   type BreakdownSegment,
 } from "@/components/charts/breakdown-bar-chart";
-import { DealSpacerLogoLink } from "@/components/deal-spacer-logo";
+import { AppSiteHeader } from "@/components/app-site-header";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
@@ -438,20 +438,12 @@ export default function CompanyAnalyticsDashboardPage() {
 
   return (
     <BeiShell>
-      <header className="sticky top-0 z-30 border-b border-[#2b79db]/12 bg-[#080b10]/90 px-4 py-3 backdrop-blur-md sm:px-6">
-        <div className="mx-auto flex w-full max-w-6xl items-center gap-4">
-          <DealSpacerLogoLink className="shrink-0 text-[#6b7d92] hover:text-[#f4f6f9]" />
-          <span className="font-[family-name:var(--font-mono)] text-[10px] text-[#3d4d62]">/</span>
-          <Link
-            href="/companies"
-            className="shrink-0 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.12em] text-[#5a8f8f] transition hover:text-[#2b79db]"
-          >
-            Catalog
-          </Link>
-        </div>
-      </header>
+      <AppSiteHeader
+        maxWidthClass="max-w-6xl"
+        breadcrumbs={[{ label: "Catalog", href: "/companies" }]}
+      />
 
-      <main className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-8 lg:py-12">
+      <main className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-12">
         <CompanyHeader company={company} reportCount={reports.length} />
 
         {reports.length === 0 ? (
@@ -513,7 +505,7 @@ function CompanyHeader({ company, reportCount }: { company: Company; reportCount
       >
         <ArrowLeft className="size-4" />
       </Link>
-      <div className="min-w-[200px] flex-1">
+      <div className="min-w-0 flex-1">
         <div
           className="border-l-[3px] pl-5"
           style={{ borderLeftColor: accent }}
@@ -537,8 +529,8 @@ function CompanyHeader({ company, reportCount }: { company: Company; reportCount
               {company.exchange}
             </span>
             {company.sector && (
-              <span className="hidden font-[family-name:var(--font-body)] text-sm text-[#6b7d92] sm:inline">
-                · {company.sector}
+              <span className="w-full font-[family-name:var(--font-body)] text-sm text-[#6b7d92] sm:w-auto">
+                {company.sector}
               </span>
             )}
           </div>
@@ -663,24 +655,24 @@ function ReportsTable({
 }) {
   return (
     <DashboardSection title="Reports">
-      <div className="mb-5 flex justify-end">
+      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
         {selected.size === 2 ? (
           <Button
             onClick={onCompare}
             variant="outline"
-            className="h-10 rounded-none border-[#3d4d62] bg-[#2b79db]/10 px-4 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.12em] text-[#e8ecf2] hover:border-[#2b79db]/40 hover:bg-[#2b79db]/20"
+            className="h-10 w-full rounded-none border-[#3d4d62] bg-[#2b79db]/10 px-4 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.12em] text-[#e8ecf2] hover:border-[#2b79db]/40 hover:bg-[#2b79db]/20 sm:w-auto"
           >
             <ExternalLink className="size-3.5" />
             Compare Selected
           </Button>
         ) : (
-          <p className="max-w-xs text-right font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.12em] text-[#6b7d92]">
+          <p className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.12em] text-[#6b7d92] sm:max-w-xs sm:text-right">
             Pick two filings to compare
           </p>
         )}
       </div>
-      <div className="overflow-x-auto -mx-1">
-        <table className="min-w-full border-collapse text-sm">
+      <div className="-mx-1 overflow-x-auto overscroll-x-contain">
+        <table className="min-w-[720px] border-collapse text-sm">
           <thead>
             <tr className="font-[family-name:var(--font-mono)] text-left text-[10px] uppercase tracking-[0.14em] text-[#6b7d92]">
               <th className="w-10 pb-3 pr-2" />
