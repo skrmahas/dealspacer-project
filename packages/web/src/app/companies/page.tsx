@@ -452,20 +452,20 @@ function WelcomeState({
           <div className="mt-5 flex flex-wrap gap-3">
             <Button
               asChild
-              className="h-10 rounded-none border-0 bg-[#2b79db] px-4 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.12em] text-[#ffffff] hover:bg-[#3d8de8]"
+              className="h-11 rounded-none border-0 bg-[#2b79db] px-4 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.12em] text-[#ffffff] hover:bg-[#3d8de8] sm:h-10"
             >
               <Link href="/upload">
-                <Upload className="size-3.5" />
+                <Upload className="size-4 sm:size-3.5" />
                 Upload a Report
               </Link>
             </Button>
             <Button
               asChild
               variant="outline"
-              className="h-10 rounded-none border-[#3d4d62] bg-transparent px-4 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.12em] text-[#c5d0de] hover:border-[#5a8f8f]/50 hover:bg-[#5a8f8f]/8"
+              className="h-11 rounded-none border-[#3d4d62] bg-transparent px-4 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.12em] text-[#c5d0de] hover:border-[#5a8f8f]/50 hover:bg-[#5a8f8f]/8 sm:h-10"
             >
               <Link href="/access">
-                <KeyRound className="size-3.5" />
+                <KeyRound className="size-4 sm:size-3.5" />
                 Access
               </Link>
             </Button>

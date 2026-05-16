@@ -1,6 +1,6 @@
 import React from "react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import CompanyCatalogPage from "./page";
 
 const pushMock = vi.fn();
@@ -224,5 +224,17 @@ describe("CompanyCatalogPage", () => {
     expect(screen.getByText("6")).toBeInTheDocument();
     expect(screen.getByText(/compare across companies/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /compare reports/i })).toBeDisabled();
+
+    const addReportCard = screen.getByText(/need to add a report/i).closest("div");
+    expect(addReportCard).not.toBeNull();
+    const uploadReportLink = within(addReportCard!).getByRole("link", {
+      name: /upload a report/i,
+    });
+    const accessLink = within(addReportCard!).getByRole("link", { name: /^access$/i });
+
+    for (const action of [uploadReportLink, accessLink]) {
+      expect(action).toHaveClass("h-11", "px-4", "sm:h-10");
+      expect(action.querySelector("svg")).toHaveClass("size-4", "sm:size-3.5");
+    }
   });
 });
