@@ -367,6 +367,7 @@ function rowToReportWithPreview(row: Record<string, unknown>): ReportWithPreview
   return {
     ...base,
     companyName: (row.company_name as string | null) ?? null,
+    companySlug: (row.company_slug as string | null) ?? null,
     ...preview,
     previewGuidanceSentiment: snapshot?.sentiment?.guidanceDirection ?? null,
   };
@@ -489,6 +490,34 @@ export function createReportStore(): ReportStore {
            ORDER BY r.created_at DESC
            LIMIT $1`,
           [limit],
+        );
+        return result.rows.map(rowToReportWithPreview);
+      });
+    },
+
+    async listReportsForCompare(options?: {
+      query?: string;
+      limit?: number;
+    }): Promise<ReportWithPreview[]> {
+      const rawQuery = options?.query?.trim() ?? "";
+      const search = rawQuery.length > 0 ? rawQuery : null;
+      const limit = Math.min(Math.max(options?.limit ?? 200, 1), 500);
+
+      return withClient(async (client) => {
+        const result = await client.query(
+          `SELECT r.*, c.name AS company_name, c.slug AS company_slug
+           FROM reports r
+           LEFT JOIN companies c ON c.id = r.company_id
+           WHERE (
+             $1::text IS NULL
+             OR c.name ILIKE '%' || $1 || '%'
+             OR COALESCE(c.ticker, '') ILIKE '%' || $1 || '%'
+             OR COALESCE(c.slug, '') ILIKE '%' || $1 || '%'
+             OR r.fiscal_year::text LIKE $1 || '%'
+           )
+           ORDER BY c.name NULLS LAST, r.fiscal_year DESC, r.report_type
+           LIMIT $2`,
+          [search, limit],
         );
         return result.rows.map(rowToReportWithPreview);
       });

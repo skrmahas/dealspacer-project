@@ -3,6 +3,11 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import CompanyCatalogPage from "./page";
 
+const pushMock = vi.fn();
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: pushMock }),
+}));
+
 const MOCK_COMPANIES = [
   {
     id: "c1",
@@ -52,9 +57,18 @@ describe("CompanyCatalogPage", () => {
     vi.unstubAllGlobals();
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => MOCK_COMPANIES,
+      vi.fn((input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes("/api/reports")) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => [],
+          });
+        }
+        return Promise.resolve({
+          ok: true,
+          json: async () => MOCK_COMPANIES,
+        });
       }),
     );
   });
@@ -155,5 +169,57 @@ describe("CompanyCatalogPage", () => {
     render(<CompanyCatalogPage />);
 
     await waitFor(() => expect(screen.getByText(/select a company/i)).toBeInTheDocument());
+  });
+
+  it("shows catalog report count and cross-company compare panel", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes("/api/reports")) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => [
+              {
+                id: "r1",
+                companyId: "c1",
+                companyName: "Tallink Grupp",
+                fiscalYear: 2024,
+                reportType: "annual",
+                language: "en",
+                jobId: null,
+                s3Key: "a.pdf",
+                extractedJsonSnapshot: null,
+                createdAt: "2024-01-01",
+              },
+              {
+                id: "r2",
+                companyId: "c3",
+                companyName: "DelfinGroup",
+                fiscalYear: 2023,
+                reportType: "annual",
+                language: "en",
+                jobId: null,
+                s3Key: "b.pdf",
+                extractedJsonSnapshot: null,
+                createdAt: "2024-01-02",
+              },
+            ],
+          });
+        }
+        return Promise.resolve({
+          ok: true,
+          json: async () => MOCK_COMPANIES,
+        });
+      }),
+    );
+
+    render(<CompanyCatalogPage />);
+
+    await waitFor(() => expect(screen.getByText(/reports in catalog/i)).toBeInTheDocument());
+
+    expect(screen.getByText("6")).toBeInTheDocument();
+    expect(screen.getByText(/compare across companies/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /compare reports/i })).toBeDisabled();
   });
 });
