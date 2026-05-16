@@ -30,8 +30,10 @@ import {
   pickHeadlineReports,
   pickTrendReports,
   resolvePriorPreviewMetric,
+  type ExtractedData,
   type PreviewMetricKey,
-} from "@bei/shared";
+  type ReportType,
+} from "@bei/shared/company-dashboard";
 
 interface Company {
   id: string;
@@ -63,18 +65,11 @@ interface RevenueBreakdown {
   byGeography?: { name: string; value: number }[];
 }
 
-interface ExtractedData {
-  metadata?: { companyName?: string; reportPeriod?: string };
-  metrics?: ExtractedMetric[];
-  sentiment?: ExtractedSentiment;
-  revenueBreakdown?: RevenueBreakdown;
-}
-
 interface Report {
   id: string;
   companyId: string | null;
   fiscalYear: number;
-  reportType: string;
+  reportType: ReportType;
   language: string;
   jobId: string | null;
   s3Key: string;

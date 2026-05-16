@@ -1,4 +1,4 @@
-import type { ExtractedData } from "./contracts.js";
+import type { ExtractedData } from "./contracts";
 
 /** Normalize extracted metric values to whole EUR for display and comparison. */
 

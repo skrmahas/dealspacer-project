@@ -1,9 +1,9 @@
-import type { ExtractedData, ExtractedMetric } from "./contracts.js";
+import type { ExtractedData, ExtractedMetric } from "./contracts";
 import {
   applySnapshotCurrencyScale,
   detectSnapshotCurrencyMultiplier,
   normalizeMetricToEur,
-} from "./metric-units.js";
+} from "./metric-units";
 
 export type PreviewMetricKey = "revenue" | "ebitda" | "netProfit" | "fcf";
 

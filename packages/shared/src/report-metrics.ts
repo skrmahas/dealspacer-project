@@ -1,4 +1,4 @@
-import type { ReportType } from "./contracts.js";
+import type { ReportType } from "./contracts";
 
 const REPORT_TYPE_RANK: Record<ReportType, number> = {
   annual: 6,
