@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { createCompanyStore } from "@bei/shared";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   try {
     const store = createCompanyStore();

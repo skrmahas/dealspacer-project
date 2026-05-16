@@ -6,6 +6,16 @@ export const dynamic = "force-dynamic";
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
+function CompareLoadingFallback() {
+  return (
+    <div className="grid min-h-screen place-items-center bg-[#080b10] px-6">
+      <p className="font-[family-name:var(--font-mono)] text-[11px] uppercase tracking-[0.26em] text-[#6b7d92]">
+        Loading comparison...
+      </p>
+    </div>
+  );
+}
+
 export default function ComparePage({ searchParams }: { searchParams?: SearchParams }) {
   const reportAParam = searchParams?.reportA;
   const reportBParam = searchParams?.reportB;
@@ -13,9 +23,7 @@ export default function ComparePage({ searchParams }: { searchParams?: SearchPar
   const reportB = Array.isArray(reportBParam) ? reportBParam[0] : reportBParam ?? null;
 
   return (
-    <Suspense
-      fallback={<div style={{ minHeight: "100vh", padding: "40px", textAlign: "center", color: "#94a3b8" }}>Loading comparison...</div>}
-    >
+    <Suspense fallback={<CompareLoadingFallback />}>
       <CompareClient initialReportA={reportA} initialReportB={reportB} />
     </Suspense>
   );

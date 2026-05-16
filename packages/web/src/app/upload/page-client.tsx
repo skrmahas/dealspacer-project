@@ -34,6 +34,29 @@ type JobInfo = {
 
 const ACCEPTED_EXTENSIONS = [".pdf", ".csv", ".html", ".htm", ".xhtml"];
 const MAX_PIPELINE_MS = 9 * 60 * 1000;
+const ACTIVE_JOB_KEY = "bei_active_job";
+
+function saveActiveJob(jobId: string, filename: string) {
+  try {
+    localStorage.setItem(ACTIVE_JOB_KEY, JSON.stringify({ jobId, filename, startedAt: Date.now() }));
+  } catch {}
+}
+
+function clearActiveJob() {
+  try {
+    localStorage.removeItem(ACTIVE_JOB_KEY);
+  } catch {}
+}
+
+function loadActiveJob(): { jobId: string; filename: string; startedAt: number } | null {
+  try {
+    const raw = localStorage.getItem(ACTIVE_JOB_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as { jobId: string; filename: string; startedAt: number };
+  } catch {
+    return null;
+  }
+}
 
 const STAGES: { key: JobState; label: string; description: string }[] = [
   { key: "parsing", label: "Parsing", description: "Reading document text and structure" },
@@ -49,9 +72,23 @@ const LANGUAGE_OPTIONS: { value: OutputLanguage; label: string }[] = [
   { value: "lt", label: "Lithuanian" },
 ];
 
+// `duplicate` is a terminal state set by the worker's completion hook after
+// the pipeline runs in full but the report row already exists for the same
+// company / fiscal year / report type / language. It is NOT in-progress.
+const TERMINAL_STATES: ReadonlySet<JobState> = new Set([
+  "complete",
+  "failed",
+  "duplicate",
+]);
+
+function isTerminalState(state: JobState): boolean {
+  return TERMINAL_STATES.has(state);
+}
+
 function stageIndex(state: JobState): number {
   if (state === "pending") return -1;
   if (state === "failed") return -1;
+  if (state === "duplicate") return -1;
   if (state === "complete") return STAGES.length;
   return STAGES.findIndex((stage) => stage.key === state);
 }
@@ -195,6 +232,7 @@ export default function Home({ initialCompanySlug }: HomeClientProps) {
 
       pollTimerRef.current = setInterval(async () => {
         if (Date.now() - startedAtRef.current > MAX_PIPELINE_MS) {
+          clearActiveJob();
           stopPolling();
           setPipelineError("Pipeline timed out before report generation completed.");
           setJob((prev) => (prev ? { ...prev, state: "failed", error: "Pipeline timeout" } : prev));
@@ -208,12 +246,23 @@ export default function Home({ initialCompanySlug }: HomeClientProps) {
           setJob(data);
           if (data.state === "complete") {
             setPipelineError(null);
+            clearActiveJob();
             stopPolling();
             void fetchRecentJobs();
             return;
           }
           if (data.state === "failed") {
             setPipelineError(describeFailure(data.error));
+            clearActiveJob();
+            stopPolling();
+            void fetchRecentJobs();
+            return;
+          }
+          if (data.state === "duplicate") {
+            // Worker finished but the report row already exists. Halt polling
+            // and let the UI render the View Existing / Replace controls.
+            setPipelineError(null);
+            clearActiveJob();
             stopPolling();
             void fetchRecentJobs();
           }
@@ -291,6 +340,58 @@ export default function Home({ initialCompanySlug }: HomeClientProps) {
     void fetchRecentJobs();
   }, [fetchRecentJobs]);
 
+  // Rehydrate an in-progress job if the user left and came back
+  useEffect(() => {
+    const saved = loadActiveJob();
+    if (!saved) return;
+
+    const sinceStart = Date.now() - saved.startedAt;
+    if (sinceStart > MAX_PIPELINE_MS) {
+      clearActiveJob();
+      return;
+    }
+
+    void (async () => {
+      try {
+        const res = await fetch(`/api/jobs/${saved.jobId}`, { cache: "no-store" });
+        if (!res.ok) { clearActiveJob(); return; }
+        const data = (await res.json()) as JobInfo;
+        const restored: JobInfo = {
+          ...data,
+          originalFilename: data.originalFilename ?? saved.filename,
+        };
+
+        if (isTerminalState(data.state)) {
+          // Job is already done (complete / failed / duplicate). Restore the
+          // panel so the user sees the outcome — including View Existing /
+          // Replace for duplicates — but do NOT restart polling.
+          setJob(restored);
+          if (data.state === "failed") {
+            setPipelineError(describeFailure(data.error));
+          }
+          // Reflect the real wall-clock so "Completed in / Failed after / etc"
+          // shows a meaningful number instead of "0s".
+          const secs = Math.max(0, Math.floor(sinceStart / 1000));
+          setElapsed(
+            secs < 60 ? `${secs}s` : `${Math.floor(secs / 60)}m ${secs % 60}s`,
+          );
+          clearActiveJob();
+          void fetchRecentJobs();
+          return;
+        }
+
+        // Still mid-pipeline — restore state and resume polling
+        setJob(restored);
+        // Adjust startedAt so elapsed timer reflects true time since job was created
+        startedAtRef.current = saved.startedAt;
+        startPolling(saved.jobId);
+      } catch {
+        clearActiveJob();
+      }
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const onUpload = useCallback(async () => {
     if (!file) return;
     setPipelineError(null);
@@ -321,6 +422,7 @@ export default function Home({ initialCompanySlug }: HomeClientProps) {
       );
 
       setJob({ jobId: created.jobId, state: created.state as JobState });
+      saveActiveJob(created.jobId, file.name);
       startPolling(created.jobId);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Upload failed";
@@ -332,8 +434,8 @@ export default function Home({ initialCompanySlug }: HomeClientProps) {
     }
   }, [file, outputLanguage, companyId, startPolling]);
 
-  const showRecent =
-    recentJobs.length > 0 && (!job || job.state === "complete" || job.state === "failed");
+  const visibleRecentJobs = recentJobs.filter((j) => j.jobId !== job?.jobId);
+  const showRecent = visibleRecentJobs.length > 0;
 
   return (
     <ErrorBoundary>
@@ -457,6 +559,7 @@ export default function Home({ initialCompanySlug }: HomeClientProps) {
                       abortUploadRef.current?.();
                       setUploading(false);
                       setUploadProgress(null);
+                      clearActiveJob();
                       setPipelineError("Upload cancelled.");
                     }}
                     className="border border-[#9e4a5a]/50 px-4 py-2.5 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.12em] text-[#e8a0a8] transition hover:bg-[#9e4a5a]/10"
@@ -496,7 +599,7 @@ export default function Home({ initialCompanySlug }: HomeClientProps) {
                     </h2>
                   </div>
                   <div className="flex items-center gap-3">
-                    {elapsed && job.state !== "complete" && job.state !== "failed" && (
+                    {elapsed && !isTerminalState(job.state) && (
                       <span className="font-[family-name:var(--font-mono)] text-[11px] text-[#6b7d92]">
                         {elapsed}
                       </span>
@@ -511,10 +614,17 @@ export default function Home({ initialCompanySlug }: HomeClientProps) {
                         Failed after {elapsed}
                       </span>
                     )}
+                    {elapsed && job.state === "duplicate" && (
+                      <span className="font-[family-name:var(--font-mono)] text-[11px] text-[#6b7d92]">
+                        Halted after {elapsed}
+                      </span>
+                    )}
                     <span
                       className={cn(
                         "font-[family-name:var(--font-mono)] text-[11px] font-medium uppercase tracking-[0.12em]",
-                        job.state === "failed" ? "text-[#e8a0a8]" : "text-[#2b79db]",
+                        job.state === "failed" && "text-[#e8a0a8]",
+                        job.state === "duplicate" && "text-[#d4a35a]",
+                        job.state !== "failed" && job.state !== "duplicate" && "text-[#2b79db]",
                       )}
                     >
                       {formatStateLabel(job.state)}
@@ -533,7 +643,19 @@ export default function Home({ initialCompanySlug }: HomeClientProps) {
                 {polling && <PollingSkeleton />}
 
                 {(pipelineError || ((job.state === "failed" || job.state === "duplicate") && job.error)) && (
-                  <div className="mt-5 border border-[#9e4a5a]/40 bg-[#9e4a5a]/10 px-4 py-3 text-sm text-[#e8a0a8]">
+                  <div
+                    className={cn(
+                      "mt-5 border px-4 py-3 text-sm",
+                      job.state === "duplicate"
+                        ? "border-[#d4a35a]/40 bg-[#d4a35a]/10 text-[#e8c98a]"
+                        : "border-[#9e4a5a]/40 bg-[#9e4a5a]/10 text-[#e8a0a8]",
+                    )}
+                  >
+                    {job.state === "duplicate" && (
+                      <p className="mb-1 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.16em] text-[#d4a35a]">
+                        Already on file
+                      </p>
+                    )}
                     {pipelineError || describeFailure(job.error)}
                     {job.state === "duplicate" && (
                       <div className="mt-4 flex flex-wrap gap-2">
@@ -548,7 +670,6 @@ export default function Home({ initialCompanySlug }: HomeClientProps) {
                               }
                             } catch {}
                           }}
-                          variant="danger"
                         />
                         <PipelineActionButton
                           label={retrying ? "Replacing..." : "Replace"}
@@ -566,6 +687,7 @@ export default function Home({ initialCompanySlug }: HomeClientProps) {
                               setRetrying(false);
                             }
                           }}
+                          variant="danger"
                         />
                       </div>
                     )}
@@ -668,44 +790,103 @@ export default function Home({ initialCompanySlug }: HomeClientProps) {
             {showRecent && (
               <section className="border border-[#2a3544] bg-[#0c1018]/60 p-6 md:p-8">
                 <h2 className="font-[family-name:var(--font-display)] text-lg font-medium text-[#f4f6f9]">
-                  Recent Reports
+                  Recent Jobs
                 </h2>
                 <ul className="mt-4 grid gap-1">
-                  {recentJobs.slice(0, 8).map((j) => (
-                    <li
-                      key={j.jobId}
-                      className="flex items-center justify-between gap-3 border border-transparent px-3 py-2.5 transition hover:border-[#2a3544] hover:bg-[#080b10]"
-                    >
-                      <div className="flex min-w-0 items-center gap-3">
-                        <span
-                          className={cn(
-                            "font-[family-name:var(--font-mono)] text-[10px] font-medium",
-                            j.state === "complete" && "text-[#6db88a]",
-                            j.state === "failed" && "text-[#e8a0a8]",
-                            j.state !== "complete" && j.state !== "failed" && "text-[#6b7d92]",
-                          )}
-                        >
-                          {j.state === "complete" ? "✓" : j.state === "failed" ? "✗" : "○"}
-                        </span>
-                        <span className="truncate text-sm text-[#c5d0de]">
-                          {j.originalFilename || "Untitled"}
-                        </span>
-                      </div>
-                      <div className="flex shrink-0 items-center gap-4">
-                        <span className="font-[family-name:var(--font-mono)] text-[10px] text-[#6b7d92]">
-                          {new Date(j.createdAt || "").toLocaleDateString()}
-                        </span>
-                        {j.state === "complete" && j.reportId && (
-                          <Link
-                            href={`/reports/${j.reportId}`}
-                            className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.1em] text-[#2b79db] hover:underline"
+                  {visibleRecentJobs.slice(0, 8).map((j) => {
+                    const inProgress = !isTerminalState(j.state);
+                    const isDup = j.state === "duplicate";
+                    return (
+                      <li
+                        key={j.jobId}
+                        className="flex items-center justify-between gap-3 border border-transparent px-3 py-2.5 transition hover:border-[#2a3544] hover:bg-[#080b10]"
+                      >
+                        <div className="flex min-w-0 items-center gap-3">
+                          <span
+                            className={cn(
+                              "font-[family-name:var(--font-mono)] text-[10px] font-medium",
+                              j.state === "complete" && "text-[#6db88a]",
+                              j.state === "failed" && "text-[#e8a0a8]",
+                              isDup && "text-[#d4a35a]",
+                              inProgress && "upload-pulse-stage text-[#2b79db]",
+                            )}
                           >
-                            View
-                          </Link>
-                        )}
-                      </div>
-                    </li>
-                  ))}
+                            {j.state === "complete"
+                              ? "✓"
+                              : j.state === "failed"
+                                ? "✗"
+                                : isDup
+                                  ? "⊘"
+                                  : "●"}
+                          </span>
+                          <div className="min-w-0">
+                            <span className="block truncate text-sm text-[#c5d0de]">
+                              {j.originalFilename || "Untitled"}
+                            </span>
+                            {inProgress && (
+                              <span className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.08em] text-[#2b79db]">
+                                {formatStateLabel(j.state)}
+                              </span>
+                            )}
+                            {isDup && (
+                              <span className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.08em] text-[#d4a35a]">
+                                Duplicate
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex shrink-0 items-center gap-4">
+                          <span className="font-[family-name:var(--font-mono)] text-[10px] text-[#6b7d92]">
+                            {new Date(j.createdAt || "").toLocaleDateString()}
+                          </span>
+                          {j.state === "complete" && j.reportId && (
+                            <Link
+                              href={`/reports/${j.reportId}`}
+                              className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.1em] text-[#2b79db] hover:underline"
+                            >
+                              View
+                            </Link>
+                          )}
+                          {isDup && (
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                try {
+                                  const res = await fetch(`/api/reports/by-job/${j.jobId}`);
+                                  if (res.ok) {
+                                    const report = await res.json();
+                                    if (report?.id) {
+                                      router.push(`/reports/${report.id}`);
+                                      return;
+                                    }
+                                  }
+                                } catch {}
+                                // Fall back to surfacing the duplicate panel inline
+                                setJob(j);
+                              }}
+                              className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.1em] text-[#d4a35a] hover:underline"
+                            >
+                              Open
+                            </button>
+                          )}
+                          {inProgress && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setJob(j);
+                                startedAtRef.current = j.createdAt ? new Date(j.createdAt).getTime() : Date.now();
+                                startPolling(j.jobId);
+                                saveActiveJob(j.jobId, j.originalFilename ?? "");
+                              }}
+                              className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.1em] text-[#2b79db] hover:underline"
+                            >
+                              Resume
+                            </button>
+                          )}
+                        </div>
+                      </li>
+                    );
+                  })}
                 </ul>
               </section>
             )}
