@@ -55,10 +55,10 @@ function NavLinks({
             onClick={onNavigate}
             className={navLinkClass(item.emphasis)}
           >
-            {Icon && <Icon className="size-3.5 shrink-0" aria-hidden />}
+            {Icon && <Icon className="size-4 shrink-0 md:size-3.5" aria-hidden />}
             {item.label}
             {item.emphasis === "primary" && (
-              <ArrowUpRight className="size-3 shrink-0" aria-hidden />
+              <ArrowUpRight className="size-4 shrink-0 md:size-3" aria-hidden />
             )}
           </Link>
         );

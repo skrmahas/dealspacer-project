@@ -1,6 +1,6 @@
 import React from "react";
 import { beforeEach, describe, expect, it } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { AppSiteHeader } from "./app-site-header";
 
 describe("AppSiteHeader", () => {
@@ -47,5 +47,12 @@ describe("AppSiteHeader", () => {
       "min-h-12",
       "md:min-h-0",
     );
+    const mobileNav = screen.getAllByRole("navigation", { name: "Site" }).at(-1);
+    expect(mobileNav).toBeInTheDocument();
+    expect(
+      within(mobileNav!)
+        .getByRole("link", { name: "Upload" })
+        .querySelector(".lucide-arrow-up-right"),
+    ).toHaveClass("size-4", "md:size-3");
   });
 });
