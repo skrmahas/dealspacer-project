@@ -28,4 +28,24 @@ describe("AppSiteHeader", () => {
     expect(header?.contains(closeBackdrop)).toBe(false);
     expect(header?.contains(drawer)).toBe(false);
   });
+
+  it("uses larger touch targets for the mobile menu controls", () => {
+    render(<AppSiteHeader sticky={false} />);
+
+    const menuButton = screen.getByRole("button", { name: "Open menu" });
+    expect(menuButton).toHaveClass("relative");
+    expect(menuButton.querySelector("span[aria-hidden='true']")).toHaveClass(
+      "size-[max(100%,3rem)]",
+    );
+    expect(menuButton.querySelector("span[aria-hidden='true']")).not.toHaveClass(
+      "pointer-events-none",
+    );
+
+    fireEvent.click(menuButton);
+
+    expect(screen.getAllByRole("link", { name: "Catalog" })[1]).toHaveClass(
+      "min-h-12",
+      "md:min-h-0",
+    );
+  });
 });

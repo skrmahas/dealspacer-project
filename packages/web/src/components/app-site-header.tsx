@@ -26,7 +26,7 @@ const DEFAULT_NAV: SiteNavItem[] = [
 
 const navLinkClass = (emphasis: SiteNavItem["emphasis"] = "default") =>
   cn(
-    "inline-flex items-center gap-1.5 rounded-sm px-3 py-2 font-[family-name:var(--font-mono)] text-[11px] uppercase tracking-[0.14em] transition",
+    "inline-flex min-h-12 items-center gap-1.5 rounded-sm px-3 py-3 font-[family-name:var(--font-mono)] text-xs uppercase tracking-[0.14em] transition md:min-h-0 md:py-2 md:text-[11px]",
     emphasis === "primary" &&
       "border border-[#2b79db]/40 bg-[#2b79db]/10 text-[#b8d4f5] hover:bg-[#2b79db]/[0.18]",
     emphasis === "muted" &&
@@ -186,12 +186,16 @@ export function AppSiteHeader({
               type="button"
               variant="ghost"
               size="icon"
-              className="size-9 rounded-none text-[#8b9aad] hover:bg-[#2b79db]/10 hover:text-[#e8ecf2] md:hidden"
+              className="relative size-9 rounded-none text-[#8b9aad] hover:bg-[#2b79db]/10 hover:text-[#e8ecf2] md:hidden"
               aria-expanded={menuOpen}
               aria-controls={menuId}
               aria-label={menuOpen ? "Close menu" : "Open menu"}
               onClick={() => setMenuOpen((o) => !o)}
             >
+              <span
+                className="absolute left-1/2 top-1/2 size-[max(100%,3rem)] -translate-x-1/2 -translate-y-1/2 pointer-fine:hidden"
+                aria-hidden
+              />
               {menuOpen ? <X className="size-5" /> : <Menu className="size-5" />}
             </Button>
           </div>
