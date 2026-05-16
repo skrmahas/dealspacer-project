@@ -4,7 +4,7 @@
  * Regenerate: node packages/shared/scripts/sync-nasdaq-baltic-seed.mjs
  * Run idempotently — uses ON CONFLICT (slug) DO UPDATE.
  */
-import type { SeedCompany } from "./index";
+import type { SeedCompany } from "./contracts";
 
 export const BALTIC_COMPANIES: SeedCompany[] = [
   { name: "Airobot Technologies", ticker: "AIR", exchange: "Nasdaq Tallinn", slug: "airobot-technologies", country: "EE", sector: "Industrials" },
