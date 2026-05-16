@@ -58,8 +58,26 @@ describe("GET /api/jobs", () => {
   it("returns list of jobs", async () => {
     mockPoolQuery.mockResolvedValue({
       rows: [
-        { id: "job-1", state: "complete", original_filename: "a.pdf" },
-        { id: "job-2", state: "pending", original_filename: "b.pdf" },
+        {
+          id: "job-1",
+          state: "complete",
+          original_filename: "a.pdf",
+          output_language: "en",
+          error: null,
+          created_at: "2024-01-02",
+          updated_at: "2024-01-03",
+          report_id: "report-1",
+        },
+        {
+          id: "job-2",
+          state: "pending",
+          original_filename: "b.pdf",
+          output_language: "lt",
+          error: null,
+          created_at: "2024-01-01",
+          updated_at: "2024-01-01",
+          report_id: null,
+        },
       ],
       rowCount: 2,
     });
@@ -69,7 +87,16 @@ describe("GET /api/jobs", () => {
 
     expect(Array.isArray(data)).toBe(true);
     expect(data.length).toBe(2);
-    expect(data[0].id).toBe("job-1");
+    expect(data[0]).toEqual({
+      jobId: "job-1",
+      state: "complete",
+      originalFilename: "a.pdf",
+      outputLanguage: "en",
+      error: null,
+      createdAt: "2024-01-02",
+      updatedAt: "2024-01-03",
+      reportId: "report-1",
+    });
   });
 
   it("returns empty array when no jobs exist", async () => {
