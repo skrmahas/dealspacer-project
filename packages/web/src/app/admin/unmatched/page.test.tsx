@@ -76,6 +76,11 @@ describe("AdminUnmatchedPage", () => {
     expect(exchangeSelect).toHaveAttribute("id", "create-company-r1-exchange");
     expect(exchangeSelect.closest("label")).toHaveAttribute("for", "create-company-r1-exchange");
     expect(exchangeSelect).toHaveClass("normal-case");
+    expect(exchangeSelect.parentElement).toHaveClass("inline-grid", "w-full", "grid-cols-[1fr_2rem]");
+    expect(exchangeSelect.parentElement?.querySelector(".lucide-chevron-down")).toHaveClass(
+      "size-4",
+      "sm:size-3.5",
+    );
     expect(slugInput).toHaveAttribute("name", "slug");
     expect(slugInput).toHaveAttribute("id", "create-company-r1-slug");
     expect(slugInput.closest("label")).toHaveAttribute("for", "create-company-r1-slug");

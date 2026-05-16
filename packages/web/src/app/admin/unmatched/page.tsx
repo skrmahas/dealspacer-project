@@ -218,7 +218,7 @@ export default function AdminUnmatchedPage() {
                     </label>
                     <label htmlFor={createFieldId("exchange")} className={fieldLabelClassName}>
                       Exchange
-                      <span className="mt-1.5 grid grid-cols-[1fr_2rem]">
+                      <span className="mt-1.5 inline-grid w-full grid-cols-[1fr_2rem]">
                         <select
                           id={createFieldId("exchange")}
                           name="exchange"
@@ -233,7 +233,7 @@ export default function AdminUnmatchedPage() {
                           ))}
                         </select>
                         <ChevronDown
-                          className="pointer-events-none col-start-2 row-start-1 size-4 place-self-center text-[#6b7d92]"
+                          className="pointer-events-none col-start-2 row-start-1 size-4 place-self-center text-[#6b7d92] sm:size-3.5"
                           aria-hidden
                         />
                       </span>
