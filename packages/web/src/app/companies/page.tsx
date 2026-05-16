@@ -360,16 +360,16 @@ function Sidebar({
         <div className="flex items-center justify-between gap-2 border-t border-[#1e2733] px-4 py-3">
           <Link
             href="/upload"
-            className="inline-flex items-center gap-1.5 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.12em] text-[#e8ecf2] transition hover:text-[#2b79db]"
+            className="inline-flex min-h-11 items-center gap-2 px-2 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.12em] text-[#e8ecf2] transition hover:text-[#2b79db] md:min-h-9 md:px-0"
           >
-            <Upload className="size-3.5" />
+            <Upload className="size-4 md:size-3.5" />
             Upload
           </Link>
           <Link
             href="/access"
-            className="inline-flex items-center gap-1.5 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.12em] text-[#6b7d92] transition hover:text-[#e8ecf2]"
+            className="inline-flex min-h-11 items-center gap-2 px-2 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.12em] text-[#6b7d92] transition hover:text-[#e8ecf2] md:min-h-9 md:px-0"
           >
-            <KeyRound className="size-3.5" />
+            <KeyRound className="size-4 md:size-3.5" />
             Access
           </Link>
         </div>

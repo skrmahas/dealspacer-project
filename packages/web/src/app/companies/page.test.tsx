@@ -90,6 +90,16 @@ describe("CompanyCatalogPage", () => {
     expect(uploadLinks.some((el) => el.getAttribute("href") === "/upload")).toBe(true);
     const accessLinks = screen.getAllByRole("link", { name: /access/i });
     expect(accessLinks.some((el) => el.getAttribute("href") === "/access")).toBe(true);
+
+    const sidebarFooter = screen.getByText("Company directory").closest("aside");
+    expect(sidebarFooter).not.toBeNull();
+    const sidebarUpload = within(sidebarFooter!).getByRole("link", { name: /^upload$/i });
+    const sidebarAccess = within(sidebarFooter!).getByRole("link", { name: /^access$/i });
+
+    for (const action of [sidebarUpload, sidebarAccess]) {
+      expect(action).toHaveClass("min-h-11", "px-2", "md:min-h-9", "md:px-0");
+      expect(action.querySelector("svg")).toHaveClass("size-4", "md:size-3.5");
+    }
   });
 
   it("groups companies by exchange with real report count badges from API", async () => {
