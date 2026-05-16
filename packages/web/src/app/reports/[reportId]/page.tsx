@@ -58,6 +58,10 @@ const LANGUAGE_LABEL: Record<string, string> = {
   lt: "Lietuvių",
 };
 
+const heroActionClassName =
+  "inline-flex h-11 w-full items-center justify-center gap-2 border px-4 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.14em] transition sm:h-9 sm:w-auto sm:px-3";
+const heroActionIconClassName = "size-4 sm:size-3.5";
+
 export default function ReportViewPage() {
   const params = useParams();
   const reportId = params.reportId as string;
@@ -347,16 +351,19 @@ function ReportHero({
         <div className="flex flex-col gap-2.5 sm:flex-row sm:flex-wrap">
           <a
             href={`/api/reports/${reportId}/download`}
-            className="inline-flex h-11 w-full items-center justify-center gap-2 border border-[#2b79db] bg-[#2b79db] px-5 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.14em] text-white transition hover:bg-[#3d8de8] sm:w-auto"
+            className={cn(
+              heroActionClassName,
+              "border-[#2b79db] bg-[#2b79db] text-white hover:bg-[#3d8de8]",
+            )}
           >
-            <Download className="size-3.5" />
+            <Download className={heroActionIconClassName} />
             Download PDF
           </a>
           <button
             type="button"
             onClick={onCopy}
             className={cn(
-              "inline-flex h-11 w-full items-center justify-center gap-2 border px-5 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.14em] transition sm:w-auto",
+              heroActionClassName,
               copied
                 ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-200"
                 : "border-[#3d4d62] bg-transparent text-[#c5d0de] hover:border-[#5a8f8f]/60 hover:bg-[#5a8f8f]/8",
@@ -365,12 +372,12 @@ function ReportHero({
           >
             {copied ? (
               <>
-                <CheckCircle2 className="size-3.5" />
+                <CheckCircle2 className={heroActionIconClassName} />
                 Link copied
               </>
             ) : (
               <>
-                <Share2 className="size-3.5" />
+                <Share2 className={heroActionIconClassName} />
                 Share
               </>
             )}
@@ -378,9 +385,12 @@ function ReportHero({
           {companySlug && (
             <Link
               href={`/companies/${companySlug}`}
-              className="inline-flex h-11 w-full items-center justify-center gap-2 border border-[#3d4d62] bg-transparent px-5 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.14em] text-[#c5d0de] transition hover:border-[#5a8f8f]/60 hover:bg-[#5a8f8f]/8 sm:w-auto"
+              className={cn(
+                heroActionClassName,
+                "border-[#3d4d62] bg-transparent text-[#c5d0de] hover:border-[#5a8f8f]/60 hover:bg-[#5a8f8f]/8",
+              )}
             >
-              <Building2 className="size-3.5" />
+              <Building2 className={heroActionIconClassName} />
               Open Company
             </Link>
           )}
