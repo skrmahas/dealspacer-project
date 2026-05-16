@@ -57,7 +57,11 @@ describe("AccessForm", () => {
 
     render(<AccessPage />);
 
-    fireEvent.change(screen.getByPlaceholderText("Access code"), {
+    const accessCode = screen.getByLabelText("Access code");
+    expect(accessCode).toHaveAttribute("name", "accessCode");
+    expect(accessCode).toHaveClass("text-base/6", "sm:text-[15px]");
+
+    fireEvent.change(accessCode, {
       target: { value: "some-code" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Unlock Access" }));

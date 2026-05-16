@@ -138,6 +138,7 @@ function AccessForm() {
             />
             <input
               id="access-code"
+              name="accessCode"
               type="password"
               aria-label="Access code"
               aria-describedby={error ? "access-error" : undefined}
@@ -153,7 +154,7 @@ function AccessForm() {
               autoComplete="off"
               className={cn(
                 "w-full border-0 bg-transparent py-3.5 pl-11 pr-4",
-                "font-[family-name:var(--font-mono)] text-[15px] tracking-[0.08em] text-[#e8ecf2]",
+                "font-[family-name:var(--font-mono)] text-base/6 tracking-[0.08em] text-[#e8ecf2] sm:text-[15px]",
                 "placeholder:text-[#4a5568] focus:outline-none focus:ring-0",
               )}
             />
