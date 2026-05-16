@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Check, Plus } from "lucide-react";
+import { ArrowLeft, Check, ChevronDown, Plus } from "lucide-react";
 import { AppSiteHeader } from "@/components/app-site-header";
 
 interface UnmatchedReport {
@@ -25,6 +25,10 @@ interface Company {
 }
 
 const EXCHANGES = ["Nasdaq Tallinn", "Nasdaq Riga", "Nasdaq Vilnius"];
+const fieldLabelClassName =
+  "block font-[family-name:var(--font-mono)] text-base/6 uppercase tracking-[0.12em] text-[#6b7d92] sm:text-[11px]";
+const fieldControlClassName =
+  "mt-1.5 w-full border border-[#2a3544] bg-[#080b10] px-3 py-2.5 text-base/6 normal-case text-[#e8ecf2] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#2b79db]/50 sm:py-2 sm:text-sm";
 
 function slugify(text: string): string {
   return text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
@@ -131,13 +135,13 @@ export default function AdminUnmatchedPage() {
           All reports are mapped to companies. Nothing to review.
         </p>
       ) : (
-        <ul className="space-y-3">
+        <ul className="m-0 list-none space-y-3 p-0">
           {reports.map((r) => {
             const name = r.extractedJsonSnapshot?.metadata?.companyName || "Unknown";
             return (
               <li
                 key={r.id}
-                className="border border-[#2a3544] bg-[#0c1018]/90 p-4 sm:p-5"
+                className="list-none border border-[#2a3544] bg-[#0c1018]/90 p-4 sm:p-5"
               >
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0 flex-1">
@@ -154,18 +158,19 @@ export default function AdminUnmatchedPage() {
                       onClick={() =>
                         setOpenDropdown(openDropdown === r.id ? null : r.id)
                       }
-                      className="w-full border border-[#2a3544] bg-[#080b10] px-4 py-2 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.12em] text-[#e8ecf2] transition hover:border-[#2b79db]/40 sm:w-auto"
+                      className="inline-flex min-h-11 w-full items-center justify-center gap-2 border border-[#2a3544] bg-[#080b10] px-3 py-2.5 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.12em] text-[#e8ecf2] transition hover:border-[#2b79db]/40 sm:min-h-9 sm:w-auto sm:py-2"
                     >
-                      Map ▾
+                      Map
+                      <ChevronDown className="size-3.5" aria-hidden />
                     </button>
                     {openDropdown === r.id && (
-                      <div className="absolute right-0 z-10 mt-1 max-h-60 w-full min-w-[220px] overflow-y-auto border border-[#2a3544] bg-[#0c1018] shadow-lg sm:w-56">
+                      <div className="absolute left-0 right-0 z-10 mt-1 max-h-72 w-full min-w-0 overflow-y-auto border border-[#2a3544] bg-[#0c1018] shadow-lg sm:left-auto sm:w-64 sm:min-w-[240px]">
                         {companies.map((c) => (
                           <button
                             key={c.id}
                             type="button"
                             onClick={() => mapReport(r.id, c.id)}
-                            className="block w-full px-3 py-2 text-left text-sm text-[#c5d0de] transition hover:bg-[#2b79db]/10"
+                            className="block w-full px-3 py-3 text-left text-base/6 text-[#c5d0de] transition hover:bg-[#2b79db]/10 sm:py-2.5 sm:text-sm"
                           >
                             {c.name} ({c.exchange.replace("Nasdaq ", "")})
                           </button>
@@ -173,7 +178,7 @@ export default function AdminUnmatchedPage() {
                         <button
                           type="button"
                           onClick={() => startCreate(r.id, name)}
-                          className="flex w-full items-center gap-2 border-t border-[#2a3544] bg-[#080b10] px-3 py-2 text-left text-sm font-medium text-[#2b79db]"
+                          className="flex w-full items-center gap-2 border-t border-[#2a3544] bg-[#080b10] px-3 py-3 text-left text-base/6 font-medium text-[#2b79db] sm:py-2.5 sm:text-sm"
                         >
                           <Plus className="size-3.5" />
                           Create new company
@@ -185,52 +190,65 @@ export default function AdminUnmatchedPage() {
 
                 {createForm === r.id && (
                   <div className="mt-4 grid gap-3 border-t border-[#2a3544] pt-4 sm:grid-cols-2">
-                    <label className="block text-[11px] text-[#6b7d92]">
+                    <label className={fieldLabelClassName}>
                       Name
                       <input
+                        name="companyName"
+                        type="text"
                         value={newName}
                         onChange={(e) => {
                           setNewName(e.target.value);
                           setNewSlug(slugify(e.target.value));
                         }}
-                        className="mt-1 w-full border border-[#2a3544] bg-[#080b10] px-3 py-2 text-sm text-[#e8ecf2]"
+                        className={fieldControlClassName}
                       />
                     </label>
-                    <label className="block text-[11px] text-[#6b7d92]">
+                    <label className={fieldLabelClassName}>
                       Ticker
                       <input
+                        name="ticker"
+                        type="text"
                         value={newTicker}
                         onChange={(e) => setNewTicker(e.target.value)}
-                        className="mt-1 w-full border border-[#2a3544] bg-[#080b10] px-3 py-2 text-sm text-[#e8ecf2]"
+                        className={fieldControlClassName}
                       />
                     </label>
-                    <label className="block text-[11px] text-[#6b7d92]">
+                    <label className={fieldLabelClassName}>
                       Exchange
-                      <select
-                        value={newExchange}
-                        onChange={(e) => setNewExchange(e.target.value)}
-                        className="mt-1 w-full border border-[#2a3544] bg-[#080b10] px-3 py-2 text-sm text-[#e8ecf2]"
-                      >
-                        {EXCHANGES.map((ex) => (
-                          <option key={ex} value={ex}>
-                            {ex}
-                          </option>
-                        ))}
-                      </select>
+                      <span className="mt-1.5 grid grid-cols-[1fr_2rem]">
+                        <select
+                          name="exchange"
+                          value={newExchange}
+                          onChange={(e) => setNewExchange(e.target.value)}
+                          className={`${fieldControlClassName} col-span-full row-start-1 mt-0 appearance-none pr-8`}
+                        >
+                          {EXCHANGES.map((ex) => (
+                            <option key={ex} value={ex}>
+                              {ex}
+                            </option>
+                          ))}
+                        </select>
+                        <ChevronDown
+                          className="pointer-events-none col-start-2 row-start-1 size-4 place-self-center text-[#6b7d92]"
+                          aria-hidden
+                        />
+                      </span>
                     </label>
-                    <label className="block text-[11px] text-[#6b7d92]">
+                    <label className={fieldLabelClassName}>
                       Slug
                       <input
+                        name="slug"
+                        type="text"
                         value={newSlug}
                         onChange={(e) => setNewSlug(e.target.value)}
-                        className="mt-1 w-full border border-[#2a3544] bg-[#080b10] px-3 py-2 text-sm text-[#e8ecf2]"
+                        className={fieldControlClassName}
                       />
                     </label>
                     <div className="flex flex-wrap gap-2 sm:col-span-2">
                       <button
                         type="button"
                         onClick={() => createAndMap(r.id)}
-                        className="inline-flex items-center gap-2 bg-[#2b79db] px-4 py-2 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.12em] text-white"
+                        className="inline-flex min-h-11 items-center gap-2 bg-[#2b79db] py-2.5 pr-3 pl-2.5 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.12em] text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 sm:min-h-9 sm:py-2"
                       >
                         <Check className="size-3.5" />
                         Create &amp; map
@@ -238,7 +256,7 @@ export default function AdminUnmatchedPage() {
                       <button
                         type="button"
                         onClick={() => setCreateForm(null)}
-                        className="border border-[#2a3544] px-4 py-2 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.12em] text-[#8b9aad]"
+                        className="min-h-11 border border-[#2a3544] px-3 py-2.5 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.12em] text-[#8b9aad] transition hover:border-[#3d4d62] hover:text-[#c5d0de] sm:min-h-9 sm:py-2"
                       >
                         Cancel
                       </button>
