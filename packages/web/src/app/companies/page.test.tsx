@@ -202,6 +202,10 @@ describe("CompanyCatalogPage", () => {
     render(<CompanyCatalogPage />);
 
     await waitFor(() => expect(screen.getByText(/select a company/i)).toBeInTheDocument());
+
+    const backHome = screen.getByRole("link", { name: /back to home/i });
+    expect(backHome).toHaveClass("min-h-11", "px-2", "md:min-h-9", "md:px-0");
+    expect(backHome.querySelector("svg")).toHaveClass("size-3.5");
   });
 
   it("shows catalog report count and cross-company compare panel", async () => {

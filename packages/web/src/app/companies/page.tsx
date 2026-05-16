@@ -475,7 +475,7 @@ function WelcomeState({
 
         <Link
           href="/"
-          className="mt-10 inline-flex items-center gap-2 font-[family-name:var(--font-mono)] text-[11px] uppercase tracking-[0.14em] text-[#6b7d92] transition hover:text-[#2b79db]"
+          className="-ml-2 mt-10 inline-flex min-h-11 items-center gap-2 px-2 font-[family-name:var(--font-mono)] text-[11px] uppercase tracking-[0.14em] text-[#6b7d92] transition hover:text-[#2b79db] md:min-h-9 md:px-0"
         >
           Back to home
           <ArrowRight className="size-3.5" />
