@@ -13,12 +13,18 @@ const ACCEPTED_MIME_TYPES = new Set([
 const OUTPUT_LANGUAGES = new Set<OutputLanguage>(["en", "et", "lv", "lt"]);
 const { saveFile } = createAutoFileStore();
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const searchParams = request.nextUrl.searchParams;
+    const limitParam = searchParams.get("limit");
+    const limit = limitParam ? parseInt(limitParam, 10) : 20;
+    const safeLimit = isNaN(limit) ? 20 : Math.min(limit, 1000);
+
     const pool = getPool();
     const result = await pool.query(
       `SELECT id, state, original_filename, output_language, error, created_at, updated_at
-       FROM jobs ORDER BY created_at DESC LIMIT 20`,
+       FROM jobs ORDER BY created_at DESC LIMIT $1`,
+      [safeLimit]
     );
     return NextResponse.json(result.rows);
   } catch (err) {
@@ -51,12 +57,12 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // 100 MB limit for all file types — prevents worker OOM crashes from
-  // large XHTML/HTML files that balloon during DOM/text parsing.
-  const maxBytes = 100 * 1024 * 1024;
+  // 15 MB limit for all file types — prevents worker OOM crashes from
+  // massive PDFs that crash pdf.js parsing in standard environments.
+  const maxBytes = 15 * 1024 * 1024;
   if (file.size > maxBytes) {
     return NextResponse.json(
-      { error: "File must be under 100 MB" },
+      { error: "File must be under 15 MB" },
       { status: 400 },
     );
   }
