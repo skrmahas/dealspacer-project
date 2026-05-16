@@ -142,6 +142,7 @@ export interface Report {
 
 export interface ReportWithPreview extends Report {
   companyName?: string | null;
+  companySlug?: string | null;
   previewRevenue?: number | null;
   previewEbitda?: number | null;
   previewNetProfit?: number | null;
@@ -168,4 +169,5 @@ export interface ReportStore {
   updateReportCompany(reportId: string, companyId: string): Promise<Report>;
   replaceReport(reportId: string, newJobId: string, newS3Key: string, newSnapshot: ExtractedData): Promise<Report>;
   listRecentReports(limit: number): Promise<ReportWithPreview[]>;
+  listReportsForCompare(options?: { query?: string; limit?: number }): Promise<ReportWithPreview[]>;
 }

@@ -11,8 +11,10 @@ import {
   Upload,
   X,
 } from "lucide-react";
+import { CrossCompanyCompareCard } from "@/components/cross-company-compare-card";
 import { DealSpacerLogoLink } from "@/components/deal-spacer-logo";
 import { Button } from "@/components/ui/button";
+import { formatCatalogReportCount } from "@/lib/catalog-stats";
 import { cn } from "@/lib/utils";
 
 interface Company {
@@ -172,7 +174,7 @@ function MobileTopBar({
   filteredCount: number;
 }) {
   return (
-    <header className="sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-[#2b79db]/12 bg-[#080b10]/90 px-4 py-3 backdrop-blur-md md:hidden">
+    <header className="sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-[#1a2230] bg-[#080b10]/90 px-4 py-3 backdrop-blur-md md:hidden">
       <div className="flex items-center gap-2">
         <Button
           variant="ghost"
@@ -412,7 +414,10 @@ function WelcomeState({
         {companyCount > 0 && (
           <dl className="mt-10 grid gap-px border border-[#2a3544] bg-[#2a3544] sm:grid-cols-3">
             <StatBlock label="In view" value={String(filteredCount)} />
-            <StatBlock label="Reports in catalog" value={String(totalReports)} />
+            <StatBlock
+              label="Reports in catalog"
+              value={formatCatalogReportCount(totalReports)}
+            />
             <StatBlock label="Languages" value="4" />
           </dl>
         )}
@@ -426,7 +431,13 @@ function WelcomeState({
           </p>
         )}
 
-        <div className="relative mt-12 max-w-md border border-[#2a3544] bg-[#0c1018]/80 p-6">
+        <div className="mt-12 grid max-w-3xl gap-4 md:grid-cols-2">
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1], delay: 0.12 }}
+            className="relative border border-[#2a3544] bg-[#0c1018]/80 p-6"
+          >
           <span className="pointer-events-none absolute -left-px -top-px block size-2 border-l border-t border-[#2b79db]" />
           <h2 className="font-[family-name:var(--font-display)] text-lg font-medium text-[#f4f6f9]">
             Need to add a report?
@@ -456,6 +467,8 @@ function WelcomeState({
               </Link>
             </Button>
           </div>
+          </motion.div>
+          <CrossCompanyCompareCard />
         </div>
 
         <Link

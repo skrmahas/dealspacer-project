@@ -110,7 +110,7 @@ export function AppSiteHeader({
     <header
       className={cn(
         sticky && "sticky top-0 z-40",
-        "border-b border-[#2b79db]/12 bg-[#080b10]/85 backdrop-blur-md",
+        "border-b border-[#1a2230] bg-[#080b10]/85 backdrop-blur-md",
         className,
       )}
     >
@@ -207,7 +207,7 @@ export function AppSiteHeader({
           <div
             id={menuId}
             className={cn(
-              "fixed inset-x-0 top-[53px] z-50 border-b border-[#2b79db]/15 bg-[#0a0e14]/98 px-4 py-4 backdrop-blur-md md:hidden",
+              "fixed inset-x-0 top-[53px] z-50 border-b border-[#1a2230] bg-[#0a0e14]/98 px-4 py-4 backdrop-blur-md md:hidden",
               "max-h-[min(70vh,calc(100dvh-53px))] overflow-y-auto",
             )}
           >

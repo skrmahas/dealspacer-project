@@ -577,4 +577,27 @@ describe("createReportStore", () => {
     const reports = await store.listRecentReports(8);
     expect(reports).toHaveLength(1);
   });
+
+  it("listReportsForCompare returns joined company slug and respects limit", async () => {
+    setupWithClient([
+      {
+        id: "r1",
+        company_id: "c1",
+        fiscal_year: 2024,
+        report_type: "annual",
+        language: "en",
+        job_id: null,
+        s3_key: "r1.pdf",
+        extracted_json_snapshot: null,
+        created_at: "2024-01-01",
+        company_name: "Tallink",
+        company_slug: "tallink",
+      },
+    ]);
+    const store = createReportStore();
+    const reports = await store.listReportsForCompare({ limit: 10 });
+    expect(reports).toHaveLength(1);
+    expect(reports[0].companyName).toBe("Tallink");
+    expect(reports[0].companySlug).toBe("tallink");
+  });
 });
