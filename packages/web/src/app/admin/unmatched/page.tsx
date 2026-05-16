@@ -138,6 +138,7 @@ export default function AdminUnmatchedPage() {
         <ul className="m-0 list-none space-y-3 p-0">
           {reports.map((r) => {
             const name = r.extractedJsonSnapshot?.metadata?.companyName || "Unknown";
+            const createFieldId = (field: string) => `create-company-${r.id}-${field}`;
             return (
               <li
                 key={r.id}
@@ -190,9 +191,10 @@ export default function AdminUnmatchedPage() {
 
                 {createForm === r.id && (
                   <div className="mt-4 grid gap-3 border-t border-[#2a3544] pt-4 sm:grid-cols-2">
-                    <label className={fieldLabelClassName}>
+                    <label htmlFor={createFieldId("name")} className={fieldLabelClassName}>
                       Name
                       <input
+                        id={createFieldId("name")}
                         name="companyName"
                         type="text"
                         value={newName}
@@ -203,9 +205,10 @@ export default function AdminUnmatchedPage() {
                         className={fieldControlClassName}
                       />
                     </label>
-                    <label className={fieldLabelClassName}>
+                    <label htmlFor={createFieldId("ticker")} className={fieldLabelClassName}>
                       Ticker
                       <input
+                        id={createFieldId("ticker")}
                         name="ticker"
                         type="text"
                         value={newTicker}
@@ -213,10 +216,11 @@ export default function AdminUnmatchedPage() {
                         className={fieldControlClassName}
                       />
                     </label>
-                    <label className={fieldLabelClassName}>
+                    <label htmlFor={createFieldId("exchange")} className={fieldLabelClassName}>
                       Exchange
                       <span className="mt-1.5 grid grid-cols-[1fr_2rem]">
                         <select
+                          id={createFieldId("exchange")}
                           name="exchange"
                           value={newExchange}
                           onChange={(e) => setNewExchange(e.target.value)}
@@ -234,9 +238,10 @@ export default function AdminUnmatchedPage() {
                         />
                       </span>
                     </label>
-                    <label className={fieldLabelClassName}>
+                    <label htmlFor={createFieldId("slug")} className={fieldLabelClassName}>
                       Slug
                       <input
+                        id={createFieldId("slug")}
                         name="slug"
                         type="text"
                         value={newSlug}

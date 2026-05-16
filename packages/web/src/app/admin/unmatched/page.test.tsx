@@ -65,12 +65,20 @@ describe("AdminUnmatchedPage", () => {
     const slugInput = screen.getByLabelText("Slug");
 
     expect(nameInput).toHaveAttribute("name", "companyName");
+    expect(nameInput).toHaveAttribute("id", "create-company-r1-name");
+    expect(nameInput.closest("label")).toHaveAttribute("for", "create-company-r1-name");
     expect(nameInput).toHaveAttribute("type", "text");
     expect(nameInput).toHaveClass("normal-case");
     expect(tickerInput).toHaveAttribute("name", "ticker");
+    expect(tickerInput).toHaveAttribute("id", "create-company-r1-ticker");
+    expect(tickerInput.closest("label")).toHaveAttribute("for", "create-company-r1-ticker");
     expect(exchangeSelect).toHaveAttribute("name", "exchange");
+    expect(exchangeSelect).toHaveAttribute("id", "create-company-r1-exchange");
+    expect(exchangeSelect.closest("label")).toHaveAttribute("for", "create-company-r1-exchange");
     expect(exchangeSelect).toHaveClass("normal-case");
     expect(slugInput).toHaveAttribute("name", "slug");
+    expect(slugInput).toHaveAttribute("id", "create-company-r1-slug");
+    expect(slugInput.closest("label")).toHaveAttribute("for", "create-company-r1-slug");
     expect(slugInput).toHaveClass("normal-case");
     expect(slugInput).toHaveValue("acme-holdings");
 
