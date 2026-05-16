@@ -30,10 +30,14 @@ export function DealSpacerLogoLink({ href = "/", onClick, className }: DealSpace
       href={href}
       onClick={onClick}
       className={cn(
-        "inline-flex shrink-0 items-center transition-colors hover:text-white",
+        "relative inline-flex shrink-0 items-center transition-colors hover:text-white",
         className,
       )}
     >
+      <span
+        className="absolute left-1/2 top-1/2 hidden size-[max(100%,2.75rem)] -translate-x-1/2 -translate-y-1/2 [@media(any-pointer:coarse)]:block"
+        aria-hidden
+      />
       <DealSpacerLogo />
     </Link>
   );
