@@ -29,6 +29,16 @@ describe("formatReportPeriodLabel", () => {
       }),
     ).toBe("Q1 2026");
   });
+
+  it("keeps annual ISO report periods labeled as fiscal years", () => {
+    expect(
+      formatReportPeriodLabel({
+        fiscalYear: 2024,
+        reportType: "annual",
+        extractedJsonSnapshot: { metadata: { reportPeriod: "2024-12-31" } },
+      }),
+    ).toBe("FY 2024");
+  });
 });
 
 describe("pickTrendReports", () => {

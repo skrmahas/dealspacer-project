@@ -1,9 +1,11 @@
-import type { ExtractedData } from "./contracts";
+type CurrencySnapshot = {
+  metrics?: { unit?: string }[];
+};
 
 /** Normalize extracted metric values to whole EUR for display and comparison. */
 
 /** When a filing mixes units, infer scale from explicit thousand/million labels in the same snapshot. */
-export function detectSnapshotCurrencyMultiplier(snapshot: ExtractedData | null): number {
+export function detectSnapshotCurrencyMultiplier(snapshot: CurrencySnapshot | null): number {
   if (!snapshot?.metrics?.length) return 1;
   const units = snapshot.metrics.map((m) => (m.unit ?? "").toLowerCase());
   if (units.some((u) => /thousand/.test(u))) return 1_000;
@@ -78,7 +80,7 @@ export function applySnapshotCurrencyScale(
   value: number,
   unit: string | undefined,
   label: string,
-  snapshot: ExtractedData | null,
+  snapshot: CurrencySnapshot | null,
   normalized: number,
 ): number {
   const mult = detectSnapshotCurrencyMultiplier(snapshot);

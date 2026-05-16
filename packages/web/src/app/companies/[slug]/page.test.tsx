@@ -174,6 +174,34 @@ describe("CompanyAnalyticsDashboardPage", () => {
     ).toBeInTheDocument();
   });
 
+  it("keeps quarterly sentiment visible when annual filings drive the trend chart", async () => {
+    const quarterlyReport = {
+      ...MOCK_REPORTS[0],
+      id: "r3",
+      fiscalYear: 2025,
+      reportType: "q1",
+      createdAt: "2025-05-01",
+      extractedJsonSnapshot: {
+        ...MOCK_REPORTS[0].extractedJsonSnapshot,
+        metadata: { companyName: "Tallink Grupp", reportPeriod: "2025-03-31" },
+        sentiment: {
+          managementTone: "Quarterly demand improved on higher passenger volumes.",
+          outlook: "Positive",
+          riskFactors: [],
+          guidanceDirection: "raised",
+        },
+      },
+    };
+
+    mockSuccessfulLoad([MOCK_REPORTS[1], MOCK_REPORTS[0], quarterlyReport]);
+    render(<CompanyAnalyticsDashboardPage />);
+
+    await waitFor(() => expect(screen.getByText("Sentiment timeline")).toBeInTheDocument());
+    expect(
+      screen.getByText(/Quarterly demand improved on higher passenger volumes/),
+    ).toBeInTheDocument();
+  });
+
   it("renders the reports table with checkboxes and supports Compare button toggle", async () => {
     mockSuccessfulLoad();
     render(<CompanyAnalyticsDashboardPage />);

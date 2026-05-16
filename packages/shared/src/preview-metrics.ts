@@ -1,4 +1,4 @@
-import type { ExtractedData, ExtractedMetric } from "./contracts";
+import type { ExtractedMetric, ProfitabilityTrends } from "./contracts";
 import {
   applySnapshotCurrencyScale,
   detectSnapshotCurrencyMultiplier,
@@ -8,6 +8,11 @@ import {
 export type PreviewMetricKey = "revenue" | "ebitda" | "netProfit" | "fcf";
 
 type TrendField = "revenue" | "ebitda" | "netProfit" | "freeCashFlow";
+
+type PreviewSnapshot = {
+  metrics?: ExtractedMetric[];
+  profitabilityTrends?: ProfitabilityTrends;
+};
 
 const TREND_FIELD: Record<PreviewMetricKey, TrendField> = {
   revenue: "revenue",
@@ -85,7 +90,7 @@ function labelMatchesKey(label: string, key: PreviewMetricKey): boolean {
 }
 
 export function findMetricByKey(
-  snapshot: ExtractedData | null,
+  snapshot: PreviewSnapshot | null,
   key: PreviewMetricKey,
 ): ExtractedMetric | null {
   if (!snapshot?.metrics?.length) return null;
@@ -110,14 +115,14 @@ function normalizeExtractedValue(
   value: number,
   unit: string | undefined,
   label: string,
-  snapshot: ExtractedData | null,
+  snapshot: PreviewSnapshot | null,
 ): number {
   const normalized = normalizeMetricToEur(value, unit, label);
   const scaled = applySnapshotCurrencyScale(value, unit, label, snapshot, normalized);
   return ensureThousandsEurScale(value, unit, scaled);
 }
 
-function normalizeTrendValue(value: number, snapshot: ExtractedData | null): number {
+function normalizeTrendValue(value: number, snapshot: PreviewSnapshot | null): number {
   const mult = detectSnapshotCurrencyMultiplier(snapshot);
   if (mult > 1 && Math.abs(value) < 1_000_000) {
     return value * mult;
@@ -126,7 +131,7 @@ function normalizeTrendValue(value: number, snapshot: ExtractedData | null): num
 }
 
 function trendValueAt(
-  snapshot: ExtractedData | null,
+  snapshot: PreviewSnapshot | null,
   key: PreviewMetricKey,
   indexFromEnd: number,
 ): number | null {
@@ -142,7 +147,7 @@ function trendValueAt(
 }
 
 export function resolvePreviewMetric(
-  snapshot: ExtractedData | null,
+  snapshot: PreviewSnapshot | null,
   key: PreviewMetricKey,
 ): number | null {
   const m = findMetricByKey(snapshot, key);
@@ -153,13 +158,13 @@ export function resolvePreviewMetric(
 }
 
 export function resolvePriorPreviewMetric(
-  snapshot: ExtractedData | null,
+  snapshot: PreviewSnapshot | null,
   key: PreviewMetricKey,
 ): number | null {
   return trendValueAt(snapshot, key, -2);
 }
 
-export function buildReportPreview(snapshot: ExtractedData | null): {
+export function buildReportPreview(snapshot: PreviewSnapshot | null): {
   previewRevenue: number | null;
   previewEbitda: number | null;
   previewNetProfit: number | null;
@@ -173,12 +178,12 @@ export function buildReportPreview(snapshot: ExtractedData | null): {
   };
 }
 
-export function hasProfitabilityTrendSeries(snapshot: ExtractedData | null): boolean {
+export function hasProfitabilityTrendSeries(snapshot: PreviewSnapshot | null): boolean {
   const trends = snapshot?.profitabilityTrends;
   return (trends?.periods?.length ?? 0) >= 2;
 }
 
-export function buildTrendChartFromSnapshot(snapshot: ExtractedData | null): {
+export function buildTrendChartFromSnapshot(snapshot: PreviewSnapshot | null): {
   labels: string[];
   revenue: (number | null)[];
   ebitda: (number | null)[];

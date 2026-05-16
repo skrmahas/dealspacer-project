@@ -10,6 +10,7 @@ export {
 export type { PreviewMetricKey } from "./preview-metrics";
 
 export {
+  compareReportRecency,
   formatReportPeriodLabel,
   pickHeadlineReports,
   pickTrendReports,

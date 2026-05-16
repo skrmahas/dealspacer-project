@@ -70,6 +70,7 @@ function formatIsoReportPeriod(
   const year = Number(m[1]);
   const month = Number(m[2]);
   if (!Number.isFinite(year) || !Number.isFinite(month)) return null;
+  if (reportType === "annual") return `FY ${fiscalYear}`;
   const quarterFromType = reportType.match(/^q([1-4])$/);
   if (quarterFromType) {
     return `Q${quarterFromType[1]} ${fiscalYear}`;

@@ -25,8 +25,9 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
   buildTrendChartFromSnapshot,
-  formatReportPeriodLabel,
+  compareReportRecency,
   hasProfitabilityTrendSeries,
+  formatReportPeriodLabel,
   pickHeadlineReports,
   pickTrendReports,
   resolvePriorPreviewMetric,
@@ -249,6 +250,10 @@ export default function CompanyAnalyticsDashboardPage() {
   }, [slug]);
 
   const trendReports = useMemo(() => pickTrendReports(reports), [reports]);
+  const sentimentReports = useMemo(
+    () => [...reports].sort(compareReportRecency).reverse(),
+    [reports],
+  );
   const { latest, previous } = useMemo(() => pickHeadlineReports(reports), [reports]);
   const periodLabel = latest ? formatReportPeriodLabel(latest) : null;
 
@@ -479,7 +484,7 @@ export default function CompanyAnalyticsDashboardPage() {
               </DashboardSection>
             )}
 
-            <SentimentTimeline reports={[...trendReports].reverse()} />
+            <SentimentTimeline reports={sentimentReports} />
 
             <ReportsTable
               reports={reports}
