@@ -61,6 +61,9 @@ const LANGUAGE_LABEL: Record<string, string> = {
 const heroActionClassName =
   "inline-flex h-11 w-full items-center justify-center gap-2 border px-4 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.14em] transition sm:h-9 sm:w-auto sm:px-3";
 const heroActionIconClassName = "size-4 sm:size-3.5";
+const reportNavLinkClassName =
+  "inline-flex min-h-11 items-center gap-2 font-[family-name:var(--font-mono)] text-[11px] uppercase tracking-[0.14em] transition sm:min-h-0 sm:text-[10px]";
+const reportNavIconClassName = "size-4 sm:size-3";
 
 export default function ReportViewPage() {
   const params = useParams();
@@ -311,10 +314,10 @@ function ReportHero({
     <section className="relative">
       <Link
         href={companySlug ? `/companies/${companySlug}` : "/companies"}
-        aria-label="Back to company"
-        className="inline-flex items-center gap-2 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.18em] text-[#6b7d92] transition hover:text-[#2b79db]"
+        aria-label={companySlug ? "Back to company" : "Back to catalog"}
+        className={cn(reportNavLinkClassName, "text-[#6b7d92] hover:text-[#2b79db]")}
       >
-        <ArrowLeft className="size-3" />
+        <ArrowLeft className={reportNavIconClassName} />
         Back to {companySlug ? "company" : "catalog"}
       </Link>
 
@@ -431,10 +434,10 @@ function PdfPanel({
           href={`/api/reports/${reportId}/download`}
           target="_blank"
           rel="noreferrer"
-          className="inline-flex items-center gap-1 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.14em] text-[#2b79db] transition hover:text-[#63a6f5]"
+          className={cn(reportNavLinkClassName, "gap-1.5 text-[#2b79db] hover:text-[#63a6f5]")}
         >
           Open
-          <ExternalLink className="size-3" />
+          <ExternalLink className={reportNavIconClassName} />
         </a>
       </header>
       <div className="relative bg-[#05080c]">
@@ -475,17 +478,17 @@ function FooterBar({
         {companySlug && (
           <Link
             href={`/companies/${companySlug}`}
-            className="inline-flex items-center gap-1.5 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.14em] text-[#5a8f8f] transition hover:text-[#2b79db]"
+            className={cn(reportNavLinkClassName, "gap-1.5 text-[#5a8f8f] hover:text-[#2b79db]")}
           >
-            <ArrowLeft className="size-3" /> Company dashboard
+            <ArrowLeft className={reportNavIconClassName} /> Company dashboard
           </Link>
         )}
         <Link
           href="/companies"
-          className="inline-flex items-center gap-1.5 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.14em] text-[#5a8f8f] transition hover:text-[#2b79db]"
+          className={cn(reportNavLinkClassName, "gap-1.5 text-[#5a8f8f] hover:text-[#2b79db]")}
         >
           Catalog
-          <ArrowUpRight className="size-3" />
+          <ArrowUpRight className={reportNavIconClassName} />
         </Link>
       </div>
     </footer>
@@ -523,9 +526,9 @@ function ErrorState({ message }: { message: string }) {
         <p className="mt-2 text-sm leading-relaxed text-[#e8a0a8]">{message}</p>
         <Link
           href="/companies"
-          className="mt-5 inline-flex items-center gap-1.5 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.16em] text-[#2b79db] transition hover:text-[#63a6f5]"
+          className={cn(reportNavLinkClassName, "mt-5 gap-1.5 text-[#2b79db] hover:text-[#63a6f5]")}
         >
-          <ArrowLeft className="size-3" /> Back to catalog
+          <ArrowLeft className={reportNavIconClassName} /> Back to catalog
         </Link>
       </div>
     </div>
@@ -545,9 +548,9 @@ function NotFoundState() {
         </p>
         <Link
           href="/companies"
-          className="mt-6 inline-flex items-center gap-1.5 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.16em] text-[#2b79db] transition hover:text-[#63a6f5]"
+          className={cn(reportNavLinkClassName, "mt-6 gap-1.5 text-[#2b79db] hover:text-[#63a6f5]")}
         >
-          <ArrowLeft className="size-3" /> Back to catalog
+          <ArrowLeft className={reportNavIconClassName} /> Back to catalog
         </Link>
       </div>
     </div>
