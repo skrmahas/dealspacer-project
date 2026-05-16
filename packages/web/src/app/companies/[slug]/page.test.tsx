@@ -224,7 +224,16 @@ describe("CompanyAnalyticsDashboardPage", () => {
     const checkboxes = screen.getAllByRole("checkbox");
     expect(checkboxes).toHaveLength(2);
     expect(checkboxes[0].parentElement).toHaveClass("size-5", "sm:size-4");
-    expect(checkboxes[0]).toHaveClass("peer", "appearance-none", "checked:bg-[#2b79db]");
+    expect(checkboxes[0]).toHaveClass(
+      "peer",
+      "size-5",
+      "appearance-none",
+      "checked:bg-[#2b79db]",
+      "sm:size-4",
+    );
+    expect(checkboxes[0]).toHaveAttribute("name", "selectedReports");
+    expect(checkboxes[0]).toHaveAttribute("value", "r1");
+    expect(checkboxes[0]).toHaveAccessibleName("Select report 2024 Annual");
 
     fireEvent.click(checkboxes[0]);
     expect(screen.queryByText("Compare Selected")).not.toBeInTheDocument();

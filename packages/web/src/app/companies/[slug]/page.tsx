@@ -701,9 +701,11 @@ function ReportsTable({
                     <span className="inline-grid size-5 grid-cols-1 sm:size-4">
                       <input
                         type="checkbox"
+                        name="selectedReports"
+                        value={r.id}
                         checked={selected.has(r.id)}
                         onChange={() => onToggle(r.id)}
-                        className="peer col-start-1 row-start-1 cursor-pointer appearance-none rounded-sm border border-[#3d4d62] bg-[#080b10] checked:border-[#2b79db] checked:bg-[#2b79db] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2b79db] forced-colors:appearance-auto"
+                        className="peer col-start-1 row-start-1 size-5 cursor-pointer appearance-none rounded-sm border border-[#3d4d62] bg-[#080b10] checked:border-[#2b79db] checked:bg-[#2b79db] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2b79db] forced-colors:appearance-auto sm:size-4"
                         aria-label={`Select report ${r.fiscalYear} ${REPORT_TYPE_LABEL[r.reportType] ?? r.reportType}`}
                       />
                       <svg
