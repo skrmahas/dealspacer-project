@@ -39,6 +39,11 @@ const GUIDANCE_STYLES: Record<string, string> = {
   lowered: "border border-red-500/35 bg-red-500/10 text-red-200",
 };
 
+const METRICS_HEADER_CELL_CLASS =
+  "whitespace-nowrap pb-3 pr-4 font-medium last:pr-0";
+const METRICS_VALUE_CELL_CLASS =
+  "py-3.5 pr-4 align-middle font-[family-name:var(--font-mono)] text-base/6 tabular-nums sm:text-[13px]";
+
 type CompareClientProps = {
   initialReportA: string | null;
   initialReportB: string | null;
@@ -403,83 +408,85 @@ export default function ComparePage({ initialReportA, initialReportB }: CompareC
           )}
 
           <DashboardSection title="Metrics" eyebrow="Shared extracted figures">
-            <div className="-mx-1 overflow-x-auto overscroll-x-contain">
-              <table className="w-full min-w-[640px] border-collapse text-left">
-                <thead>
-                  <tr className="border-b border-[#1e2733] font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.14em] text-[#6b7d92]">
-                    <th className="pb-3 pr-4 font-medium">Metric</th>
-                    <th className="pb-3 pr-4 font-medium text-[#4f9bff]">{nameA}</th>
-                    <th className="pb-3 pr-4 font-medium">Δ</th>
-                    <th className="pb-3 font-medium text-[#5a8f8f]">{nameB}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {sortedMetrics.map(([key, { a, b }], idx) => {
-                    const label = a?.label || b?.label || key;
-                    const valA = a?.value;
-                    const valB = b?.value;
-                    const unit = a?.unit || b?.unit || "";
-                    const fmt = (v: number | null | undefined) =>
-                      v == null ? "—" : `${fmtCurrency(v)}${unit ? ` ${unit}` : ""}`;
-                    const higherBetter = isHigherBetter(label);
-                    const pillar = isPillarMetric(label);
-                    const delta =
-                      valA != null && valB != null
-                        ? formatDelta(valA, valB, higherBetter)
-                        : null;
+            <div className="-mx-5 -my-2 overflow-x-auto overscroll-x-contain whitespace-nowrap">
+              <div className="inline-block min-w-full px-5 py-2 align-middle">
+                <table className="w-full min-w-[640px] border-collapse text-left">
+                  <thead>
+                    <tr className="border-b border-[#1e2733] font-[family-name:var(--font-mono)] text-xs/5 tracking-[0.02em] text-[#6b7d92] sm:text-[11px]">
+                      <th className={METRICS_HEADER_CELL_CLASS}>Metric</th>
+                      <th className={cn(METRICS_HEADER_CELL_CLASS, "text-[#4f9bff]")}>{nameA}</th>
+                      <th className={METRICS_HEADER_CELL_CLASS}>Delta</th>
+                      <th className={cn(METRICS_HEADER_CELL_CLASS, "text-[#5a8f8f]")}>{nameB}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sortedMetrics.map(([key, { a, b }], idx) => {
+                      const label = a?.label || b?.label || key;
+                      const valA = a?.value;
+                      const valB = b?.value;
+                      const unit = a?.unit || b?.unit || "";
+                      const fmt = (v: number | null | undefined) =>
+                        v == null ? "—" : `${fmtCurrency(v)}${unit ? ` ${unit}` : ""}`;
+                      const higherBetter = isHigherBetter(label);
+                      const pillar = isPillarMetric(label);
+                      const delta =
+                        valA != null && valB != null
+                          ? formatDelta(valA, valB, higherBetter)
+                          : null;
 
-                    return (
-                      <motion.tr
-                        key={key}
-                        initial={{ opacity: 0, x: -6 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: 0.02 * idx, duration: 0.35 }}
-                        className="border-b border-[#1a2230]/80 last:border-0"
-                      >
-                        <td className="py-3.5 pr-4 align-middle">
-                          <div className="flex items-center gap-2">
-                            <span className="font-[family-name:var(--font-body)] text-[13px] font-medium text-[#e8ecf2]">
-                              {label}
-                            </span>
-                            {pillar && (
-                              <span className="border border-[#2b79db]/35 bg-[#2b79db]/10 px-1.5 py-px font-[family-name:var(--font-mono)] text-[8px] uppercase tracking-[0.14em] text-[#4f9bff]">
-                                2×
+                      return (
+                        <motion.tr
+                          key={key}
+                          initial={{ opacity: 0, x: -6 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: 0.02 * idx, duration: 0.35 }}
+                          className="border-b border-[#1a2230]/80 last:border-0"
+                        >
+                          <td className="py-3.5 pr-4 align-middle">
+                            <div className="flex items-center gap-2">
+                              <span className="font-[family-name:var(--font-body)] text-base/6 font-medium text-[#e8ecf2] sm:text-[13px]">
+                                {label}
                               </span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="py-3.5 pr-4 align-middle font-[family-name:var(--font-mono)] text-[13px] tabular-nums text-[#e8ecf2]">
-                          {fmt(valA)}
-                        </td>
-                        <td className="py-3.5 pr-4 align-middle">
-                          {delta ? (
-                            <span
-                              className={cn(
-                                "inline-flex items-center gap-1 font-[family-name:var(--font-mono)] text-[12px] font-medium tabular-nums",
-                                delta.favorable === true && "text-emerald-400",
-                                delta.favorable === false && "text-red-400",
-                                delta.favorable === null && "text-[#6b7d92]",
+                              {pillar && (
+                                <span className="border border-[#2b79db]/35 bg-[#2b79db]/10 px-1.5 py-px font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.12em] text-[#4f9bff] sm:text-[8px]">
+                                  2×
+                                </span>
                               )}
-                            >
-                              {delta.favorable === true ? (
-                                <ArrowUp className="size-3.5 shrink-0" aria-hidden />
-                              ) : delta.favorable === false ? (
-                                <ArrowDown className="size-3.5 shrink-0" aria-hidden />
-                              ) : null}
-                              {delta.text}
-                            </span>
-                          ) : (
-                            <span className="text-[#3d4d62]">—</span>
-                          )}
-                        </td>
-                        <td className="py-3.5 align-middle font-[family-name:var(--font-mono)] text-[13px] tabular-nums text-[#c5d0de]">
-                          {fmt(valB)}
-                        </td>
-                      </motion.tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                            </div>
+                          </td>
+                          <td className={cn(METRICS_VALUE_CELL_CLASS, "text-[#e8ecf2]")}>
+                            {fmt(valA)}
+                          </td>
+                          <td className="py-3.5 pr-4 align-middle">
+                            {delta ? (
+                              <span
+                                className={cn(
+                                  "inline-flex items-center gap-1 font-[family-name:var(--font-mono)] text-base/6 font-medium tabular-nums sm:text-[12px]",
+                                  delta.favorable === true && "text-emerald-400",
+                                  delta.favorable === false && "text-red-400",
+                                  delta.favorable === null && "text-[#6b7d92]",
+                                )}
+                              >
+                                {delta.favorable === true ? (
+                                  <ArrowUp className="size-4 shrink-0 sm:size-3.5" aria-hidden />
+                                ) : delta.favorable === false ? (
+                                  <ArrowDown className="size-4 shrink-0 sm:size-3.5" aria-hidden />
+                                ) : null}
+                                {delta.text}
+                              </span>
+                            ) : (
+                              <span className="text-base/6 text-[#3d4d62] sm:text-[13px]">—</span>
+                            )}
+                          </td>
+                          <td className={cn(METRICS_VALUE_CELL_CLASS, "pr-0 text-[#c5d0de]")}>
+                            {fmt(valB)}
+                          </td>
+                        </motion.tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </DashboardSection>
 
