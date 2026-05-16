@@ -432,7 +432,7 @@ export function NarrativeEditorial({
       icon={ScrollText}
       eyebrow="Filing in prose"
       title="Editorial Brief"
-      contentClassName="px-0 py-0"
+      contentClassName="p-0 sm:p-0"
     >
       <div className="divide-y divide-[#1e2733]/80">
         {ordered.map((n, idx) => {
