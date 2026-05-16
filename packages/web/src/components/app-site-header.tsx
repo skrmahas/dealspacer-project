@@ -28,11 +28,11 @@ const navLinkClass = (emphasis: SiteNavItem["emphasis"] = "default") =>
   cn(
     "inline-flex items-center gap-1.5 rounded-sm px-3 py-2 font-[family-name:var(--font-mono)] text-[11px] uppercase tracking-[0.14em] transition",
     emphasis === "primary" &&
-      "border border-[#2b79db]/40 bg-[#2b79db]/10 text-[#b8d4f5] hover:bg-[#2b79db]/18",
+      "border border-[#2b79db]/40 bg-[#2b79db]/10 text-[#b8d4f5] hover:bg-[#2b79db]/[0.18]",
     emphasis === "muted" &&
-      "text-[#6b7d92] hover:bg-[#2b79db]/8 hover:text-[#e8ecf2]",
+      "text-[#6b7d92] hover:bg-[#2b79db]/[0.08] hover:text-[#e8ecf2]",
     emphasis === "default" &&
-      "text-[#8b9aad] hover:bg-[#2b79db]/8 hover:text-[#e8ecf2]",
+      "text-[#8b9aad] hover:bg-[#2b79db]/[0.08] hover:text-[#e8ecf2]",
   );
 
 function NavLinks({
@@ -110,7 +110,7 @@ export function AppSiteHeader({
     <header
       className={cn(
         sticky && "sticky top-0 z-40",
-        "border-b border-[#2b79db]/12 bg-[#080b10]/85 backdrop-blur-md",
+        "border-b border-[#2b79db]/[0.12] bg-[#080b10]/85 backdrop-blur-md",
         className,
       )}
     >
@@ -207,7 +207,7 @@ export function AppSiteHeader({
           <div
             id={menuId}
             className={cn(
-              "fixed inset-x-0 top-[53px] z-50 border-b border-[#2b79db]/15 bg-[#0a0e14]/98 px-4 py-4 backdrop-blur-md md:hidden",
+              "fixed inset-x-0 top-[53px] z-50 border-b border-[#2b79db]/[0.15] bg-[#0a0e14]/[0.98] px-4 py-4 backdrop-blur-md md:hidden",
               "max-h-[min(70vh,calc(100dvh-53px))] overflow-y-auto",
             )}
           >
