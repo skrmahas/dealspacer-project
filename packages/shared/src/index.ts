@@ -4,6 +4,8 @@ export { getPool, closePool } from "./db";
 export { createFileStore, createEnvFileStore, createS3FileStore, createAutoFileStore } from "./file-store";
 export type { FileStore, EnvFileStoreOptions } from "./file-store";
 export { runMigrations } from "./migrate";
+export { assessPipelineHealth } from "./pipeline-health";
+export type { PipelineHealthSnapshot } from "./pipeline-health";
 export { normalizeMetricToEur, isPerShareOrRatioMetric } from "./metric-units";
 export {
   buildReportPreview,

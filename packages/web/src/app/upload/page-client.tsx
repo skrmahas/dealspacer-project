@@ -27,7 +27,11 @@ type JobInfo = {
 
 const ACCEPTED_EXTENSIONS = [".pdf", ".csv", ".html", ".htm", ".xhtml"];
 const MAX_PIPELINE_MS = 9 * 60 * 1000;
+const PENDING_STALL_MS = 45 * 1000;
 const ACTIVE_JOB_KEY = "bei_active_job";
+
+const WORKER_OFFLINE_MESSAGE =
+  "Your file uploaded, but the pipeline worker is not processing jobs. Deploy and start the worker service (npm run start:worker) with the same DATABASE_URL and S3 settings as the web app, then click Resume on a pending job.";
 
 function saveActiveJob(jobId: string, filename: string) {
   try {
@@ -174,6 +178,8 @@ export default function Home({ initialCompanySlug }: HomeClientProps) {
   const abortUploadRef = useRef<(() => void) | null>(null);
   const [elapsed, setElapsed] = useState<string | null>(null);
   const elapsedTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [workerHealthy, setWorkerHealthy] = useState<boolean | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const shareUrl = useMemo(() => {
     if (!job?.jobId) return null;
@@ -237,6 +243,13 @@ export default function Home({ initialCompanySlug }: HomeClientProps) {
           if (!response.ok) return;
           const data = (await response.json()) as JobInfo;
           setJob(data);
+          if (data.state === "pending") {
+            if (Date.now() - startedAtRef.current > PENDING_STALL_MS) {
+              setPipelineError(WORKER_OFFLINE_MESSAGE);
+              setWorkerHealthy(false);
+            }
+            return;
+          }
           if (data.state === "complete") {
             setPipelineError(null);
             clearActiveJob();
@@ -332,6 +345,19 @@ export default function Home({ initialCompanySlug }: HomeClientProps) {
   useEffect(() => {
     void fetchRecentJobs();
   }, [fetchRecentJobs]);
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const res = await fetch("/api/pipeline/health", { cache: "no-store" });
+        if (!res.ok) return;
+        const data = (await res.json()) as { ok?: boolean };
+        setWorkerHealthy(data.ok === true);
+      } catch {
+        // non-critical
+      }
+    })();
+  }, []);
 
   // Rehydrate an in-progress job if the user left and came back
   useEffect(() => {
@@ -482,27 +508,53 @@ export default function Home({ initialCompanySlug }: HomeClientProps) {
                     Upload filing
                   </h2>
                   <p className="mt-1 text-sm text-[#8b9aad]">
-                    PDF, CSV, or HTML · max 1GB · drag and drop supported
+                    PDF, CSV, or HTML · drag and drop supported
                   </p>
                 </div>
               </div>
 
-              <label className="mt-6 grid gap-2">
+              {workerHealthy === false && (
+                <div className="mt-6 border border-[#d4a35a]/40 bg-[#d4a35a]/10 px-4 py-3 text-sm text-[#e8c98a]">
+                  <p className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.16em] text-[#d4a35a]">
+                    Pipeline offline
+                  </p>
+                  <p className="mt-1">{WORKER_OFFLINE_MESSAGE}</p>
+                </div>
+              )}
+
+              <div className="mt-6 grid gap-2">
                 <span className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.16em] text-[#5a8f8f]">
                   Document
                 </span>
-                <input
-                  type="file"
-                  aria-label="Upload document"
-                  accept=".pdf,.csv,.html,.htm,.xhtml,application/pdf,text/csv,text/html,application/xhtml+xml"
-                  onChange={(event) => setFile(event.target.files?.[0] ?? null)}
-                  className="w-full border border-[#2a3544] bg-[#080b10] px-3 py-2.5 text-sm text-[#e8ecf2] file:mr-3 file:border-0 file:bg-[#2b79db]/15 file:px-3 file:py-1 file:font-[family-name:var(--font-mono)] file:text-[10px] file:uppercase file:tracking-wider file:text-[#b8d4f5]"
-                />
-              </label>
-
-              <p className="mt-2 font-[family-name:var(--font-mono)] text-[11px] text-[#6b7d92]">
-                {file ? file.name : "No file selected"}
-              </p>
+                <div className="flex flex-wrap items-center gap-3">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    aria-label="Upload document"
+                    accept=".pdf,.csv,.html,.htm,.xhtml,application/pdf,text/csv,text/html,application/xhtml+xml"
+                    onChange={(event) => {
+                      setFile(event.target.files?.[0] ?? null);
+                      setPipelineError(null);
+                    }}
+                    className="sr-only"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="border border-[#2a3544] bg-[#080b10] px-4 py-2.5 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.12em] text-[#b8d4f5] transition hover:border-[#2b79db]/50 hover:bg-[#2b79db]/10"
+                  >
+                    Choose file
+                  </button>
+                  <p
+                    className={cn(
+                      "min-w-0 flex-1 truncate font-[family-name:var(--font-mono)] text-[11px]",
+                      file ? "text-[#c5d0de]" : "text-[#6b7d92]",
+                    )}
+                  >
+                    {file ? file.name : "No file chosen yet"}
+                  </p>
+                </div>
+              </div>
 
               {isDragging && !dragError && (
                 <p className="mt-2 text-sm font-medium text-[#2b79db]">Drop your file here</p>

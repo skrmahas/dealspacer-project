@@ -18,11 +18,6 @@ const standardFontDataUrl = `${standardFontsDir}${path.sep}`;
 
 export const NO_FINANCIAL_DATA_MESSAGE = "No financial data found in this document";
 
-export const FILE_TOO_LARGE_MESSAGE = "File too large for processing";
-
-/** Maximum file size the worker will attempt to parse (100 MB). */
-const MAX_FILE_BYTES = 100 * 1024 * 1024;
-
 export type SupportedFileType = "pdf" | "csv" | "html";
 
 function normalizeText(text: string): string {
@@ -52,9 +47,6 @@ export function detectFileType(filename: string, mimeType?: string): SupportedFi
 }
 
 export async function parseDocument(buffer: Buffer, filename: string, mimeType?: string): Promise<string> {
-  if (buffer.length > MAX_FILE_BYTES) {
-    throw new Error(FILE_TOO_LARGE_MESSAGE);
-  }
   const type = detectFileType(filename, mimeType);
   if (type === "pdf") return parsePdf(buffer);
   if (type === "csv") return parseCsvBuffer(buffer);
