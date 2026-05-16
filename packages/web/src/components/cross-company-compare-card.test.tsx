@@ -54,16 +54,26 @@ describe("CrossCompanyCompareCard", () => {
 
     const filter = await screen.findByRole("textbox", { name: "Filter reports" });
     expect(filter).toHaveAttribute("name", "reportFilter");
-    expect(filter).toHaveClass("text-base/6", "sm:text-sm/6");
+    expect(filter).toHaveClass("h-11", "sm:h-10", "text-base/6", "sm:text-sm/6");
 
     const reportA = screen.getByRole("combobox", { name: "Report A" });
     const reportB = screen.getByRole("combobox", { name: "Report B" });
 
     expect(reportA).toHaveAttribute("name", "reportA");
     expect(reportB).toHaveAttribute("name", "reportB");
-    expect(reportA).toHaveClass("appearance-none", "pr-8", "text-base/6", "sm:text-sm/6");
+    expect(reportA).toHaveClass(
+      "appearance-none",
+      "h-11",
+      "py-2.5",
+      "pr-8",
+      "sm:h-10",
+      "sm:py-2",
+      "text-base/6",
+      "sm:text-sm/6",
+    );
     expect(reportA.parentElement).toHaveClass("inline-grid", "grid-cols-[1fr_2rem]");
     expect(container.querySelectorAll(".lucide-chevron-down")).toHaveLength(2);
+    expect(container.querySelector(".lucide-chevron-down")).toHaveClass("size-4", "sm:size-3.5");
 
     fireEvent.change(filter, { target: { value: "Tallink" } });
     await waitFor(() => {

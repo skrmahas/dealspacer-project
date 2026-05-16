@@ -19,7 +19,7 @@ function reportOptionLabel(report: ReportWithPreview): string {
 }
 
 const selectClassName = cn(
-  "col-span-full row-start-1 box-border h-10 w-full appearance-none border border-[#2a3544] bg-[#080b10] py-2 pl-3 pr-8",
+  "col-span-full row-start-1 box-border h-11 w-full appearance-none border border-[#2a3544] bg-[#080b10] py-2.5 pl-3 pr-8 sm:h-10 sm:py-2",
   "text-base/6 text-[#e8ecf2] sm:text-sm/6",
   "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#2b79db]/50",
   "disabled:cursor-not-allowed disabled:opacity-50",
@@ -55,7 +55,7 @@ function ReportSelect({
         ))}
       </select>
       <ChevronDown
-        className="pointer-events-none col-start-2 row-start-1 size-4 place-self-center text-[#5a8f8f]"
+        className="pointer-events-none col-start-2 row-start-1 size-4 place-self-center text-[#5a8f8f] sm:size-3.5"
         aria-hidden
       />
     </span>
@@ -140,7 +140,7 @@ export function CrossCompanyCompareCard() {
             transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1], delay: 0.12 }}
             className="relative mt-5"
           >
-            <Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-[#5a8f8f]" />
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#5a8f8f] sm:size-3.5" />
             <input
               name="reportFilter"
               aria-label="Filter reports"
@@ -148,7 +148,7 @@ export function CrossCompanyCompareCard() {
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
               placeholder="Filter by company, year..."
-              className="box-border h-10 w-full border border-[#2a3544] bg-[#080b10] pl-9 pr-3 text-base/6 text-[#e8ecf2] placeholder:text-[#6b7d92] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#2b79db]/50 sm:text-sm/6"
+              className="box-border h-11 w-full border border-[#2a3544] bg-[#080b10] pl-9 pr-3 text-base/6 text-[#e8ecf2] placeholder:text-[#6b7d92] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#2b79db]/50 sm:h-10 sm:text-sm/6"
             />
           </motion.div>
 
