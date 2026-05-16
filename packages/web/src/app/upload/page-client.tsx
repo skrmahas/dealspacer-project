@@ -531,6 +531,7 @@ export default function Home({ initialCompanySlug }: HomeClientProps) {
                   <input
                     ref={fileInputRef}
                     type="file"
+                    name="document"
                     aria-label="Upload document"
                     accept=".pdf,.csv,.html,.htm,.xhtml,application/pdf,text/csv,text/html,application/xhtml+xml"
                     onChange={(event) => {
@@ -542,13 +543,13 @@ export default function Home({ initialCompanySlug }: HomeClientProps) {
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="border border-[#2a3544] bg-[#080b10] px-4 py-2.5 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.12em] text-[#b8d4f5] transition hover:border-[#2b79db]/50 hover:bg-[#2b79db]/10"
+                    className="min-h-11 border border-[#2a3544] bg-[#080b10] px-3 py-2.5 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.12em] text-[#b8d4f5] transition hover:border-[#2b79db]/50 hover:bg-[#2b79db]/10 sm:min-h-9 sm:py-2"
                   >
                     Choose file
                   </button>
                   <p
                     className={cn(
-                      "min-w-0 flex-1 truncate font-[family-name:var(--font-mono)] text-[11px]",
+                      "min-w-0 flex-1 truncate font-[family-name:var(--font-mono)] text-base/6 sm:text-[11px]",
                       file ? "text-[#c5d0de]" : "text-[#6b7d92]",
                     )}
                   >

@@ -44,6 +44,16 @@ describe("Upload workspace", () => {
     render(<Home initialCompanySlug={null} />);
 
     const input = screen.getByLabelText("Upload document");
+    expect(input).toHaveAttribute("name", "document");
+    expect(screen.getByRole("button", { name: "Choose file" })).toHaveClass(
+      "min-h-11",
+      "sm:min-h-9",
+    );
+    expect(screen.getByText("No file chosen yet")).toHaveClass(
+      "text-base/6",
+      "sm:text-[11px]",
+    );
+
     const file = new File(["revenue,ebitda"], "report.csv", { type: "text/csv" });
     fireEvent.change(input, { target: { files: [file] } });
     fireEvent.click(screen.getByRole("button", { name: "Start pipeline" }));
