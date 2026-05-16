@@ -43,6 +43,9 @@ const METRICS_HEADER_CELL_CLASS =
   "whitespace-nowrap pb-3 pr-4 font-medium last:pr-0";
 const METRICS_VALUE_CELL_CLASS =
   "py-3.5 pr-4 align-middle font-[family-name:var(--font-mono)] text-base/6 tabular-nums sm:text-[13px]";
+const compareNavLinkClassName =
+  "inline-flex min-h-11 items-center gap-2 font-[family-name:var(--font-mono)] text-[11px] uppercase tracking-[0.14em] transition sm:min-h-0 sm:text-[10px]";
+const compareNavIconClassName = "size-4 shrink-0 sm:size-3.5";
 
 type CompareClientProps = {
   initialReportA: string | null;
@@ -148,9 +151,9 @@ function ReportPillar({
       )}
       <Link
         href={`/reports/${reportId}`}
-        className="mt-auto inline-flex items-center gap-1.5 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.14em] text-[#2b79db] transition hover:text-[#63a6f5]"
+        className={cn(compareNavLinkClassName, "mt-auto gap-1.5 text-[#2b79db] hover:text-[#63a6f5]")}
       >
-        Open report <ExternalLink className="size-3" aria-hidden />
+        Open report <ExternalLink className={compareNavIconClassName} aria-hidden />
       </Link>
     </div>
   );
@@ -262,7 +265,7 @@ export default function ComparePage({ initialReportA, initialReportB }: CompareC
             <p className="text-sm text-[#e8a0a8]">{error}</p>
             <Link
               href="/companies"
-              className="mt-4 inline-flex font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.14em] text-[#2b79db] transition hover:text-[#63a6f5]"
+              className={cn(compareNavLinkClassName, "mt-4 text-[#2b79db] hover:text-[#63a6f5]")}
             >
               Back to catalog
             </Link>
@@ -567,15 +570,15 @@ export default function ComparePage({ initialReportA, initialReportB }: CompareC
           <div className="flex flex-wrap items-center justify-between gap-4 border-t border-[#1e2733] pt-6">
             <Link
               href="/companies"
-              className="inline-flex items-center gap-2 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.14em] text-[#6b7d92] transition hover:text-[#2b79db]"
+              className={cn(compareNavLinkClassName, "text-[#6b7d92] hover:text-[#2b79db]")}
             >
-              <ArrowLeft className="size-3.5" aria-hidden />
+              <ArrowLeft className={compareNavIconClassName} aria-hidden />
               Back to catalog
             </Link>
             <Button
               asChild
               variant="outline"
-              className="h-10 rounded-none border-[#3d4d62] bg-transparent font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.12em] text-[#c5d0de] hover:border-[#2b79db]/40 hover:bg-[#2b79db]/10"
+              className="h-11 rounded-none border-[#3d4d62] bg-transparent px-4 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.12em] text-[#c5d0de] hover:border-[#2b79db]/40 hover:bg-[#2b79db]/10 sm:h-10"
             >
               <Link href={`/companies`}>Compare other filings</Link>
             </Button>

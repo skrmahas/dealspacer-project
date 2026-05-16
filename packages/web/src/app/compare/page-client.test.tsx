@@ -136,4 +136,29 @@ describe("ComparePage", () => {
     expect(within(table).getAllByText("2×")[0]).toHaveClass("text-[10px]", "sm:text-[8px]");
     expect(within(table).getByText("€500M")).toHaveClass("text-base/6", "sm:text-[13px]");
   });
+
+  it("keeps compare navigation actions touch-friendly on mobile", async () => {
+    render(<ComparePage initialReportA="report-a" initialReportB="report-b" />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "Metrics" })).toBeInTheDocument();
+    });
+
+    const openReportLinks = screen.getAllByRole("link", { name: "Open report" });
+    const backToCatalog = screen.getByRole("link", { name: "Back to catalog" });
+    for (const link of [...openReportLinks, backToCatalog]) {
+      expect(link).toHaveClass("min-h-11", "text-[11px]", "sm:min-h-0", "sm:text-[10px]");
+      expect(link.querySelector("svg")).toHaveClass("size-4", "sm:size-3.5");
+    }
+
+    const compareOtherFilings = screen.getByRole("link", { name: "Compare other filings" });
+    expect(compareOtherFilings).toHaveClass("h-11", "px-4", "sm:h-10");
+  });
+
+  it("keeps the compare error recovery link touch-friendly on mobile", async () => {
+    render(<ComparePage initialReportA={null} initialReportB="report-b" />);
+
+    const backToCatalog = await screen.findByRole("link", { name: "Back to catalog" });
+    expect(backToCatalog).toHaveClass("min-h-11", "text-[11px]", "sm:min-h-0", "sm:text-[10px]");
+  });
 });
