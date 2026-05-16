@@ -13,6 +13,7 @@ import { uploadFileWithProgress } from "@/lib/upload-progress";
 import type { UploadProgress } from "@/lib/upload-progress";
 import { cn } from "@/lib/utils";
 import type { JobState, OutputLanguage } from "@bei/shared";
+import { formatRecentJobDate } from "./recent-jobs";
 
 type JobInfo = {
   jobId: string;
@@ -893,7 +894,7 @@ export default function Home({ initialCompanySlug }: HomeClientProps) {
                         </div>
                         <div className="flex shrink-0 items-center gap-4">
                           <span className="font-[family-name:var(--font-mono)] text-[10px] text-[#6b7d92]">
-                            {new Date(j.createdAt || "").toLocaleDateString()}
+                            {formatRecentJobDate(j.createdAt)}
                           </span>
                           {j.state === "complete" && j.reportId && (
                             <Link
