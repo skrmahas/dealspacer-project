@@ -184,9 +184,9 @@ export function CrossCompanyCompareCard() {
             disabled={!canCompare}
             onClick={handleCompare}
             aria-label="Compare reports"
-            className="mt-5 h-9 w-full rounded-none border-0 bg-[#2b79db] py-2 pl-2 pr-3 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.12em] text-[#ffffff] hover:bg-[#3d8de8] disabled:opacity-40"
+            className="mt-5 h-11 w-full rounded-none border-0 bg-[#2b79db] py-2.5 pl-3 pr-4 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.12em] text-[#ffffff] hover:bg-[#3d8de8] disabled:opacity-40 sm:h-9 sm:py-2 sm:pl-2 sm:pr-3"
           >
-            <Scale className="size-3.5" />
+            <Scale className="size-4 sm:size-3.5" />
             Compare reports
           </Button>
         </>

@@ -86,7 +86,17 @@ describe("CrossCompanyCompareCard", () => {
     fireEvent.change(reportB, { target: { value: "r2" } });
 
     const compareButton = screen.getByRole("button", { name: "Compare reports" });
-    expect(compareButton).toHaveClass("h-9", "pl-2", "pr-3");
+    expect(compareButton).toHaveClass(
+      "h-11",
+      "py-2.5",
+      "pl-3",
+      "pr-4",
+      "sm:h-9",
+      "sm:py-2",
+      "sm:pl-2",
+      "sm:pr-3",
+    );
+    expect(compareButton.querySelector("svg")).toHaveClass("size-4", "sm:size-3.5");
     fireEvent.click(compareButton);
 
     expect(pushMock).toHaveBeenCalledWith("/compare?reportA=r1&reportB=r2");
