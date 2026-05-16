@@ -221,6 +221,7 @@ function Sidebar({
     <>
       {isOpen && (
         <button
+          type="button"
           aria-hidden
           onClick={onClose}
           className="fixed inset-0 z-40 bg-[#040608]/70 backdrop-blur-sm md:hidden"

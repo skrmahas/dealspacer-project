@@ -46,6 +46,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
             An unexpected error occurred while rendering this page. Please try again.
           </p>
           <button
+            type="button"
             onClick={this.handleReset}
             style={{
               border: "none",

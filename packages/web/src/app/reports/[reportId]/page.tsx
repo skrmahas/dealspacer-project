@@ -353,6 +353,7 @@ function ReportHero({
             Download PDF
           </a>
           <button
+            type="button"
             onClick={onCopy}
             className={cn(
               "inline-flex h-11 w-full items-center justify-center gap-2 border px-5 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.14em] transition sm:w-auto",

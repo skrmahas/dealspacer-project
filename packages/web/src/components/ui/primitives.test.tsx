@@ -21,8 +21,14 @@ describe("shadcn primitives", () => {
     );
 
     expect(screen.getByText("Design System")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Upload" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Upload" })).toHaveAttribute("type", "button");
     expect(screen.getByText("New")).toBeInTheDocument();
+  });
+
+  it("lets Button callers override the explicit button type", () => {
+    render(<Button type="submit">Save</Button>);
+
+    expect(screen.getByRole("button", { name: "Save" })).toHaveAttribute("type", "submit");
   });
 
   it("supports dark mode utility classes without crashing", () => {
