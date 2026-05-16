@@ -277,7 +277,7 @@ function Sidebar({
                   type="button"
                   onClick={() => onExchangeChange(tab.value)}
                   className={cn(
-                    "border px-2.5 py-1 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.12em] transition",
+                    "min-h-11 border px-2.5 py-2 font-[family-name:var(--font-mono)] text-[11px] uppercase tracking-[0.12em] transition md:min-h-0 md:py-1 md:text-[10px]",
                     active
                       ? "border-[#2b79db]/50 bg-[#2b79db]/12 text-[#b8d4f5]"
                       : "border-[#2a3544] text-[#6b7d92] hover:border-[#3d4d62] hover:text-[#9aa8bc]",

@@ -81,10 +81,24 @@ describe("CompanyCatalogPage", () => {
     expect(search).toHaveClass("h-11", "text-base/6", "sm:h-10", "sm:text-sm/6");
     expect(container.querySelector(".lucide-search")).toHaveClass("size-4", "sm:size-3.5");
 
-    expect(screen.getByRole("button", { name: /^all$/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /^tallinn$/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /^riga$/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /^vilnius$/i })).toBeInTheDocument();
+    const exchangeFilters = [
+      screen.getByRole("button", { name: /^all$/i }),
+      screen.getByRole("button", { name: /^tallinn$/i }),
+      screen.getByRole("button", { name: /^riga$/i }),
+      screen.getByRole("button", { name: /^vilnius$/i }),
+    ];
+
+    for (const filter of exchangeFilters) {
+      expect(filter).toHaveClass(
+        "min-h-11",
+        "px-2.5",
+        "py-2",
+        "text-[11px]",
+        "md:min-h-0",
+        "md:py-1",
+        "md:text-[10px]",
+      );
+    }
 
     const uploadLinks = screen.getAllByRole("link", { name: /upload/i });
     expect(uploadLinks.some((el) => el.getAttribute("href") === "/upload")).toBe(true);
