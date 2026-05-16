@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
@@ -56,10 +56,10 @@ function loadActiveJob(): { jobId: string; filename: string; startedAt: number }
 }
 
 const STAGES: { key: JobState; label: string; description: string }[] = [
-  { key: "parsing", label: "Parsing", description: "Reading document text and structure" },
-  { key: "extracting", label: "Extracting", description: "AI analyzing financial data with GPT-4o" },
-  { key: "translating", label: "Translating", description: "Translating metrics and narratives" },
-  { key: "assembling", label: "Rendering", description: "Generating the final PDF report" },
+  { key: "parsing", label: "Parsing", description: "Reading document text and structure." },
+  { key: "extracting", label: "Extracting", description: "Extracting financial data and narrative signals." },
+  { key: "translating", label: "Translating", description: "Translating metrics and narratives." },
+  { key: "assembling", label: "Rendering", description: "Generating the final PDF report." },
 ];
 
 const LANGUAGE_OPTIONS: { value: OutputLanguage; label: string }[] = [
@@ -680,6 +680,8 @@ export default function Home({ initialCompanySlug }: HomeClientProps) {
                         job.state === "duplicate" && "text-[#d4a35a]",
                         job.state !== "failed" && job.state !== "duplicate" && "text-[#2b79db]",
                       )}
+                      role="status"
+                      aria-live="polite"
                     >
                       {formatStateLabel(job.state)}
                     </span>
