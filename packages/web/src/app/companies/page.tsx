@@ -137,21 +137,20 @@ export default function CompanyCatalogPage() {
       <div className="landing-aurora pointer-events-none fixed inset-0 z-0 opacity-70" aria-hidden />
 
       <MobileTopBar onOpenMenu={openSidebar} filteredCount={filtered.length} />
+      <Sidebar
+        isOpen={sidebarOpen}
+        onClose={closeSidebar}
+        search={search}
+        onSearch={setSearch}
+        exchangeFilter={exchangeFilter}
+        onExchangeChange={setExchangeFilter}
+        loading={loading}
+        error={error}
+        grouped={grouped}
+        totalCount={filtered.length}
+      />
 
       <div className="relative z-10 flex min-h-screen">
-        <Sidebar
-          isOpen={sidebarOpen}
-          onClose={closeSidebar}
-          search={search}
-          onSearch={setSearch}
-          exchangeFilter={exchangeFilter}
-          onExchangeChange={setExchangeFilter}
-          loading={loading}
-          error={error}
-          grouped={grouped}
-          totalCount={filtered.length}
-        />
-
         <main className="flex min-h-[calc(100vh-53px)] flex-1 flex-col md:ml-[300px] md:min-h-screen">
           <WelcomeState
             companyCount={companies.length}
@@ -181,7 +180,7 @@ function MobileTopBar({
           size="icon"
           aria-label="Open menu"
           onClick={onOpenMenu}
-          className="size-9 rounded-none text-[#e8ecf2] hover:bg-[#2b79db]/10"
+          className="size-11 rounded-none text-[#e8ecf2] hover:bg-[#2b79db]/10"
         >
           <Menu className="size-5" />
         </Button>
@@ -246,9 +245,9 @@ function Sidebar({
               size="icon"
               aria-label="Close menu"
               onClick={onClose}
-              className="size-8 rounded-none text-[#8b9aad] hover:bg-[#2b79db]/10 md:hidden"
+              className="size-11 rounded-none text-[#8b9aad] hover:bg-[#2b79db]/10 md:hidden"
             >
-              <X className="size-4" />
+              <X className="size-5" />
             </Button>
           </div>
 

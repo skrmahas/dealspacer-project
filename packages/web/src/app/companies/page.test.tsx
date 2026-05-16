@@ -173,9 +173,15 @@ describe("CompanyCatalogPage", () => {
     await waitFor(() => expect(screen.getByText("Tallink Grupp")).toBeInTheDocument());
 
     const hamburger = screen.getByRole("button", { name: /open menu/i });
+    expect(hamburger).toHaveClass("size-11");
+    expect(hamburger.querySelector("svg")).toHaveClass("size-5");
+
     fireEvent.click(hamburger);
 
-    expect(screen.getByRole("button", { name: /close menu/i })).toBeInTheDocument();
+    const closeButton = screen.getByRole("button", { name: /close menu/i });
+    expect(closeButton).toBeInTheDocument();
+    expect(closeButton).toHaveClass("size-11");
+    expect(closeButton.querySelector("svg")).toHaveClass("size-5");
   });
 
   it("renders the welcome state in the main content area", async () => {
