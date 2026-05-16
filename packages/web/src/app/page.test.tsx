@@ -30,14 +30,17 @@ describe("LandingPage", () => {
     expect(uploadReportLinks[0]).toHaveAttribute("href", "/upload");
   });
 
-  it("loads live stats from /api/companies and /api/reports", async () => {
+  it("loads live stats from /api/companies", async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
       if (url.includes("/api/companies")) {
-        return { json: async () => [{ id: "1" }, { id: "2" }, { id: "3" }] } as Response;
-      }
-      if (url.includes("/api/reports")) {
-        return { json: async () => [{ id: "r1" }, { id: "r2" }, { id: "r3" }, { id: "r4" }] } as Response;
+        return {
+          json: async () => [
+            { id: "1", reportCount: 4 },
+            { id: "2", reportCount: 7 },
+            { id: "3", reportCount: 2 },
+          ],
+        } as Response;
       }
       return { json: async () => [] } as Response;
     });
@@ -47,11 +50,11 @@ describe("LandingPage", () => {
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith("/api/companies");
-      expect(fetchMock).toHaveBeenCalledWith("/api/reports");
+      expect(fetchMock).not.toHaveBeenCalledWith("/api/reports");
     });
 
-    expect(screen.getByText("Companies tracked")).toBeInTheDocument();
-    expect(screen.getByText("Reports processed")).toBeInTheDocument();
+    expect(screen.getByLabelText("3 Companies tracked")).toBeInTheDocument();
+    expect(screen.getByLabelText("13 Reports processed")).toBeInTheDocument();
     expect(screen.getAllByText("Exchanges")[0]).toBeInTheDocument();
     expect(screen.getByText("Languages supported")).toBeInTheDocument();
   });

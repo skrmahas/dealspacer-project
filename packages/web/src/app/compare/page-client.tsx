@@ -389,12 +389,12 @@ export default function ComparePage({ initialReportA, initialReportB }: CompareC
                     {comparison.totalWeight} weighted points compared
                   </p>
                   {comparison.pillarNotes.length > 0 && (
-                    <p className="mt-2 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.12em] text-[#5a8f8f]">
+                    <p className="mt-2 break-words font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.12em] text-[#5a8f8f]">
                       {comparison.pillarNotes.join(" · ")}
                     </p>
                   )}
                 </div>
-                <div className="flex gap-3 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.1em]">
+                <div className="hidden gap-3 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.1em] sm:flex">
                   <span className="text-[#6b7d92]">2× pillars</span>
                   <span className="text-[#3d4d62]">Revenue · FCF · Guidance</span>
                 </div>

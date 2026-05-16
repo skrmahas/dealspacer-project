@@ -541,7 +541,7 @@ function CompanyHeader({ company, reportCount }: { company: Company; reportCount
       </div>
       <Button
         asChild
-        className="h-11 shrink-0 rounded-none border-0 bg-[#2b79db] px-5 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.12em] text-white hover:bg-[#3d8de8]"
+        className="h-11 w-full shrink-0 rounded-none border-0 bg-[#2b79db] px-5 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.12em] text-white hover:bg-[#3d8de8] sm:w-auto"
       >
         <Link href={`/upload?company=${company.slug}`}>
           <Plus className="size-3.5" />

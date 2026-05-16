@@ -20,6 +20,10 @@ import { AppSiteHeader } from "@/components/app-site-header";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
+type CompanyWithReportCount = {
+  reportCount?: number;
+};
+
 type Stats = {
   companies: number;
   reports: number;
@@ -45,19 +49,21 @@ export default function LandingPage() {
 
     async function loadStats() {
       try {
-        const [companiesRes, reportsRes] = await Promise.all([
-          fetch("/api/companies"),
-          fetch("/api/reports"),
-        ]);
-
+        const companiesRes = await fetch("/api/companies");
         const companiesData = await companiesRes.json();
-        const reportsData = await reportsRes.json();
 
         if (cancelled) return;
 
+        const companies = Array.isArray(companiesData)
+          ? (companiesData as CompanyWithReportCount[])
+          : [];
+
         setStats({
-          companies: Array.isArray(companiesData) ? companiesData.length : 0,
-          reports: Array.isArray(reportsData) ? reportsData.length : 0,
+          companies: companies.length,
+          reports: companies.reduce(
+            (sum, company) => sum + (company.reportCount ?? 0),
+            0,
+          ),
         });
       } catch {
         if (!cancelled) {
@@ -283,7 +289,7 @@ function StatsBar({
       className="mx-auto w-full max-w-[1180px] px-4 sm:px-6 md:px-10"
     >
       <motion.div
-        className="grid border border-[#2a3544] bg-[#0c1018]/60 sm:grid-cols-2 lg:grid-cols-4"
+        className="grid grid-cols-2 gap-px border border-[#2a3544] bg-[#2a3544] lg:grid-cols-4"
       >
         <StatTile
           icon={Building2}
@@ -588,7 +594,7 @@ function StatTile({
 }) {
   return (
     <div
-      className="flex flex-col gap-1 border-b border-[#2a3544] p-6 last:border-b-0 sm:[&:nth-child(2)]:border-r lg:border-b-0 lg:border-r lg:last:border-r-0"
+      className="flex flex-col gap-1 bg-[#0c1018] p-6"
       aria-label={`${value} ${label}`}
     >
       <span className="flex items-center gap-2 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.16em] text-[#6b7d92]">
