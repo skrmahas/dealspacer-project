@@ -40,6 +40,10 @@ describe("AppSiteHeader", () => {
     expect(menuButton.querySelector("span[aria-hidden='true']")).not.toHaveClass(
       "pointer-events-none",
     );
+    expect(menuButton.querySelector("span[aria-hidden='true']")).toHaveClass(
+      "hidden",
+      "[@media(any-pointer:coarse)]:block",
+    );
 
     fireEvent.click(menuButton);
 
@@ -54,5 +58,35 @@ describe("AppSiteHeader", () => {
         .getByRole("link", { name: "Upload" })
         .querySelector(".lucide-arrow-up-right"),
     ).toHaveClass("size-4", "md:size-3");
+  });
+
+  it("expands breadcrumb link hit areas on touch screens without changing header density", () => {
+    render(
+      <AppSiteHeader
+        sticky={false}
+        breadcrumbs={[
+          { label: "Catalog", href: "/companies" },
+          { label: "Compare" },
+        ]}
+      />,
+    );
+
+    const catalogBreadcrumb = screen
+      .getAllByRole("link", { name: "Catalog" })
+      .find(
+        (link) =>
+          link.getAttribute("href") === "/companies" && link.className.includes("relative"),
+      );
+    expect(catalogBreadcrumb).toBeInTheDocument();
+    expect(catalogBreadcrumb).toHaveClass("relative", "shrink-0", "text-[10px]");
+
+    const touchTarget = catalogBreadcrumb!.querySelector("span[aria-hidden='true']");
+    expect(touchTarget).toHaveClass(
+      "absolute",
+      "hidden",
+      "size-[max(100%,2.75rem)]",
+      "[@media(any-pointer:coarse)]:block",
+    );
+    expect(touchTarget).not.toHaveClass("pointer-events-none");
   });
 });

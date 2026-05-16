@@ -34,6 +34,8 @@ const navLinkClass = (emphasis: SiteNavItem["emphasis"] = "default") =>
     emphasis === "default" &&
       "text-[#8b9aad] hover:bg-[#2b79db]/[0.08] hover:text-[#e8ecf2]",
   );
+const breadcrumbLinkClassName =
+  "relative shrink-0 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.12em] text-[#5a8f8f] transition hover:text-[#2b79db]";
 
 function NavLinks({
   items,
@@ -141,10 +143,11 @@ export function AppSiteHeader({
                       </span>
                     )}
                     {crumb.href ? (
-                      <Link
-                        href={crumb.href}
-                        className="shrink-0 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.12em] text-[#5a8f8f] transition hover:text-[#2b79db]"
-                      >
+                      <Link href={crumb.href} className={breadcrumbLinkClassName}>
+                        <span
+                          className="absolute left-1/2 top-1/2 hidden size-[max(100%,2.75rem)] -translate-x-1/2 -translate-y-1/2 [@media(any-pointer:coarse)]:block"
+                          aria-hidden
+                        />
                         {crumb.label}
                       </Link>
                     ) : (
@@ -193,7 +196,7 @@ export function AppSiteHeader({
               onClick={() => setMenuOpen((o) => !o)}
             >
               <span
-                className="absolute left-1/2 top-1/2 size-[max(100%,3rem)] -translate-x-1/2 -translate-y-1/2 pointer-fine:hidden"
+                className="absolute left-1/2 top-1/2 hidden size-[max(100%,3rem)] -translate-x-1/2 -translate-y-1/2 [@media(any-pointer:coarse)]:block"
                 aria-hidden
               />
               {menuOpen ? <X className="size-5" /> : <Menu className="size-5" />}
