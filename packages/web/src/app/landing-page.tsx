@@ -20,10 +20,6 @@ import { AppSiteHeader } from "@/components/app-site-header";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-type CompanyWithReportCount = {
-  reportCount?: number;
-};
-
 type Stats = {
   companies: number;
   reports: number;
@@ -49,21 +45,15 @@ export default function LandingPage() {
 
     async function loadStats() {
       try {
-        const companiesRes = await fetch("/api/companies");
-        const companiesData = await companiesRes.json();
+        const statsRes = await fetch("/api/stats");
+        const statsData = (await statsRes.json()) as Partial<Stats>;
 
         if (cancelled) return;
 
-        const companies = Array.isArray(companiesData)
-          ? (companiesData as CompanyWithReportCount[])
-          : [];
-
         setStats({
-          companies: companies.length,
-          reports: companies.reduce(
-            (sum, company) => sum + (company.reportCount ?? 0),
-            0,
-          ),
+          companies:
+            typeof statsData.companies === "number" ? statsData.companies : 0,
+          reports: typeof statsData.reports === "number" ? statsData.reports : 0,
         });
       } catch {
         if (!cancelled) {

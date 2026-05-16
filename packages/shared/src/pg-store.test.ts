@@ -432,6 +432,18 @@ describe("createCompanyStore", () => {
     expect(company).toBeNull();
   });
 
+  it("countCompanies returns the company total without loading rows", async () => {
+    const { query } = setupWithClient([{ total: 3 }]);
+
+    const store = createCompanyStore();
+    const count = await store.countCompanies();
+
+    expect(count).toBe(3);
+    expect(query).toHaveBeenCalledWith(
+      expect.stringContaining("SELECT COUNT(*)::int AS total FROM companies"),
+    );
+  });
+
   it("createCompany inserts and returns company with reportCount 0", async () => {
     const rows = [
       { id: "new", name: "TestCo", ticker: "TST", exchange: "Nasdaq Tallinn", slug: "testco", country: "EE", sector: "Tech", created_at: "2024-01-01", updated_at: "2024-01-01" },
@@ -553,6 +565,19 @@ describe("createReportStore", () => {
     const reports = await store.listUnmatchedReports();
     expect(reports).toHaveLength(1);
     expect(reports[0].companyId).toBeNull();
+  });
+
+  it("countProcessedReports returns all processed report rows without loading them", async () => {
+    const { query } = setupWithClient([{ total: 15 }]);
+
+    const store = createReportStore();
+    const count = await store.countProcessedReports();
+
+    expect(count).toBe(15);
+    expect(query).toHaveBeenCalledWith(
+      expect.stringContaining("SELECT COUNT(*)::int AS total FROM reports"),
+    );
+    expect(query.mock.calls[0][0]).not.toContain("company_id IS NOT NULL");
   });
 
   it("updateReportCompany maps unmatched to company", async () => {

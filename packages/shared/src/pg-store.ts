@@ -281,6 +281,13 @@ function rowToCompany(row: Record<string, unknown>): Company {
   };
 }
 
+function rowToCount(row: Record<string, unknown> | undefined): number {
+  const total = row?.total;
+  if (typeof total === "number") return total;
+  if (typeof total === "string") return Number.parseInt(total, 10) || 0;
+  return 0;
+}
+
 export function createCompanyStore(): CompanyStore {
   return {
     async listCompanies(): Promise<Company[]> {
@@ -292,6 +299,15 @@ export function createCompanyStore(): CompanyStore {
            ORDER BY exchange, name`,
         );
         return result.rows.map(rowToCompany);
+      });
+    },
+
+    async countCompanies(): Promise<number> {
+      return withClient(async (client) => {
+        const result = await client.query(
+          `SELECT COUNT(*)::int AS total FROM companies`,
+        );
+        return rowToCount(result.rows[0]);
       });
     },
 
@@ -448,6 +464,15 @@ export function createReportStore(): ReportStore {
           `SELECT * FROM reports WHERE company_id IS NULL ORDER BY created_at DESC`,
         );
         return result.rows.map(rowToReport);
+      });
+    },
+
+    async countProcessedReports(): Promise<number> {
+      return withClient(async (client) => {
+        const result = await client.query(
+          `SELECT COUNT(*)::int AS total FROM reports`,
+        );
+        return rowToCount(result.rows[0]);
       });
     },
 

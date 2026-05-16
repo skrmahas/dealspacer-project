@@ -113,6 +113,7 @@ export type CreateCompanyInput = Pick<Company, "name" | "exchange" | "slug"> & {
 
 export interface CompanyStore {
   listCompanies(): Promise<Company[]>;
+  countCompanies(): Promise<number>;
   getCompanyBySlug(slug: string): Promise<Company | null>;
   createCompany(input: CreateCompanyInput): Promise<Company>;
 }
@@ -166,6 +167,8 @@ export interface ReportStore {
   getReportByJobId(jobId: string): Promise<Report | null>;
   listReportsByCompany(companyId: string): Promise<ReportWithPreview[]>;
   listUnmatchedReports(): Promise<Report[]>;
+  /** Counts all completed report rows, including unmatched rows awaiting admin mapping. */
+  countProcessedReports(): Promise<number>;
   updateReportCompany(reportId: string, companyId: string): Promise<Report>;
   replaceReport(reportId: string, newJobId: string, newS3Key: string, newSnapshot: ExtractedData): Promise<Report>;
   listRecentReports(limit: number): Promise<ReportWithPreview[]>;
