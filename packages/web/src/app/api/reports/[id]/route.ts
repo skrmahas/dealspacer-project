@@ -7,7 +7,8 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const report = await createReportStore().getReportById(id);
+    const reportStore = createReportStore();
+    const report = (await reportStore.getReportById(id)) ?? (await reportStore.getReportByJobId(id));
     if (!report) {
       return NextResponse.json({ error: "Report not found" }, { status: 404 });
     }
