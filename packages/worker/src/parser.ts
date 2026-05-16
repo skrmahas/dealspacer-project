@@ -238,5 +238,74 @@ export async function parseHtml(buffer: Buffer): Promise<string> {
     .replace(/&#(\d+);/g, (_, d) => String.fromCharCode(Number(d)))
     .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCharCode(parseInt(h, 16)));
 
-  return normalizeText(decoded);
+  const text = normalizeText(decoded);
+
+  // If tag-stripping produced usable text, return it.
+  // Otherwise fall back to OCR on any embedded base64 images (e.g. pdf2htmlEX output
+  // where every page is a data-URI PNG — no text spans exist at all).
+  if (hasUsableText(text)) return text;
+  return ocrHtmlImages(html);
+}
+
+/**
+ * Extract base64-encoded images from HTML src="data:image/…" attributes and
+ * run Tesseract OCR on each one.  Mirrors the batched approach used by ocrPdf.
+ */
+async function ocrHtmlImages(html: string): Promise<string> {
+  // Match src="data:image/(png|jpeg);base64,<payload>" — base64 never contains "
+  const imageRegex = /src="data:image\/(?:png|jpe?g);base64,([^"]+)"/gi;
+  const images: Buffer[] = [];
+  let match: RegExpExecArray | null;
+  while ((match = imageRegex.exec(html)) !== null) {
+    images.push(Buffer.from(match[1], "base64"));
+  }
+
+  if (images.length === 0) {
+    throw new Error(NO_FINANCIAL_DATA_MESSAGE);
+  }
+
+  console.log(`[parser] HTML has no selectable text; OCR-ing ${images.length} embedded image(s)`);
+
+  const pageTexts: (string | null)[] = new Array(images.length).fill(null);
+  const batchSize = getBatchSize();
+  const ocrTimeoutMs = getOcrPageTimeoutMs();
+
+  for (let start = 0; start < images.length; start += batchSize) {
+    const end = Math.min(start + batchSize, images.length);
+    const batch: Promise<void>[] = [];
+
+    for (let i = start; i < end; i++) {
+      batch.push(
+        (async (idx: number) => {
+          try {
+            const result = await Promise.race([
+              recognize(images[idx], "eng+est+lav+lit"),
+              new Promise<never>((_, reject) =>
+                setTimeout(() => reject(new Error("OCR_TIMEOUT")), ocrTimeoutMs),
+              ),
+            ]);
+            if (hasUsableText(result.data.text)) {
+              pageTexts[idx] = result.data.text;
+            }
+          } catch (err) {
+            if (err instanceof Error && err.message === "OCR_TIMEOUT") {
+              console.warn(`[parser] HTML image OCR page ${idx + 1} timed out after ${ocrTimeoutMs}ms, skipping`);
+              return;
+            }
+            throw err;
+          }
+        })(i),
+      );
+    }
+
+    await Promise.all(batch);
+    if (images.length > batchSize) {
+      const pct = Math.round((end / images.length) * 100);
+      console.log(`[parser] HTML image OCR processed ${end}/${images.length} pages (${pct}%)`);
+    }
+  }
+
+  const text = pageTexts.filter((t): t is string => t !== null).join("\n\n");
+  if (!hasUsableText(text)) throw new Error(NO_FINANCIAL_DATA_MESSAGE);
+  return text;
 }

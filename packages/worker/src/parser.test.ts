@@ -1,8 +1,18 @@
-import { describe, it, expect } from "vitest";
-import { detectFileType, parseCsvBuffer, parseDocument, parseHtml, parsePdf } from "./parser.js";
+import { describe, it, expect, vi } from "vitest";
+import { detectFileType, parseCsvBuffer, parseDocument, parseHtml, parsePdf, NO_FINANCIAL_DATA_MESSAGE } from "./parser.js";
 import { readFileSync } from "node:fs";
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
+
+vi.mock("tesseract.js", () => ({
+  default: {
+    recognize: vi.fn().mockResolvedValue({
+      data: {
+        text: "Revenue EUR 1200000 EBITDA profit annual report financial statements",
+      },
+    }),
+  },
+}));
 
 const samplePath = resolve(import.meta.dirname, "__fixtures__", "sample.pdf");
 const ignitisPath = resolve(
@@ -100,5 +110,26 @@ describe("OCR page timeout", () => {
     } finally {
       delete process.env.OCR_PAGE_TIMEOUT_MS;
     }
+  });
+});
+
+describe("parseHtml OCR fallback", () => {
+  it("falls back to OCR when HTML has embedded base64 images but no readable text spans", async () => {
+    // Simulates a pdf2htmlEX XHTML: no text nodes, one data-URI image per page.
+    // Base64 payload ("test") is intentionally trivial — Tesseract is mocked above.
+    const html = `<html><body>
+      <div class="pc"><img src="data:image/png;base64,dGVzdA==" class="bi" alt="" /></div>
+    </body></html>`;
+
+    const result = await parseHtml(Buffer.from(html));
+
+    expect(result).toContain("Revenue");
+    expect(result).toContain("EBITDA");
+  });
+
+  it("throws NO_FINANCIAL_DATA_MESSAGE when HTML has no text and no embedded images", async () => {
+    const html = `<html><body><div class="pc"></div></body></html>`;
+
+    await expect(parseHtml(Buffer.from(html))).rejects.toThrow(NO_FINANCIAL_DATA_MESSAGE);
   });
 });
