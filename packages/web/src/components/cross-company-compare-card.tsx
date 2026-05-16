@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Scale, Search } from "lucide-react";
+import { ChevronDown, Scale, Search } from "lucide-react";
 import type { ReportWithPreview } from "@bei/shared";
 import { Button } from "@/components/ui/button";
 import { REPORT_TYPE_LABEL } from "@/lib/compare-utils";
@@ -16,6 +16,50 @@ function reportOptionLabel(report: ReportWithPreview): string {
     "Unmatched filing";
   const type = REPORT_TYPE_LABEL[report.reportType] ?? report.reportType;
   return `${company} · FY ${report.fiscalYear} · ${type} · ${report.language.toUpperCase()}`;
+}
+
+const selectClassName = cn(
+  "col-span-full row-start-1 box-border h-10 w-full appearance-none border border-[#2a3544] bg-[#080b10] py-2 pl-3 pr-8",
+  "text-base/6 text-[#e8ecf2] sm:text-sm/6",
+  "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#2b79db]/50",
+  "disabled:cursor-not-allowed disabled:opacity-50",
+);
+
+function ReportSelect({
+  id,
+  name,
+  value,
+  onChange,
+  reports,
+}: {
+  id: string;
+  name: string;
+  value: string;
+  onChange: (value: string) => void;
+  reports: ReportWithPreview[];
+}) {
+  return (
+    <span className="mt-1.5 inline-grid w-full grid-cols-[1fr_2rem]">
+      <select
+        id={id}
+        name={name}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className={selectClassName}
+      >
+        <option value="">Select a filing...</option>
+        {reports.map((r) => (
+          <option key={r.id} value={r.id}>
+            {reportOptionLabel(r)}
+          </option>
+        ))}
+      </select>
+      <ChevronDown
+        className="pointer-events-none col-start-2 row-start-1 size-4 place-self-center text-[#5a8f8f]"
+        aria-hidden
+      />
+    </span>
+  );
 }
 
 export function CrossCompanyCompareCard() {
@@ -68,13 +112,6 @@ export function CrossCompanyCompareCard() {
     );
   }
 
-  const selectClassName = cn(
-    "box-border h-10 w-full border border-[#2a3544] bg-[#080b10] px-3",
-    "text-sm text-[#e8ecf2]",
-    "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#2b79db]/50",
-    "disabled:cursor-not-allowed disabled:opacity-50",
-  );
-
   return (
     <div className="relative border border-[#2a3544] bg-[#0c1018]/80 p-6">
       <span className="pointer-events-none absolute -right-px -top-px block size-2 border-r border-t border-[#5a8f8f]" />
@@ -105,48 +142,40 @@ export function CrossCompanyCompareCard() {
           >
             <Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-[#5a8f8f]" />
             <input
+              name="reportFilter"
+              aria-label="Filter reports"
               type="text"
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
               placeholder="Filter by company, year..."
-              className="box-border h-10 w-full border border-[#2a3544] bg-[#080b10] pl-9 pr-3 text-sm text-[#e8ecf2] placeholder:text-[#6b7d92] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#2b79db]/50"
+              className="box-border h-10 w-full border border-[#2a3544] bg-[#080b10] pl-9 pr-3 text-base/6 text-[#e8ecf2] placeholder:text-[#6b7d92] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#2b79db]/50 sm:text-sm/6"
             />
           </motion.div>
 
           <div className="mt-4 grid gap-3">
-            <label className="block">
+            <label className="block" htmlFor="compare-report-a">
               <span className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.14em] text-[#4f9bff]">
                 Report A
               </span>
-              <select
+              <ReportSelect
+                id="compare-report-a"
+                name="reportA"
                 value={reportA}
-                onChange={(e) => setReportA(e.target.value)}
-                className={cn(selectClassName, "mt-1.5")}
-              >
-                <option value="">Select a filing...</option>
-                {filtered.map((r) => (
-                  <option key={r.id} value={r.id}>
-                    {reportOptionLabel(r)}
-                  </option>
-                ))}
-              </select>
+                onChange={setReportA}
+                reports={filtered}
+              />
             </label>
-            <label className="block">
+            <label className="block" htmlFor="compare-report-b">
               <span className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.14em] text-[#5a8f8f]">
                 Report B
               </span>
-              <select
+              <ReportSelect
+                id="compare-report-b"
+                name="reportB"
                 value={reportB}
-                onChange={(e) => setReportB(e.target.value)}
-                className={cn(selectClassName, "mt-1.5")}
-              >
-                <option value="">Select a filing...</option>
-                {filtered.map((r) => (
-                  <option key={r.id} value={r.id}>
-                    {reportOptionLabel(r)}
-                  </option>
-                ))}
-              </select>
+                onChange={setReportB}
+                reports={filtered}
+              />
             </label>
           </div>
 
@@ -155,7 +184,7 @@ export function CrossCompanyCompareCard() {
             disabled={!canCompare}
             onClick={handleCompare}
             aria-label="Compare reports"
-            className="mt-5 h-10 w-full rounded-none border-0 bg-[#2b79db] px-4 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.12em] text-[#ffffff] hover:bg-[#3d8de8] disabled:opacity-40"
+            className="mt-5 h-9 w-full rounded-none border-0 bg-[#2b79db] py-2 pl-2 pr-3 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.12em] text-[#ffffff] hover:bg-[#3d8de8] disabled:opacity-40"
           >
             <Scale className="size-3.5" />
             Compare reports
