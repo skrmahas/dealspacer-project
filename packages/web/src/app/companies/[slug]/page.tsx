@@ -111,6 +111,9 @@ const GUIDANCE_STYLES: Record<string, string> = {
   maintained: "border border-amber-400/35 bg-amber-500/10 text-amber-100",
   lowered: "border border-red-500/35 bg-red-500/10 text-red-200",
 };
+const reportTableHeaderClassName = "whitespace-nowrap pb-3 pr-3 font-medium";
+const reportTableNumberClassName =
+  "py-3.5 pr-3 align-middle font-[family-name:var(--font-mono)] text-base/6 tabular-nums text-[#e8ecf2] sm:text-[13px]";
 
 function fmtCurrency(val: number | null | undefined): string {
   if (val == null) return "—";
@@ -665,80 +668,97 @@ function ReportsTable({
           <Button
             onClick={onCompare}
             variant="outline"
-            className="h-10 w-full rounded-none border-[#3d4d62] bg-[#2b79db]/10 px-4 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.12em] text-[#e8ecf2] hover:border-[#2b79db]/40 hover:bg-[#2b79db]/20 sm:w-auto"
+            className="min-h-11 w-full rounded-none border-[#3d4d62] bg-[#2b79db]/10 px-3 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.12em] text-[#e8ecf2] hover:border-[#2b79db]/40 hover:bg-[#2b79db]/20 sm:h-10 sm:min-h-10 sm:w-auto"
           >
             <ExternalLink className="size-3.5" />
             Compare Selected
           </Button>
         ) : (
-          <p className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.12em] text-[#6b7d92] sm:max-w-xs sm:text-right">
+          <p className="font-[family-name:var(--font-mono)] text-base/6 uppercase tracking-[0.12em] text-[#6b7d92] sm:max-w-xs sm:text-right sm:text-[10px]">
             Pick two filings to compare
           </p>
         )}
       </div>
-      <div className="-mx-1 overflow-x-auto overscroll-x-contain">
-        <table className="min-w-[720px] border-collapse text-sm">
-          <thead>
-            <tr className="font-[family-name:var(--font-mono)] text-left text-[10px] uppercase tracking-[0.14em] text-[#6b7d92]">
-              <th className="w-10 pb-3 pr-2" />
-              <th className="pb-3 pr-3 font-medium">Year</th>
-              <th className="pb-3 pr-3 font-medium">Type</th>
-              <th className="pb-3 pr-3 font-medium">Revenue</th>
-              <th className="pb-3 pr-3 font-medium">EBITDA</th>
-              <th className="pb-3 pr-3 font-medium">Net Profit</th>
-              <th className="pb-3 pr-3 font-medium">Date</th>
-              <th className="pb-3 font-medium">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {reports.map((r) => (
-              <tr key={r.id} className="border-t border-[#2a3544]">
-                <td className="py-3.5 pr-2 align-middle">
-                  <input
-                    type="checkbox"
-                    checked={selected.has(r.id)}
-                    onChange={() => onToggle(r.id)}
-                    className="size-[15px] cursor-pointer accent-[#2b79db]"
-                    aria-label={`Select report ${r.fiscalYear} ${REPORT_TYPE_LABEL[r.reportType] ?? r.reportType}`}
-                  />
-                </td>
-                <td className="py-3.5 pr-3 align-middle font-[family-name:var(--font-display)] text-base font-medium text-[#f4f6f9]">
-                  {r.fiscalYear}
-                </td>
-                <td className="py-3.5 pr-3 align-middle font-[family-name:var(--font-mono)] text-xs text-[#8b9aad]">
-                  {REPORT_TYPE_LABEL[r.reportType] ?? r.reportType}
-                </td>
-                <td className="py-3.5 pr-3 align-middle font-[family-name:var(--font-mono)] text-[13px] tabular-nums text-[#e8ecf2]">
-                  {fmtCurrency(r.previewRevenue)}
-                </td>
-                <td className="py-3.5 pr-3 align-middle font-[family-name:var(--font-mono)] text-[13px] tabular-nums text-[#e8ecf2]">
-                  {fmtCurrency(r.previewEbitda)}
-                </td>
-                <td className="py-3.5 pr-3 align-middle font-[family-name:var(--font-mono)] text-[13px] tabular-nums text-[#e8ecf2]">
-                  {fmtCurrency(r.previewNetProfit)}
-                </td>
-                <td className="py-3.5 pr-3 align-middle font-[family-name:var(--font-mono)] text-[11px] tabular-nums text-[#6b7d92]">
-                  {new Date(r.createdAt).toLocaleDateString()}
-                </td>
-                <td className="flex flex-wrap items-center gap-x-4 gap-y-2 py-3.5 align-middle font-[family-name:var(--font-mono)] text-[11px] font-medium">
-                  {r.jobId ? (
-                    <a
-                      href={`/api/jobs/${r.jobId}/download`}
-                      className="inline-flex items-center gap-1 text-[#2b79db] transition hover:text-[#8ec0f5]"
-                    >
-                      <Download className="size-3 shrink-0" /> PDF
-                    </a>
-                  ) : (
-                    <span className="text-[#5a6980]/80">PDF</span>
-                  )}
-                  <Link href={`/reports/${r.id}`} className="text-[#2b79db] transition hover:text-[#8ec0f5]">
-                    View
-                  </Link>
-                </td>
+      <div className="-mx-5 -my-2 overflow-x-auto overscroll-x-contain whitespace-nowrap">
+        <div className="inline-block min-w-full px-5 py-2 align-middle">
+          <table className="w-full min-w-[720px] border-collapse text-left">
+            <thead>
+              <tr className="font-[family-name:var(--font-mono)] text-left text-xs/5 tracking-[0.02em] text-[#6b7d92] sm:text-[11px]">
+                <th className="w-10 whitespace-nowrap pb-3 pr-2 font-medium" />
+                <th className={reportTableHeaderClassName}>Year</th>
+                <th className={reportTableHeaderClassName}>Type</th>
+                <th className={reportTableHeaderClassName}>Revenue</th>
+                <th className={reportTableHeaderClassName}>EBITDA</th>
+                <th className={reportTableHeaderClassName}>Net Profit</th>
+                <th className={reportTableHeaderClassName}>Date</th>
+                <th className="whitespace-nowrap pb-3 font-medium">Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {reports.map((r) => (
+                <tr key={r.id} className="border-t border-[#2a3544]">
+                  <td className="py-3.5 pr-2 align-middle">
+                    <span className="inline-grid size-5 grid-cols-1 sm:size-4">
+                      <input
+                        type="checkbox"
+                        checked={selected.has(r.id)}
+                        onChange={() => onToggle(r.id)}
+                        className="peer col-start-1 row-start-1 cursor-pointer appearance-none rounded-sm border border-[#3d4d62] bg-[#080b10] checked:border-[#2b79db] checked:bg-[#2b79db] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2b79db] forced-colors:appearance-auto"
+                        aria-label={`Select report ${r.fiscalYear} ${REPORT_TYPE_LABEL[r.reportType] ?? r.reportType}`}
+                      />
+                      <svg
+                        viewBox="0 0 14 14"
+                        fill="none"
+                        className="pointer-events-none col-start-1 row-start-1 size-3.5 self-center justify-self-center stroke-white opacity-0 transition-opacity peer-checked:opacity-100 sm:size-3"
+                        aria-hidden
+                      >
+                        <path
+                          d="M3 8L6 11L11 3.5"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    </span>
+                  </td>
+                  <td className="py-3.5 pr-3 align-middle font-[family-name:var(--font-display)] text-base font-medium text-[#f4f6f9]">
+                    {r.fiscalYear}
+                  </td>
+                  <td className="py-3.5 pr-3 align-middle font-[family-name:var(--font-mono)] text-base/6 text-[#8b9aad] sm:text-xs">
+                    {REPORT_TYPE_LABEL[r.reportType] ?? r.reportType}
+                  </td>
+                  <td className={reportTableNumberClassName}>
+                    {fmtCurrency(r.previewRevenue)}
+                  </td>
+                  <td className={reportTableNumberClassName}>
+                    {fmtCurrency(r.previewEbitda)}
+                  </td>
+                  <td className={reportTableNumberClassName}>
+                    {fmtCurrency(r.previewNetProfit)}
+                  </td>
+                  <td className="py-3.5 pr-3 align-middle font-[family-name:var(--font-mono)] text-base/6 tabular-nums text-[#6b7d92] sm:text-[11px]">
+                    {new Date(r.createdAt).toLocaleDateString()}
+                  </td>
+                  <td className="flex flex-wrap items-center gap-x-4 gap-y-2 py-3.5 align-middle font-[family-name:var(--font-mono)] text-base/6 font-medium sm:text-[11px]">
+                    {r.jobId ? (
+                      <a
+                        href={`/api/jobs/${r.jobId}/download`}
+                        className="inline-flex items-center gap-1 text-[#2b79db] transition hover:text-[#8ec0f5]"
+                      >
+                        <Download className="size-4 shrink-0 sm:size-3" /> PDF
+                      </a>
+                    ) : (
+                      <span className="text-[#5a6980]/80">PDF</span>
+                    )}
+                    <Link href={`/reports/${r.id}`} className="text-[#2b79db] transition hover:text-[#8ec0f5]">
+                      View
+                    </Link>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </DashboardSection>
   );

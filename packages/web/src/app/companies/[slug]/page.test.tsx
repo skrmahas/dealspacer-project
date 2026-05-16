@@ -207,14 +207,33 @@ describe("CompanyAnalyticsDashboardPage", () => {
     render(<CompanyAnalyticsDashboardPage />);
     await waitFor(() => expect(screen.getByText("Reports")).toBeInTheDocument());
 
+    const table = screen.getByRole("table");
+    expect(table).toHaveClass("w-full", "min-w-[720px]", "text-left");
+    expect(table.parentElement).toHaveClass("inline-block", "min-w-full", "px-5", "py-2");
+    expect(table.parentElement?.parentElement).toHaveClass(
+      "-mx-5",
+      "-my-2",
+      "overflow-x-auto",
+      "whitespace-nowrap",
+    );
+
+    const yearHeader = screen.getByRole("columnheader", { name: "Year" });
+    expect(yearHeader).toHaveClass("whitespace-nowrap");
+    expect(yearHeader.parentElement).not.toHaveClass("uppercase");
+
     const checkboxes = screen.getAllByRole("checkbox");
     expect(checkboxes).toHaveLength(2);
+    expect(checkboxes[0].parentElement).toHaveClass("size-5", "sm:size-4");
+    expect(checkboxes[0]).toHaveClass("peer", "appearance-none", "checked:bg-[#2b79db]");
 
     fireEvent.click(checkboxes[0]);
     expect(screen.queryByText("Compare Selected")).not.toBeInTheDocument();
 
     fireEvent.click(checkboxes[1]);
-    expect(screen.getByText("Compare Selected")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /compare selected/i })).toHaveClass(
+      "min-h-11",
+      "sm:h-10",
+    );
   });
 
   it("renders the empty state when the company has no reports", async () => {
