@@ -74,9 +74,12 @@ describe("CompanyCatalogPage", () => {
   });
 
   it("renders the sidebar with search box, exchange filter pills, and bottom links", async () => {
-    render(<CompanyCatalogPage />);
+    const { container } = render(<CompanyCatalogPage />);
 
-    expect(await screen.findByPlaceholderText(/search companies/i)).toBeInTheDocument();
+    const search = await screen.findByRole("textbox", { name: /search companies/i });
+    expect(search).toHaveAttribute("name", "companySearch");
+    expect(search).toHaveClass("h-11", "text-base/6", "sm:h-10", "sm:text-sm/6");
+    expect(container.querySelector(".lucide-search")).toHaveClass("size-4", "sm:size-3.5");
 
     expect(screen.getByRole("button", { name: /^all$/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^tallinn$/i })).toBeInTheDocument();

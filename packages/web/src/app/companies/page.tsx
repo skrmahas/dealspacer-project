@@ -256,13 +256,15 @@ function Sidebar({
           </p>
 
           <div className="relative mt-4 min-w-0">
-            <Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-[#5a8f8f]" />
+            <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-[#5a8f8f] sm:left-3 sm:size-3.5" />
             <input
               type="text"
+              name="companySearch"
+              aria-label="Search companies"
               placeholder="Search companies..."
               value={search}
               onChange={(e) => onSearch(e.target.value)}
-              className="box-border h-10 w-full min-w-0 max-w-full border border-[#2a3544] bg-[#080b10] pl-9 pr-3 text-sm text-[#e8ecf2] placeholder:text-[#6b7d92] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#2b79db]/50"
+              className="box-border h-11 w-full min-w-0 max-w-full border border-[#2a3544] bg-[#080b10] pl-10 pr-3 text-base/6 text-[#e8ecf2] placeholder:text-[#6b7d92] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#2b79db]/50 sm:h-10 sm:pl-9 sm:text-sm/6"
             />
           </div>
 
