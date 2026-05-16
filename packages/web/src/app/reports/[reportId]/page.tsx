@@ -233,7 +233,7 @@ export default function ReportViewPage() {
             />
           </div>
 
-          <div className="flex flex-col gap-8">
+          <div className="flex min-w-0 flex-col gap-8">
             {sentiment && <SentimentPanel sentiment={sentiment} />}
             {donut.segments.length > 0 && (
               <BreakdownPanel segments={donut.segments} kind={donut.kind} />

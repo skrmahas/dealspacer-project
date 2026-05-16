@@ -66,6 +66,11 @@ export const GUIDANCE_STYLES: Record<string, { label: string; cls: string }> = {
   },
 };
 
+const METRICS_TABLE_HEADER_CELL_CLASS =
+  "whitespace-nowrap pb-3 pr-3 font-medium last:pr-0";
+const METRICS_TABLE_VALUE_CELL_CLASS =
+  "py-3 pr-3 font-[family-name:var(--font-mono)] text-base/6 tabular-nums sm:text-sm/6";
+
 // ── Utilities ──────────────────────────────────────────────────────────────
 
 export function parseExtractedJson(raw: string | null | undefined): ExtractedPayload | null {
@@ -202,7 +207,7 @@ export function PanelFrame({
   contentClassName?: string;
 }) {
   return (
-    <section className="relative border border-[#2a3544] bg-[#0c1018]/90">
+    <section className="relative w-full min-w-0 max-w-full border border-[#2a3544] bg-[#0c1018]/90">
       <span className="pointer-events-none absolute -left-px -top-px block size-2 border-l border-t border-[#2b79db]" aria-hidden />
       <span className="pointer-events-none absolute -right-px -top-px block size-2 border-r border-t border-[#2b79db]" aria-hidden />
       <header className="flex flex-wrap items-center justify-between gap-2 border-b border-[#1e2733] px-4 py-3 sm:px-5 sm:py-3.5">
@@ -220,7 +225,7 @@ export function PanelFrame({
           </div>
         </div>
       </header>
-      <div className={cn("p-4 sm:p-5", contentClassName)}>{children}</div>
+      <div className={cn("min-w-0 p-4 sm:p-5", contentClassName)}>{children}</div>
     </section>
   );
 }
@@ -377,32 +382,41 @@ export function MetricsTablePanel({ metrics }: { metrics: ExtractedMetric[] }) {
       eyebrow="Additional figures"
       title="All Extracted Metrics"
     >
-      <div className="overflow-x-auto">
-        <table className="min-w-full border-collapse">
-          <thead>
-            <tr className="font-[family-name:var(--font-mono)] text-left text-[10px] uppercase tracking-[0.16em] text-[#5a8f8f]">
-              <th className="pb-3 pr-3 font-medium">Metric</th>
-              <th className="pb-3 pr-3 font-medium">Period</th>
-              <th className="pb-3 pl-3 text-right font-medium">Value</th>
-            </tr>
-          </thead>
-          <tbody>
-            {metrics.map((m, i) => (
-              <tr
-                key={`${m.label}-${i}`}
-                className="border-t border-[#1e2733]/80"
-              >
-                <td className="py-3 pr-3 text-sm text-[#e8ecf2]">{m.label}</td>
-                <td className="py-3 pr-3 font-[family-name:var(--font-mono)] text-[11px] text-[#6b7d92]">
-                  {m.period ?? "—"}
-                </td>
-                <td className="py-3 pl-3 text-right font-[family-name:var(--font-mono)] text-sm tabular-nums text-[#b8d4f5]">
-                  {formatMetricValue(m)}
-                </td>
+      <div className="-mx-4 -my-2 overflow-x-auto overscroll-x-contain whitespace-nowrap sm:-mx-5">
+        <div className="inline-block min-w-full px-4 py-2 align-middle sm:px-5">
+          <table className="w-full min-w-[520px] border-collapse">
+            <thead>
+              <tr className="font-[family-name:var(--font-mono)] text-left text-xs/5 tracking-[0.02em] text-[#5a8f8f] sm:text-[11px]">
+                <th className={METRICS_TABLE_HEADER_CELL_CLASS}>Metric</th>
+                <th className={METRICS_TABLE_HEADER_CELL_CLASS}>Period</th>
+                <th className={cn(METRICS_TABLE_HEADER_CELL_CLASS, "pl-3 text-right")}>Value</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {metrics.map((m, i) => (
+                <tr
+                  key={`${m.label}-${i}`}
+                  className="border-t border-[#1e2733]/80"
+                >
+                  <td className="py-3 pr-3 text-base/6 text-[#e8ecf2] sm:text-sm/6">
+                    {m.label}
+                  </td>
+                  <td className={cn(METRICS_TABLE_VALUE_CELL_CLASS, "text-[#6b7d92]")}>
+                    {m.period ?? "—"}
+                  </td>
+                  <td
+                    className={cn(
+                      METRICS_TABLE_VALUE_CELL_CLASS,
+                      "pl-3 pr-0 text-right text-[#b8d4f5]",
+                    )}
+                  >
+                    {formatMetricValue(m)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </PanelFrame>
   );
@@ -515,7 +529,7 @@ export function ReportPreview({
   const reportPeriod = extracted.metadata?.reportPeriod?.trim();
 
   return (
-    <div className="grid gap-6">
+    <div className="grid min-w-0 gap-6">
       {(companyName || reportPeriod) && (
         <section className="border border-[#2a3544] bg-[#0c1018]/90 px-5 py-4">
           {companyName && (
