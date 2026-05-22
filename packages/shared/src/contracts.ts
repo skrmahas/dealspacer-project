@@ -165,6 +165,7 @@ export interface ReportStore {
   createReport(input: CreateReportInput): Promise<Report>;
   getReportById(id: string): Promise<Report | null>;
   getReportByJobId(jobId: string): Promise<Report | null>;
+  getReportByMatch(companyId: string | null, fiscalYear: number, reportType: ReportType, language: OutputLanguage): Promise<Report | null>;
   listReportsByCompany(companyId: string): Promise<ReportWithPreview[]>;
   listUnmatchedReports(): Promise<Report[]>;
   /** Counts all completed report rows, including unmatched rows awaiting admin mapping. */

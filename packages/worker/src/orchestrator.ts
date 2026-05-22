@@ -129,6 +129,6 @@ export async function processJob(
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
     log(`FAILED: ${message}`);
-    await store.updateJob(job.id, { state: "failed", error: message });
+    await store.updateJob(job.id, { state: "failed", error: message, extractedJson: null });
   }
 }

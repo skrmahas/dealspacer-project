@@ -60,7 +60,11 @@ export function startWorker(config: WorkerConfig) {
     }
   }
 
-  poll();
+  void poll().catch((err) => {
+    console.error("[worker] Fatal poll error:", err);
+    stopped = true;
+    process.exit(1);
+  });
 
   const stop = () => {
     stopped = true;

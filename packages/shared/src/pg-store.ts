@@ -444,10 +444,25 @@ export function createReportStore(): ReportStore {
       });
     },
 
+    async getReportByMatch(
+      companyId: string | null,
+      fiscalYear: number,
+      reportType: Report["reportType"],
+      language: Report["language"],
+    ): Promise<Report | null> {
+      return withClient(async (client) => {
+        const result = await client.query(
+          `SELECT * FROM reports WHERE company_id IS NOT DISTINCT FROM $1 AND fiscal_year = $2 AND report_type = $3 AND language = $4`,
+          [companyId ?? null, fiscalYear, reportType, language],
+        );
+        return result.rows.length > 0 ? rowToReport(result.rows[0]) : null;
+      });
+    },
+
     async listReportsByCompany(companyId: string): Promise<ReportWithPreview[]> {
       return withClient(async (client) => {
         const result = await client.query(
-          `SELECT r.*, c.name AS company_name
+          `SELECT r.*, c.name AS company_name, c.slug AS company_slug
            FROM reports r
            LEFT JOIN companies c ON c.id = r.company_id
            WHERE r.company_id = $1
@@ -509,7 +524,7 @@ export function createReportStore(): ReportStore {
     async listRecentReports(limit: number): Promise<ReportWithPreview[]> {
       return withClient(async (client) => {
         const result = await client.query(
-          `SELECT r.*, c.name AS company_name
+          `SELECT r.*, c.name AS company_name, c.slug AS company_slug
            FROM reports r
            LEFT JOIN companies c ON c.id = r.company_id
            ORDER BY r.created_at DESC

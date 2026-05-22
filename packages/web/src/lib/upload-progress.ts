@@ -66,7 +66,12 @@ function uploadWithXHR(
       onProgress({ loaded: event.loaded, total: event.total });
     });
 
+    const cleanup = () => {
+      if (abortRef) abortRef.current = null;
+    };
+
     xhr.addEventListener("load", () => {
+      cleanup();
       if (xhr.status >= 200 && xhr.status < 300) {
         try {
           const result = JSON.parse(xhr.responseText) as UploadResult;
@@ -85,10 +90,12 @@ function uploadWithXHR(
     });
 
     xhr.addEventListener("error", () => {
+      cleanup();
       reject(new Error("Network error during upload"));
     });
 
     xhr.addEventListener("abort", () => {
+      cleanup();
       reject(new Error("Upload aborted"));
     });
 

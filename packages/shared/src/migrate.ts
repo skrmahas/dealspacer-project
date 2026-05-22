@@ -139,7 +139,7 @@ export async function runMigrations(): Promise<void> {
 }
 
 // Standalone CLI usage
-const isMain = process.argv[1]?.includes("migrate");
+const isMain = process.argv[1]?.endsWith("migrate.ts") || process.argv[1]?.endsWith("migrate.js");
 if (isMain) {
   migrate()
     .then(() => closePool())
