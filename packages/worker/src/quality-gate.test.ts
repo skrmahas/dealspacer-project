@@ -25,6 +25,12 @@ describe("assessReportQuality", () => {
     expect(result.warnings).toEqual([]);
   });
 
+  it("passes historical snapshots without evidence", () => {
+    const result = assessReportQuality(baseData());
+
+    expect(result.passed).toBe(true);
+  });
+
   it("fails when no metrics are extracted even if narrative text exists", () => {
     const result = assessReportQuality(baseData({ metrics: [] }));
 
@@ -72,5 +78,35 @@ describe("assessReportQuality", () => {
     expect(result.passed).toBe(false);
     expect(buildQualityGateFailureMessage(result.warnings)).toContain("Missing company name");
     expect(buildQualityGateFailureMessage(result.warnings)).toContain("Missing report period");
+  });
+
+  it("fails when key evidence is explicitly low confidence", () => {
+    const result = assessReportQuality(
+      baseData({
+        metadata: {
+          companyName: "Test Co",
+          reportPeriod: "FY 2024",
+          sourceLanguage: "en",
+          evidence: {
+            companyName: { confidence: 0.55, snippet: "Possibly Test Co" },
+            reportPeriod: { confidence: 0.58, snippet: "2024" },
+          },
+        },
+        metrics: [
+          {
+            label: "Revenue",
+            value: 1000,
+            unit: "EUR",
+            canonicalId: "revenue",
+            evidence: { confidence: 0.4, snippet: "unclear table row" },
+          },
+        ],
+      }),
+    );
+
+    expect(result.passed).toBe(false);
+    expect(result.warnings).toContain("Company name evidence confidence is low (0.55).");
+    expect(result.warnings).toContain("Report period evidence confidence is low (0.58).");
+    expect(result.warnings).toContain('Core metric "Revenue" evidence confidence is low (0.40).');
   });
 });

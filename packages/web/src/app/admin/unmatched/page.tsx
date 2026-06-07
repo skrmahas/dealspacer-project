@@ -13,7 +13,20 @@ interface UnmatchedReport {
   language: string;
   jobId: string | null;
   s3Key: string;
-  extractedJsonSnapshot: { metadata?: { companyName?: string } } | null;
+  extractedJsonSnapshot: {
+    metadata?: {
+      companyName?: string;
+      evidence?: {
+        companyName?: {
+          page?: number | null;
+          chunkIndex?: number | null;
+          snippet?: string;
+          confidence?: number | null;
+          rationale?: string;
+        };
+      };
+    };
+  } | null;
   createdAt: string;
 }
 
@@ -32,6 +45,11 @@ const fieldControlClassName =
 
 function slugify(text: string): string {
   return text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+}
+
+function formatConfidence(confidence: number | null | undefined): string | null {
+  if (typeof confidence !== "number" || !Number.isFinite(confidence)) return null;
+  return `${Math.round(confidence * 100)}% confidence`;
 }
 
 export default function AdminUnmatchedPage() {
@@ -138,6 +156,13 @@ export default function AdminUnmatchedPage() {
         <ul className="m-0 list-none space-y-3 p-0">
           {reports.map((r) => {
             const name = r.extractedJsonSnapshot?.metadata?.companyName || "Unknown";
+            const evidence = r.extractedJsonSnapshot?.metadata?.evidence?.companyName;
+            const confidence = formatConfidence(evidence?.confidence);
+            const evidenceFacts = [
+              confidence,
+              evidence?.page ? `page ${evidence.page}` : null,
+              evidence?.chunkIndex != null ? `chunk ${evidence.chunkIndex + 1}` : null,
+            ].filter(Boolean);
             const createFieldId = (field: string) => `create-company-${r.id}-${field}`;
             return (
               <li
@@ -147,6 +172,25 @@ export default function AdminUnmatchedPage() {
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0 flex-1">
                     <p className="font-medium text-[#f4f6f9]">{name}</p>
+                    {(evidence?.snippet || confidence || evidence?.page || evidence?.chunkIndex != null) && (
+                      <div className="mt-2 border-l border-[#2b79db]/35 pl-3">
+                        {evidenceFacts.length > 0 && (
+                          <p className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.12em] text-[#5a8f8f]">
+                            {evidenceFacts.join(" · ")}
+                          </p>
+                        )}
+                        {evidence?.snippet && (
+                          <p className="mt-1 max-w-3xl break-words text-sm/6 text-[#c5d0de]">
+                            {evidence.snippet}
+                          </p>
+                        )}
+                        {evidence?.rationale && (
+                          <p className="mt-1 max-w-3xl break-words text-xs/5 text-[#8b9aad]">
+                            {evidence.rationale}
+                          </p>
+                        )}
+                      </div>
+                    )}
                     <p className="mt-2 flex flex-wrap gap-x-4 gap-y-1 font-[family-name:var(--font-mono)] text-[11px] text-[#8b9aad]">
                       <span>FY {r.fiscalYear}</span>
                       <span>{r.reportType}</span>

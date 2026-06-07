@@ -216,6 +216,40 @@ describe("extractFromText — single call (≤ threshold)", () => {
     // Narratives/sentiment may not run for short text — that's OK
   });
 
+  it("adds compact source evidence metadata to targeted extraction results", async () => {
+    const longSnippet = "Revenue table ".repeat(40);
+    const client = mockClient({
+      ...validExtraction,
+      metadata: {
+        ...validExtraction.metadata,
+        evidence: {
+          companyName: { confidence: 1.4, snippet: "AS Tallink Grupp annual report" },
+          reportPeriod: { confidence: 0.9, snippet: "Q1 2024 interim report" },
+        },
+      },
+      metrics: [
+        {
+          label: "Revenue",
+          value: 210400000,
+          unit: "EUR",
+          evidence: { confidence: 0.88, snippet: longSnippet },
+        },
+      ],
+    });
+    setClient(client);
+
+    const result = await extractFromText("dummy text for testing extraction");
+
+    expect(result.metadata.evidence?.companyName).toMatchObject({
+      confidence: 1,
+      chunkIndex: 0,
+      snippet: "AS Tallink Grupp annual report",
+    });
+    expect(result.metrics[0].evidence?.chunkIndex).toBe(0);
+    expect(result.metrics[0].evidence?.confidence).toBe(0.88);
+    expect(result.metrics[0].evidence?.snippet?.length).toBeLessThanOrEqual(240);
+  });
+
   it("handles empty extraction (non-financial document)", async () => {
     const client = mockClient(emptyExtraction);
     setClient(client);

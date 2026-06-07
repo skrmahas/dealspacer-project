@@ -10,7 +10,17 @@ describe("MetricsTablePanel", () => {
         metrics={[
           { label: "Passenger volume", period: "FY2024", unit: "passengers", value: 5_200_000 },
           { label: "Operating margin", period: "FY2024", unit: "%", value: 14.2 },
-          { label: "Other revenue", period: "FY2024", unit: "EUR", value: 1_230_000 },
+          {
+            label: "Other revenue",
+            period: "FY2024",
+            unit: "EUR",
+            value: 1_230_000,
+            evidence: {
+              confidence: 0.91,
+              chunkIndex: 0,
+              snippet: "Other revenue amounted to EUR 1.23 million.",
+            },
+          },
         ]}
       />,
     );
@@ -45,5 +55,7 @@ describe("MetricsTablePanel", () => {
       "sm:text-sm/6",
     );
     expect(within(table).getByText("€1.2M")).toHaveClass("text-base/6", "sm:text-sm/6");
+    expect(within(table).getByText(/91% confidence · chunk 1/i)).toBeInTheDocument();
+    expect(within(table).getByText(/Other revenue amounted/i)).toBeInTheDocument();
   });
 });

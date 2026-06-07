@@ -40,6 +40,7 @@ export type {
   JobStore,
   TranslationCacheEntry,
   CanonicalMetricId,
+  ExtractedEvidence,
   ExtractedMetric,
   ExtractedNarrative,
   ExtractedSentiment,
