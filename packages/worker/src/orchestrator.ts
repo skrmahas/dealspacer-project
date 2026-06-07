@@ -4,6 +4,7 @@ import { deduplicateMetrics } from "./deduplicator.js";
 import { sanitizeExtractedData } from "./sanitizer.js";
 import { prefilterDocumentText } from "./prefilter.js";
 import type { OpenAIClient } from "./extractor.js";
+import { assessReportQuality, buildQualityGateFailureMessage } from "./quality-gate.js";
 
 export async function processJob(
   job: Job,
@@ -83,6 +84,22 @@ export async function processJob(
     const hasMeaningfulNarratives = sanitized.narratives.some((n) => n.text.length > 50);
     if (!hasMetrics && !hasMeaningfulNarratives) {
       throw new Error("No financial data found in this document");
+    }
+
+    const quality = assessReportQuality(sanitized, warnings);
+    if (!quality.passed) {
+      const message = buildQualityGateFailureMessage(quality.warnings);
+      log(message);
+      await store.updateJob(job.id, {
+        state: "failed",
+        extractedText: text,
+        extractedJson: JSON.stringify({
+          ...sanitized,
+          qualityWarnings: quality.warnings,
+        }),
+        error: message,
+      });
+      return;
     }
 
     await store.updateJob(job.id, { state: "translating" });
