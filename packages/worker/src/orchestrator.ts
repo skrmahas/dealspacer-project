@@ -1,4 +1,4 @@
-import type { Job, JobStore, ExtractedData } from "@bei/shared";
+import { canonicalizeExtractedData, type Job, type JobStore, type ExtractedData } from "@bei/shared";
 import { classifyDocument } from "./classifier.js";
 import { deduplicateMetrics } from "./deduplicator.js";
 import { sanitizeExtractedData } from "./sanitizer.js";
@@ -86,7 +86,9 @@ export async function processJob(
       throw new Error("No financial data found in this document");
     }
 
-    const quality = assessReportQuality(sanitized, warnings);
+    const canonicalized = canonicalizeExtractedData(sanitized);
+
+    const quality = assessReportQuality(canonicalized, warnings);
     if (!quality.passed) {
       const message = buildQualityGateFailureMessage(quality.warnings);
       log(message);
@@ -94,7 +96,7 @@ export async function processJob(
         state: "failed",
         extractedText: text,
         extractedJson: JSON.stringify({
-          ...sanitized,
+          ...canonicalized,
           qualityWarnings: quality.warnings,
         }),
         error: message,
@@ -103,7 +105,7 @@ export async function processJob(
     }
 
     await store.updateJob(job.id, { state: "translating" });
-    const translated = await translateExtractedData(sanitized, job.outputLanguage, store);
+    const translated = await translateExtractedData(canonicalized, job.outputLanguage, store);
     log("Translation complete");
     tTranslate = Date.now();
 

@@ -14,6 +14,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import type { ExtractedData, Report } from "@bei/shared";
+import { getMetricValue } from "@bei/shared";
 import { TrendLineChart } from "@/components/charts/trend-line-chart";
 import { BreakdownBarChart } from "@/components/charts/breakdown-bar-chart";
 import { AppSiteHeader } from "@/components/app-site-header";
@@ -29,6 +30,7 @@ import {
   formatDelta,
   isHigherBetter,
   isPillarMetric,
+  metricDisplayLabel,
   pickBreakdownSegments,
   sortMetricEntries,
 } from "@/lib/compare-utils";
@@ -424,13 +426,13 @@ export default function ComparePage({ initialReportA, initialReportB }: CompareC
                   </thead>
                   <tbody>
                     {sortedMetrics.map(([key, { a, b }], idx) => {
-                      const label = a?.label || b?.label || key;
-                      const valA = a?.value;
-                      const valB = b?.value;
-                      const unit = a?.unit || b?.unit || "";
+                      const label = metricDisplayLabel(key, a ?? b);
+                      const valA = a ? getMetricValue(a) : null;
+                      const valB = b ? getMetricValue(b) : null;
+                      const unit = a?.normalizedUnit || b?.normalizedUnit || a?.unit || b?.unit || "";
                       const fmt = (v: number | null | undefined) =>
                         v == null ? "—" : `${fmtCurrency(v)}${unit ? ` ${unit}` : ""}`;
-                      const higherBetter = isHigherBetter(label);
+                      const higherBetter = isHigherBetter(label, a ?? b);
                       const pillar = isPillarMetric(label);
                       const delta =
                         valA != null && valB != null

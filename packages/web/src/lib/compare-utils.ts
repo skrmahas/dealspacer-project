@@ -1,4 +1,12 @@
-import type { ExtractedData, ExtractedMetric, ProfitabilityTrends } from "@bei/shared";
+import {
+  getCanonicalMetricLabel,
+  getMetricValue,
+  inferCanonicalMetricId,
+  type CanonicalMetricId,
+  type ExtractedData,
+  type ExtractedMetric,
+  type ProfitabilityTrends,
+} from "@bei/shared";
 import type { TrendSeries } from "@/components/charts/trend-line-chart";
 import type { BreakdownSegment } from "@/components/charts/breakdown-bar-chart";
 
@@ -25,6 +33,28 @@ export function labelKey(label: string): string {
   return label.toLowerCase().replace(/\s+/g, " ").trim();
 }
 
+function metricCanonicalId(metric: ExtractedMetric | null): CanonicalMetricId | null {
+  if (!metric) return null;
+  return metric.canonicalId ?? inferCanonicalMetricId(metric.originalLabel ?? metric.label);
+}
+
+function metricMapKey(metric: ExtractedMetric): string {
+  const canonicalId = metricCanonicalId(metric);
+  return canonicalId ? `canonical:${canonicalId}` : `label:${labelKey(metric.label)}`;
+}
+
+export function metricDisplayLabel(
+  key: string,
+  metric: ExtractedMetric | null | undefined,
+): string {
+  const canonicalId = metricCanonicalId(metric ?? null);
+  if (canonicalId) return getCanonicalMetricLabel(canonicalId);
+  if (key.startsWith("canonical:")) {
+    return getCanonicalMetricLabel(key.replace("canonical:", "") as CanonicalMetricId);
+  }
+  return metric?.label || key.replace(/^label:/, "");
+}
+
 export function fmtCurrency(val: number | null | undefined): string {
   if (val == null) return "—";
   if (Math.abs(val) >= 1e9) return `€${(val / 1e9).toFixed(1)}B`;
@@ -49,10 +79,14 @@ function matchesFcf(label: string): boolean {
 }
 
 export function isPillarMetric(label: string): boolean {
-  return matchesRevenue(label) || matchesFcf(label);
+  const canonicalId = inferCanonicalMetricId(label);
+  return canonicalId === "revenue" || canonicalId === "free_cash_flow" || matchesRevenue(label) || matchesFcf(label);
 }
 
-export function isHigherBetter(label: string): boolean {
+export function isHigherBetter(label: string, metric?: ExtractedMetric | null): boolean {
+  const canonicalId = metricCanonicalId(metric ?? null) ?? inferCanonicalMetricId(label);
+  if (canonicalId === "liabilities" || canonicalId === "capex") return false;
+  if (canonicalId) return true;
   const key = labelKey(label);
   if (/\bcost\b/.test(key) || /\bexpense\b/.test(key) || /\bdebt\b/.test(key)) return false;
   return (
@@ -69,14 +103,21 @@ export function metricWeight(label: string): number {
   return isPillarMetric(label) ? PILLAR_WEIGHT : DEFAULT_WEIGHT;
 }
 
+function metricWeightFor(metric: ExtractedMetric): number {
+  const canonicalId = metricCanonicalId(metric);
+  return canonicalId === "revenue" || canonicalId === "free_cash_flow"
+    ? PILLAR_WEIGHT
+    : metricWeight(metric.originalLabel ?? metric.label);
+}
+
 export function buildMetricsMap(
   metricsA: ExtractedMetric[],
   metricsB: ExtractedMetric[],
 ): Map<string, { a: ExtractedMetric | null; b: ExtractedMetric | null }> {
   const map = new Map<string, { a: ExtractedMetric | null; b: ExtractedMetric | null }>();
-  for (const m of metricsA) map.set(labelKey(m.label), { a: m, b: null });
+  for (const m of metricsA) map.set(metricMapKey(m), { a: m, b: null });
   for (const m of metricsB) {
-    const key = labelKey(m.label);
+    const key = metricMapKey(m);
     if (map.has(key)) map.get(key)!.b = m;
     else map.set(key, { a: null, b: m });
   }
@@ -86,18 +127,21 @@ export function buildMetricsMap(
 export function sortMetricEntries(
   entries: [string, { a: ExtractedMetric | null; b: ExtractedMetric | null }][],
 ): typeof entries {
-  const rank = (key: string, label: string) => {
-    if (matchesRevenue(label)) return 0;
-    if (matchesFcf(label)) return 1;
-    if (/\bebitda\b/i.test(label)) return 2;
-    if (/\bnet profit\b/i.test(label) || /\bnet income\b/i.test(label)) return 3;
+  const rank = (key: string, metric: ExtractedMetric | null, label: string) => {
+    const canonicalId = metricCanonicalId(metric) ?? (key.startsWith("canonical:") ? key.replace("canonical:", "") : null);
+    if (canonicalId === "revenue" || matchesRevenue(label)) return 0;
+    if (canonicalId === "free_cash_flow" || matchesFcf(label)) return 1;
+    if (canonicalId === "ebitda" || /\bebitda\b/i.test(label)) return 2;
+    if (canonicalId === "net_profit" || /\bnet profit\b/i.test(label) || /\bnet income\b/i.test(label)) return 3;
     if (key.includes("margin")) return 4;
     return 10;
   };
   return [...entries].sort(([, a], [, b]) => {
-    const labelA = a.a?.label || a.b?.label || "";
-    const labelB = b.a?.label || b.b?.label || "";
-    return rank(labelKey(labelA), labelA) - rank(labelKey(labelB), labelB);
+    const metricA = a.a ?? a.b;
+    const metricB = b.a ?? b.b;
+    const labelA = metricDisplayLabel("", metricA);
+    const labelB = metricDisplayLabel("", metricB);
+    return rank(labelKey(labelA), metricA, labelA) - rank(labelKey(labelB), metricB, labelB);
   });
 }
 
@@ -139,16 +183,18 @@ export function computeWeightedComparison(
   }
 
   for (const [, { a, b }] of metricsMap) {
-    if (a?.value == null || b?.value == null) continue;
-    const label = a.label || b?.label || "";
-    const weight = metricWeight(label);
+    const valueA = a ? getMetricValue(a) : null;
+    const valueB = b ? getMetricValue(b) : null;
+    if (valueA == null || valueB == null) continue;
+    const label = metricDisplayLabel("", a ?? b);
+    const weight = a ? metricWeightFor(a) : b ? metricWeightFor(b) : DEFAULT_WEIGHT;
     totalWeight += weight;
-    const higherBetter = isHigherBetter(label);
+    const higherBetter = isHigherBetter(label, a ?? b);
     if (higherBetter) {
-      if (a.value > b.value) scoreA += weight;
-      else if (b.value > a.value) scoreB += weight;
-    } else if (a.value < b.value) scoreA += weight;
-    else if (b.value < a.value) scoreB += weight;
+      if (valueA > valueB) scoreA += weight;
+      else if (valueB > valueA) scoreB += weight;
+    } else if (valueA < valueB) scoreA += weight;
+    else if (valueB < valueA) scoreB += weight;
   }
 
   return { scoreA, scoreB, totalWeight, pillarNotes };

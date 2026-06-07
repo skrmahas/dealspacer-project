@@ -8,6 +8,13 @@ export { assessPipelineHealth } from "./pipeline-health";
 export type { PipelineHealthSnapshot } from "./pipeline-health";
 export { normalizeMetricToEur, isPerShareOrRatioMetric } from "./metric-units";
 export {
+  canonicalizeExtractedData,
+  canonicalizeMetric,
+  getCanonicalMetricLabel,
+  getMetricValue,
+  inferCanonicalMetricId,
+} from "./canonical-metrics";
+export {
   buildReportPreview,
   resolvePreviewMetric,
   resolvePriorPreviewMetric,
@@ -32,6 +39,7 @@ export type {
   UpdateJobInput,
   JobStore,
   TranslationCacheEntry,
+  CanonicalMetricId,
   ExtractedMetric,
   ExtractedNarrative,
   ExtractedSentiment,

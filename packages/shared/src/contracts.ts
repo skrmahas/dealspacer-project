@@ -51,7 +51,29 @@ export interface ExtractedMetric {
   value: number | null;
   unit?: string;
   period?: string;
+  /** Stable metric identifier used for previews, charts, comparisons, and quality checks. */
+  canonicalId?: CanonicalMetricId;
+  /** Source label before localization or display edits. */
+  originalLabel?: string;
+  /** Source unit before normalization. */
+  originalUnit?: string;
+  /** Value normalized into `normalizedUnit` where the unit can be inferred safely. */
+  normalizedValue?: number | null;
+  normalizedUnit?: string;
 }
+
+export type CanonicalMetricId =
+  | "revenue"
+  | "ebitda"
+  | "net_profit"
+  | "free_cash_flow"
+  | "operating_cash_flow"
+  | "capex"
+  | "total_assets"
+  | "equity"
+  | "liabilities"
+  | "eps"
+  | "dividends";
 
 export interface ExtractedNarrative {
   section: string;

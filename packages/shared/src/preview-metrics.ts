@@ -1,4 +1,5 @@
 import type { ExtractedMetric, ProfitabilityTrends } from "./contracts";
+import { inferCanonicalMetricId } from "./canonical-metrics";
 import {
   applySnapshotCurrencyScale,
   detectSnapshotCurrencyMultiplier,
@@ -6,6 +7,7 @@ import {
 } from "./metric-units";
 
 export type PreviewMetricKey = "revenue" | "ebitda" | "netProfit" | "fcf";
+type PreviewCanonicalId = "revenue" | "ebitda" | "net_profit" | "free_cash_flow";
 
 type TrendField = "revenue" | "ebitda" | "netProfit" | "freeCashFlow";
 
@@ -19,6 +21,13 @@ const TREND_FIELD: Record<PreviewMetricKey, TrendField> = {
   ebitda: "ebitda",
   netProfit: "netProfit",
   fcf: "freeCashFlow",
+};
+
+const CANONICAL_KEY: Record<PreviewMetricKey, PreviewCanonicalId> = {
+  revenue: "revenue",
+  ebitda: "ebitda",
+  netProfit: "net_profit",
+  fcf: "free_cash_flow",
 };
 
 function isExcludedMetricLabel(label: string): boolean {
@@ -75,6 +84,7 @@ function matchesFcf(label: string): boolean {
 }
 
 function labelMatchesKey(label: string, key: PreviewMetricKey): boolean {
+  if (inferCanonicalMetricId(label) === CANONICAL_KEY[key]) return true;
   switch (key) {
     case "revenue":
       return matchesRevenue(label);
@@ -94,10 +104,16 @@ export function findMetricByKey(
   key: PreviewMetricKey,
 ): ExtractedMetric | null {
   if (!snapshot?.metrics?.length) return null;
+  const canonicalId = CANONICAL_KEY[key];
   const candidates = snapshot.metrics.filter(
     (m) => m.value != null && !isExcludedMetricLabel(m.label),
   );
-  return candidates.find((m) => labelMatchesKey(m.label, key)) ?? null;
+  return (
+    candidates.find((m) => m.canonicalId === canonicalId) ??
+    candidates.find((m) => labelMatchesKey(m.originalLabel ?? m.label, key)) ??
+    candidates.find((m) => labelMatchesKey(m.label, key)) ??
+    null
+  );
 }
 
 /** Baltic filings often store thousands as plain EUR (e.g. 45 786 = €45.8M). */
@@ -152,7 +168,7 @@ export function resolvePreviewMetric(
 ): number | null {
   const m = findMetricByKey(snapshot, key);
   if (m?.value != null) {
-    return normalizeExtractedValue(m.value, m.unit, m.label, snapshot);
+    return m.normalizedValue ?? normalizeExtractedValue(m.value, m.unit, m.originalLabel ?? m.label, snapshot);
   }
   return trendValueAt(snapshot, key, -1);
 }
