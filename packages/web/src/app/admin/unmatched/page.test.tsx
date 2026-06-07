@@ -12,7 +12,18 @@ const UNMATCHED_REPORTS = [
     language: "en",
     jobId: null,
     s3Key: "reports/acme.pdf",
-    extractedJsonSnapshot: { metadata: { companyName: "Acme Holdings" } },
+    extractedJsonSnapshot: {
+      metadata: {
+        companyName: "Acme Holdings",
+        evidence: {
+          companyName: {
+            confidence: 0.82,
+            chunkIndex: 1,
+            snippet: "Annual report of Acme Holdings for the year ended 2024.",
+          },
+        },
+      },
+    },
     createdAt: "2026-01-01T00:00:00.000Z",
   },
 ];
@@ -55,6 +66,8 @@ describe("AdminUnmatchedPage", () => {
     render(<AdminUnmatchedPage />);
 
     expect(await screen.findByText("Acme Holdings")).toBeInTheDocument();
+    expect(screen.getByText(/82% confidence · chunk 2/i)).toBeInTheDocument();
+    expect(screen.getByText(/Annual report of Acme Holdings/i)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /map/i }));
     fireEvent.click(screen.getByRole("button", { name: /create new company/i }));

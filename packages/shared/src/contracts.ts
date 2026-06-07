@@ -60,6 +60,20 @@ export interface ExtractedMetric {
   /** Value normalized into `normalizedUnit` where the unit can be inferred safely. */
   normalizedValue?: number | null;
   normalizedUnit?: string;
+  evidence?: ExtractedEvidence;
+}
+
+export interface ExtractedEvidence {
+  /** 1-based source page when available from OCR/parser context. */
+  page?: number | null;
+  /** 0-based extraction chunk index for large filings or targeted extraction fallback. */
+  chunkIndex?: number | null;
+  /** Compact nearby source text. Keep short enough for report snapshots. */
+  snippet?: string;
+  /** Extractor confidence from 0 to 1. */
+  confidence?: number | null;
+  /** Short rationale for computed or inferred facts. */
+  rationale?: string;
 }
 
 export type CanonicalMetricId =
@@ -106,6 +120,10 @@ export interface ExtractedData {
     reportPeriod: string;
     sourceLanguage: string;
     outputLanguage?: OutputLanguage;
+    evidence?: {
+      companyName?: ExtractedEvidence;
+      reportPeriod?: ExtractedEvidence;
+    };
   };
   metrics: ExtractedMetric[];
   narratives: ExtractedNarrative[];

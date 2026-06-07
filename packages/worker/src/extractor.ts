@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import type { ExtractedData, ExtractedMetric, ExtractedNarrative, RevenueBreakdown, ProfitabilityTrends } from "@bei/shared";
+import type { ExtractedData, ExtractedEvidence, ExtractedMetric, ExtractedNarrative, RevenueBreakdown, ProfitabilityTrends } from "@bei/shared";
 import { deduplicateMetrics, normalizeLabel } from "./deduplicator.js";
 
 const SYSTEM_PROMPT = `You are a financial document extraction specialist focused on Baltic company financial and business documents.
@@ -11,12 +11,14 @@ PRIMARY EXTRACTION TARGETS (most important — must extract if present):
 
 Extract the following from the provided document text into a JSON object. Follow these rules strictly:
 
-1. metadata: { companyName, reportPeriod, sourceLanguage }
+1. metadata: { companyName, reportPeriod, sourceLanguage, evidence? }
    - companyName: the legal entity name as it appears in the document
    - reportPeriod: e.g. "Q1 2024", "FY 2023", "2026-2029" for a multi-year plan, or "2024-03-31"
    - sourceLanguage: one of "et", "lv", "lt", or "en"
+   - evidence: optional compact source evidence for companyName and reportPeriod:
+     { companyName?: evidence, reportPeriod?: evidence }
 
-2. metrics: an array of { label, value, unit?, period? }
+2. metrics: an array of { label, value, unit?, period?, evidence? }
    - Extract ALL financial figures, with special attention to the PRIMARY TARGETS:
    - Revenue (total operating revenue / income)
    - Free Cash Flow (FCF): operating cash flow minus CAPEX. Look for "free cash flow",
@@ -31,6 +33,8 @@ Extract the following from the provided document text into a JSON object. Follow
    - value must be a number (use null if value is mentioned but unclear)
    - unit should be the stated unit (e.g. "EUR", "EUR m", "EUR bn", "thousand EUR")
    - period can be omitted if the metric applies to the full report period
+   - evidence should be included for important facts: revenue, EBITDA, net profit,
+     free cash flow / operating cash flow / CAPEX, company name, and report period
 
 3. narratives: an array of { section, text }
    - section: "executive_summary", "management_commentary", "business_overview", "segment_performance", "strategic_priorities", or "outlook"
@@ -62,6 +66,9 @@ Extract the following from the provided document text into a JSON object. Follow
    - Omit fields whose data is not available; omit section entirely if less than 2 periods found
 
 IMPORTANT:
+- Evidence object shape: { page?, chunkIndex?, snippet?, confidence?, rationale? }
+- Keep evidence compact: snippet should be the shortest nearby source text that supports the fact, ideally under 240 characters.
+- confidence is 0 to 1. Use lower confidence when the value is computed, inferred from a table header, or source text is ambiguous.
 - Translate all text to English
 - DO NOT fabricate numbers. If a figure is not clearly present, do not include it.
 - This document may be an annual report, quarterly filing, strategic plan, investor presentation, or other business financial document. Extract whatever financial data IS present.
@@ -86,16 +93,21 @@ PRIMARY TARGETS (most important):
    If both OCF and CAPEX are present, compute FCF = OCF - CAPEX.
 
 Return a JSON object with:
-1. metadata: { companyName, reportPeriod, sourceLanguage }
+1. metadata: { companyName, reportPeriod, sourceLanguage, evidence? }
    - companyName: the legal entity name as it appears in the document (include legal form: AS, OU, OÜ, SIA, UAB, AB)
    - reportPeriod: e.g. "Q1 2024", "FY 2023", "2026-2029" for a multi-year plan
    - sourceLanguage: one of "et", "lv", "lt", or "en"
+   - evidence: { companyName?: evidence, reportPeriod?: evidence }
 
-2. metrics: array of { label, value, unit?, period? }
+2. metrics: array of { label, value, unit?, period?, evidence? }
    - Extract ALL financial figures: revenue, Free Cash Flow (FCF = OCF - CAPEX), EBITDA, net profit, operating profit, CAPEX, assets, equity, liabilities, cash flow, EPS, dividends, targets, projections
    - Include historical AND forward-looking targets. Mark targets with period like "2026 target"
    - value must be a number (null if unclear). unit: "EUR", "EUR m", "EUR bn", "thousand EUR"
    - Translate labels to English; DO NOT fabricate numbers
+   - Add compact evidence for companyName, reportPeriod, revenue, EBITDA, net profit,
+     free cash flow / operating cash flow / CAPEX
+   - evidence shape: { page?, chunkIndex?, snippet?, confidence?, rationale? }
+   - snippet should be under 240 characters; confidence is 0 to 1
 
 BALTIC: Local section names may include "Tegevusaruanne", "Vadibas zinojums", "Vadovybes ataskaita". Currency is EUR (historical EEK/LVL/LTL possible).
 
@@ -247,6 +259,52 @@ function chunkText(text: string, chunkSize: number, overlap: number): string[] {
   }
 
   return chunks;
+}
+
+function compactSnippet(snippet: string | undefined): string | undefined {
+  const cleaned = snippet?.replace(/\s+/g, " ").trim();
+  if (!cleaned) return undefined;
+  return cleaned.length > 240 ? `${cleaned.slice(0, 237)}...` : cleaned;
+}
+
+function normalizeEvidence(
+  evidence: ExtractedEvidence | undefined,
+  chunkIndex: number,
+): ExtractedEvidence {
+  const confidence =
+    typeof evidence?.confidence === "number" && Number.isFinite(evidence.confidence)
+      ? Math.max(0, Math.min(1, evidence.confidence))
+      : undefined;
+
+  return {
+    ...evidence,
+    chunkIndex: evidence?.chunkIndex ?? chunkIndex,
+    snippet: compactSnippet(evidence?.snippet),
+    confidence,
+    rationale: compactSnippet(evidence?.rationale),
+  };
+}
+
+function withChunkEvidence(data: ExtractedData, chunkIndex: number): ExtractedData {
+  return {
+    ...data,
+    metadata: {
+      ...data.metadata,
+      evidence: {
+        ...data.metadata.evidence,
+        companyName: data.metadata.companyName
+          ? normalizeEvidence(data.metadata.evidence?.companyName, chunkIndex)
+          : data.metadata.evidence?.companyName,
+        reportPeriod: data.metadata.reportPeriod
+          ? normalizeEvidence(data.metadata.evidence?.reportPeriod, chunkIndex)
+          : data.metadata.evidence?.reportPeriod,
+      },
+    },
+    metrics: data.metrics.map((metric) => ({
+      ...metric,
+      evidence: normalizeEvidence(metric.evidence, chunkIndex),
+    })),
+  };
 }
 
 // ── Single extraction call ───────────────────────────────────────────────────
@@ -507,7 +565,7 @@ async function targetedExtract(
 
   const totalMs = Date.now() - t0;
   console.log(`[extractor] Targeted extraction complete: ${stagesToRun.length} stage(s) in ${totalMs}ms`);
-  return extracted;
+  return withChunkEvidence(extracted, 0);
 }
 
 // ── Result merging ───────────────────────────────────────────────────────────
@@ -695,7 +753,7 @@ export async function extractFromText(
     const label = `Chunk ${index + 1}/${chunks.length}`;
     try {
       const result = await callExtractWithRetry(chunk, openai, config.maxRetries, label, config.retryBaseDelayMs, config.retryMaxDelayMs);
-      results[index] = result;
+      results[index] = withChunkEvidence(result, index);
       completedCount++;
       console.log(
         `[extractor] ${label}: extracted ${result.metrics.length} metrics, ${result.narratives.length} narratives`,

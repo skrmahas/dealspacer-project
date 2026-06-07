@@ -44,6 +44,11 @@ function isCoreMetric(metric: ExtractedMetric): boolean {
   return CORE_METRIC_PATTERNS.some((pattern) => pattern.test(metric.originalLabel ?? metric.label));
 }
 
+function hasLowConfidence(metric: ExtractedMetric): boolean {
+  const confidence = metric.evidence?.confidence;
+  return typeof confidence === "number" && Number.isFinite(confidence) && confidence < 0.6;
+}
+
 export function assessReportQuality(
   data: ExtractedData,
   sanitizationWarnings?: SanitizationWarnings,
@@ -54,6 +59,7 @@ export function assessReportQuality(
   const numericMetrics = data.metrics.filter(isNumericMetric);
   const nullMetrics = data.metrics.filter((metric) => metric.value === null);
   const numericCoreMetrics = numericMetrics.filter(isCoreMetric);
+  const lowConfidenceCoreMetrics = numericCoreMetrics.filter(hasLowConfidence);
 
   if (!companyName) warnings.push("Missing company name in extracted metadata.");
   if (!reportPeriod) warnings.push("Missing report period in extracted metadata.");
@@ -72,6 +78,22 @@ export function assessReportQuality(
 
   if (numericCoreMetrics.length === 0) {
     warnings.push("No core financial metric with a numeric value was extracted.");
+  }
+
+  const companyConfidence = data.metadata.evidence?.companyName?.confidence;
+  if (typeof companyConfidence === "number" && Number.isFinite(companyConfidence) && companyConfidence < 0.6) {
+    warnings.push(`Company name evidence confidence is low (${companyConfidence.toFixed(2)}).`);
+  }
+
+  const periodConfidence = data.metadata.evidence?.reportPeriod?.confidence;
+  if (typeof periodConfidence === "number" && Number.isFinite(periodConfidence) && periodConfidence < 0.6) {
+    warnings.push(`Report period evidence confidence is low (${periodConfidence.toFixed(2)}).`);
+  }
+
+  for (const metric of lowConfidenceCoreMetrics) {
+    warnings.push(
+      `Core metric "${metric.label}" evidence confidence is low (${metric.evidence!.confidence!.toFixed(2)}).`,
+    );
   }
 
   if (!hasMeaningfulNarrative(data) && numericMetrics.length < 2) {

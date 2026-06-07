@@ -116,6 +116,19 @@ export function formatMetricValue(metric: ExtractedMetric): string {
   return unit ? `${num} ${unit}` : num;
 }
 
+function formatEvidenceMeta(metric: ExtractedMetric): string | null {
+  const evidence = metric.evidence;
+  if (!evidence) return null;
+  const parts = [
+    typeof evidence.confidence === "number" && Number.isFinite(evidence.confidence)
+      ? `${Math.round(evidence.confidence * 100)}% confidence`
+      : null,
+    evidence.page ? `page ${evidence.page}` : null,
+    evidence.chunkIndex != null ? `chunk ${evidence.chunkIndex + 1}` : null,
+  ].filter(Boolean);
+  return parts.length > 0 ? parts.join(" · ") : null;
+}
+
 export function pickKpis(metrics: ExtractedMetric[]): ExtractedMetric[] {
   const priority: ExtractedMetric[] = [];
   const seen = new Set<string>();
@@ -408,27 +421,40 @@ export function MetricsTablePanel({ metrics }: { metrics: ExtractedMetric[] }) {
               </tr>
             </thead>
             <tbody>
-              {metrics.map((m, i) => (
-                <tr
-                  key={`${m.label}-${i}`}
-                  className="border-t border-[#1e2733]/80"
-                >
-                  <td className="py-3 pr-3 text-base/6 text-[#e8ecf2] sm:text-sm/6">
-                    {m.label}
-                  </td>
-                  <td className={cn(METRICS_TABLE_VALUE_CELL_CLASS, "text-[#6b7d92]")}>
-                    {m.period ?? "—"}
-                  </td>
-                  <td
-                    className={cn(
-                      METRICS_TABLE_VALUE_CELL_CLASS,
-                      "pl-3 pr-0 text-right text-[#b8d4f5]",
-                    )}
+              {metrics.map((m, i) => {
+                const evidenceMeta = formatEvidenceMeta(m);
+                return (
+                  <tr
+                    key={`${m.label}-${i}`}
+                    className="border-t border-[#1e2733]/80"
                   >
-                    {formatMetricValue(m)}
-                  </td>
-                </tr>
-              ))}
+                    <td className="max-w-[22rem] py-3 pr-3 text-base/6 text-[#e8ecf2] sm:text-sm/6">
+                      <span className="block text-base/6 sm:text-sm/6">{m.label}</span>
+                      {(evidenceMeta || m.evidence?.snippet) && (
+                        <span className="mt-1 block whitespace-normal text-xs/5 text-[#8b9aad]">
+                          {evidenceMeta && (
+                            <span className="block font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.08em] text-[#5a8f8f]">
+                              {evidenceMeta}
+                            </span>
+                          )}
+                          {m.evidence?.snippet}
+                        </span>
+                      )}
+                    </td>
+                    <td className={cn(METRICS_TABLE_VALUE_CELL_CLASS, "text-[#6b7d92]")}>
+                      {m.period ?? "—"}
+                    </td>
+                    <td
+                      className={cn(
+                        METRICS_TABLE_VALUE_CELL_CLASS,
+                        "pl-3 pr-0 text-right text-[#b8d4f5]",
+                      )}
+                    >
+                      {formatMetricValue(m)}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
