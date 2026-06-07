@@ -231,29 +231,24 @@ export default function ReportViewPage() {
           </motion.div>
         )}
 
-        <div className="mt-10 grid gap-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] lg:gap-10">
-          <div className="lg:sticky lg:top-24 lg:self-start">
-            <PdfPanel
-              reportId={reportId}
-              fiscalYear={report.fiscalYear}
-              typeLabel={typeLabel}
-            />
-          </div>
-
-          <div className="flex min-w-0 flex-col gap-8">
-            {sentiment && <SentimentPanel sentiment={sentiment} />}
-            {donut.segments.length > 0 && (
-              <BreakdownPanel segments={donut.segments} kind={donut.kind} />
-            )}
-            {otherMetrics.length > 0 && (
-              <MetricsTablePanel metrics={otherMetrics} />
-            )}
-            {narratives.length > 0 ? (
-              <NarrativeEditorial narratives={narratives} />
-            ) : (
-              <EmptyNarratives />
-            )}
-          </div>
+        <div className="mt-10 flex flex-col gap-8">
+          <PdfPanel
+            reportId={reportId}
+            fiscalYear={report.fiscalYear}
+            typeLabel={typeLabel}
+          />
+          {sentiment && <SentimentPanel sentiment={sentiment} />}
+          {donut.segments.length > 0 && (
+            <BreakdownPanel segments={donut.segments} kind={donut.kind} />
+          )}
+          {otherMetrics.length > 0 && (
+            <MetricsTablePanel metrics={otherMetrics} />
+          )}
+          {narratives.length > 0 ? (
+            <NarrativeEditorial narratives={narratives} />
+          ) : (
+            <EmptyNarratives />
+          )}
         </div>
 
         <FooterBar reportId={reportId} companySlug={companySlug} />

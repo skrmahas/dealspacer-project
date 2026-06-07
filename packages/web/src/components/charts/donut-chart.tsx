@@ -100,18 +100,18 @@ export function DonutChart({
   }, [segments, colors, surface]);
 
   return (
-    <div className={cn("flex flex-col gap-3 md:flex-row md:items-center", className)} data-testid="donut-chart">
-      <div className="relative size-56 max-w-full">
+    <div className={cn("flex min-w-0 flex-col gap-3 md:flex-row md:items-center", className)} data-testid="donut-chart">
+      <div className="relative size-56 shrink-0 max-w-full">
         <canvas
           ref={canvasRef}
           aria-label={title ? `${title} donut chart` : "Donut chart"}
           role="img"
         />
       </div>
-      <ul className={cn("flex-1 grid gap-2 text-sm", surface === "beiDark" && "font-[family-name:var(--font-body)]")}>
+      <ul className={cn("min-w-0 flex-1 grid gap-2 text-sm", surface === "beiDark" && "font-[family-name:var(--font-body)]")}>
         {segments.map((s, i) => (
-          <li key={s.label} className="flex items-center justify-between gap-3">
-            <span className="flex items-center gap-2 truncate">
+          <li key={s.label} className="flex min-w-0 items-center justify-between gap-3">
+            <span className="flex min-w-0 items-center gap-2">
               <span
                 className="size-2.5 shrink-0 rounded-sm"
                 style={{ background: colors[i] }}
@@ -128,7 +128,7 @@ export function DonutChart({
             </span>
             <span
               className={cn(
-                "tabular-nums",
+                "shrink-0 whitespace-nowrap tabular-nums",
                 surface === "beiDark"
                   ? "font-[family-name:var(--font-mono)] text-xs font-medium text-[#e8ecf2]"
                   : "font-semibold text-foreground",
