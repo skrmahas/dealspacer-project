@@ -1,6 +1,6 @@
 import type { Job, ExtractedData } from "@bei/shared";
-import { createReportStore, DuplicateReportError } from "@bei/shared";
-import { matchCompany, parseReportPeriod } from "./company-matcher.js";
+import { createCompanyStore, createReportStore, DuplicateReportError } from "@bei/shared";
+import { matchCompany, parseReportPeriod, pickBestMatch } from "./company-matcher.js";
 
 /**
  * Post-completion hook: matches AI-extracted company name to catalog,
@@ -25,6 +25,7 @@ export async function onJobComplete(
 
   // 1. Determine company ID
   let companyId: string | null = job.companyId || null;
+  let mappingWarning: string | null = null;
 
   if (!companyId) {
     const match = await matchCompany(companyName);
@@ -35,7 +36,22 @@ export async function onJobComplete(
       log(`No company match for "${companyName}" — creating unmatched report`);
     }
   } else {
-    log(`Using company ID from upload context: ${companyId}`);
+    const companies = await createCompanyStore().listCompanies();
+    const selectedCompany = companies.find((company) => company.id === companyId);
+    if (!selectedCompany) {
+      mappingWarning = `Selected company ${companyId} was not found; creating unmatched report for extracted company "${companyName}".`;
+      log(mappingWarning);
+      companyId = null;
+    } else {
+      const selectedMatch = pickBestMatch(companyName, [selectedCompany]);
+      if (!selectedMatch || selectedMatch.companyId !== selectedCompany.id) {
+        mappingWarning = `Selected company "${selectedCompany.name}" conflicts with extracted company "${companyName}"; creating unmatched report for admin review.`;
+        log(mappingWarning);
+        companyId = null;
+      } else {
+        log(`Using company ID from upload context: ${companyId} (confidence: ${selectedMatch.confidence.toFixed(2)})`);
+      }
+    }
   }
 
   // 2. Parse report period
@@ -60,6 +76,11 @@ export async function onJobComplete(
       extractedJsonSnapshot: data,
     });
     log(`Report row created: ${parsed.fiscalYear} ${parsed.reportType}`);
+    if (mappingWarning) {
+      await store.updateJob(job.id, {
+        error: mappingWarning,
+      });
+    }
   } catch (err) {
     if (err instanceof DuplicateReportError) {
       log(`Duplicate report: ${err.message}`);
