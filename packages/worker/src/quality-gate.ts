@@ -1,4 +1,4 @@
-import type { ExtractedData, ExtractedMetric } from "@bei/shared";
+import { inferCanonicalMetricId, type ExtractedData, type ExtractedMetric } from "@bei/shared";
 import type { SanitizationWarnings } from "./sanitizer.js";
 
 export interface QualityGateResult {
@@ -30,7 +30,18 @@ function isNumericMetric(metric: ExtractedMetric): boolean {
 }
 
 function isCoreMetric(metric: ExtractedMetric): boolean {
-  return CORE_METRIC_PATTERNS.some((pattern) => pattern.test(metric.label));
+  const canonicalId = metric.canonicalId ?? inferCanonicalMetricId(metric.originalLabel ?? metric.label);
+  if (
+    canonicalId === "revenue" ||
+    canonicalId === "ebitda" ||
+    canonicalId === "net_profit" ||
+    canonicalId === "free_cash_flow" ||
+    canonicalId === "operating_cash_flow" ||
+    canonicalId === "capex"
+  ) {
+    return true;
+  }
+  return CORE_METRIC_PATTERNS.some((pattern) => pattern.test(metric.originalLabel ?? metric.label));
 }
 
 export function assessReportQuality(

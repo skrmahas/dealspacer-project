@@ -16,6 +16,7 @@ import type {
   ExtractedNarrative,
   ExtractedSentiment,
 } from "@bei/shared";
+import { inferCanonicalMetricId } from "@bei/shared";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Single source of truth for rendering an extracted-report payload.
@@ -50,6 +51,8 @@ export const PRIORITY_KPI_LABELS = [
   "free cash flow",
   "operating profit",
 ];
+
+const PRIORITY_KPI_IDS = ["revenue", "ebitda", "net_profit", "free_cash_flow"] as const;
 
 export const GUIDANCE_STYLES: Record<string, { label: string; cls: string }> = {
   raised: {
@@ -97,10 +100,11 @@ export function narrativeTitle(section: string): string {
 }
 
 export function formatMetricValue(metric: ExtractedMetric): string {
-  if (metric.value == null) return "—";
-  const v = metric.value;
+  const value = metric.normalizedValue ?? metric.value;
+  if (value == null) return "—";
+  const v = value;
   const abs = Math.abs(v);
-  const unit = metric.unit?.trim() ?? "";
+  const unit = (metric.normalizedUnit ?? metric.unit)?.trim() ?? "";
   const isCurrency = /€|eur|usd|\$/i.test(unit);
   if (isCurrency) {
     if (abs >= 1e9) return `€${(v / 1e9).toFixed(2)}B`;
@@ -115,7 +119,18 @@ export function formatMetricValue(metric: ExtractedMetric): string {
 export function pickKpis(metrics: ExtractedMetric[]): ExtractedMetric[] {
   const priority: ExtractedMetric[] = [];
   const seen = new Set<string>();
+  for (const want of PRIORITY_KPI_IDS) {
+    const m = metrics.find(
+      (x) => (x.canonicalId ?? inferCanonicalMetricId(x.originalLabel ?? x.label)) === want,
+    );
+    if (m && !seen.has(m.label)) {
+      priority.push(m);
+      seen.add(m.label);
+    }
+    if (priority.length >= 4) break;
+  }
   for (const want of PRIORITY_KPI_LABELS) {
+    if (priority.length >= 4) break;
     const m = metrics.find((x) => x.label.toLowerCase().includes(want));
     if (m && !seen.has(m.label)) {
       priority.push(m);

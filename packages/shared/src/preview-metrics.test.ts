@@ -28,6 +28,18 @@ describe("preview-metrics (Artea Bankas LT Q1)", () => {
     expect(findMetricByKey(ARTEA_SNAPSHOT, "revenue")?.label).not.toMatch(/palūkan/);
   });
 
+  it("prefers canonical ids for common revenue label variants", () => {
+    const snapshot = {
+      metrics: [
+        { unit: "EUR", label: "Sales", value: 120, canonicalId: "revenue" as const },
+        { unit: "EUR", label: "Profit for the period", value: 40, canonicalId: "net_profit" as const },
+      ],
+    };
+
+    expect(findMetricByKey(snapshot, "revenue")?.label).toBe("Sales");
+    expect(findMetricByKey(snapshot, "netProfit")?.label).toBe("Profit for the period");
+  });
+
   it("builds normalized previews in whole EUR", () => {
     const preview = buildReportPreview(ARTEA_SNAPSHOT);
     expect(preview.previewRevenue).toBe(45_786_000);
