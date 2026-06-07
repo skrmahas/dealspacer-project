@@ -13,6 +13,7 @@
     "typecheck": "tsc --noEmit",
     "db:migrate": "tsx src/migrate.ts",
     "db:seed": "tsx src/seed.ts",
+    "reports:audit": "tsx src/report-quality-audit-cli.ts",
     "sync:nasdaq-seed": "node scripts/sync-nasdaq-baltic-seed.mjs",
     "test": "vitest run"
   },
