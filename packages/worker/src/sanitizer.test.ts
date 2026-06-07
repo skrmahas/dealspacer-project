@@ -108,6 +108,53 @@ describe("sanitizeExtractedData", () => {
       expect(data.revenueBreakdown).toBeDefined();
       expect(warnings.revenueBreakdownDropped).toBe(false);
     });
+
+    it("merges duplicate segment and geography entries by normalized name", () => {
+      const input = baseData({
+        revenueBreakdown: {
+          bySegment: [
+            { name: "Passenger Ferries", value: 100 },
+            { name: "passenger ferries", value: 25 },
+            { name: "Cargo", value: 50 },
+          ],
+          byGeography: [
+            { name: "Lithuania", value: 20 },
+            { name: "Lithuania ", value: 5 },
+            { name: "Latvia", value: 10 },
+          ],
+        },
+      });
+
+      const { data, warnings } = sanitizeExtractedData(input);
+
+      expect(data.revenueBreakdown?.bySegment).toEqual([
+        { name: "Passenger Ferries", value: 125 },
+        { name: "Cargo", value: 50 },
+      ]);
+      expect(data.revenueBreakdown?.byGeography).toEqual([
+        { name: "Lithuania", value: 25 },
+        { name: "Latvia", value: 10 },
+      ]);
+      expect(warnings.duplicateRevenueBreakdownEntries).toBe(2);
+      expect(warnings.revenueBreakdownDropped).toBe(false);
+    });
+
+    it("drops breakdown when duplicate merging leaves only one chartable entry", () => {
+      const input = baseData({
+        revenueBreakdown: {
+          bySegment: [
+            { name: "Retail", value: 100 },
+            { name: "retail", value: 25 },
+          ],
+        },
+      });
+
+      const { data, warnings } = sanitizeExtractedData(input);
+
+      expect(data.revenueBreakdown).toBeUndefined();
+      expect(warnings.duplicateRevenueBreakdownEntries).toBe(1);
+      expect(warnings.revenueBreakdownDropped).toBe(true);
+    });
   });
 
   describe("profitability trends", () => {
@@ -135,6 +182,66 @@ describe("sanitizeExtractedData", () => {
       const { data, warnings } = sanitizeExtractedData(input);
       expect(data.profitabilityTrends).toBeDefined();
       expect(warnings.profitabilityTrendsDropped).toBe(false);
+    });
+
+    it("repairs trend series length mismatches by trimming and padding", () => {
+      const input = baseData({
+        profitabilityTrends: {
+          periods: ["2023", "2024", "2025"],
+          revenue: [100, 120, 140, 160],
+          ebitda: [50],
+          netProfit: [10, 20, 30],
+        },
+      });
+
+      const { data, warnings } = sanitizeExtractedData(input);
+
+      expect(data.profitabilityTrends).toEqual({
+        periods: ["2023", "2024", "2025"],
+        revenue: [100, 120, 140],
+        ebitda: [50, null, null],
+        netProfit: [10, 20, 30],
+      });
+      expect(warnings.trendSeriesRepaired).toBe(2);
+      expect(warnings.profitabilityTrendsDropped).toBe(false);
+    });
+
+    it("merges duplicate trend periods and keeps first non-null series values", () => {
+      const input = baseData({
+        profitabilityTrends: {
+          periods: ["2023", "2024", "2024", "2025"],
+          revenue: [100, null, 125, 150],
+          ebitda: [40, 50, 55, 60],
+          freeCashFlow: [null, 10, 12, 14],
+        },
+      });
+
+      const { data, warnings } = sanitizeExtractedData(input);
+
+      expect(data.profitabilityTrends).toEqual({
+        periods: ["2023", "2024", "2025"],
+        revenue: [100, 125, 150],
+        ebitda: [40, 50, 60],
+        freeCashFlow: [null, 10, 14],
+      });
+      expect(warnings.duplicateTrendPeriods).toBe(1);
+      expect(warnings.profitabilityTrendsDropped).toBe(false);
+    });
+
+    it("drops empty trend series and omits all-null trend sections", () => {
+      const input = baseData({
+        profitabilityTrends: {
+          periods: ["2023", "2024"],
+          revenue: [null, null],
+          ebitda: [null, null],
+        },
+      });
+
+      const { data, warnings } = sanitizeExtractedData(input);
+
+      expect(data.profitabilityTrends).toBeUndefined();
+      expect(warnings.droppedEmptyTrendSeries).toEqual(["revenue", "ebitda"]);
+      expect(warnings.profitabilityTrendsDropped).toBe(true);
     });
   });
 
