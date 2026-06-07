@@ -33,7 +33,7 @@ function createMockStore() {
     async getJob(id: string) {
       return jobs.get(id) ?? null;
     },
-    async updateJob(id: string, input: { state?: JobState; extractedText?: string; extractedJson?: string; error?: string }) {
+    async updateJob(id: string, input: { state?: JobState; extractedText?: string | null; extractedJson?: string | null; error?: string | null }) {
       const job = jobs.get(id);
       if (!job) throw new Error("Job not found");
       Object.assign(job, input, { updatedAt: new Date().toISOString() });
@@ -209,6 +209,83 @@ describe("processJob", () => {
     const updated = await store.getJob(job.id);
     expect(updated!.state).toBe("failed");
     expect(updated!.error).toBe("No financial data found in this document");
+  });
+
+  it("fails quality gate when extraction has meaningful narrative but no metrics", async () => {
+    const job = await store.createJob({ originalFilename: "narrative-only.pdf" });
+    const readFile = vi.fn().mockResolvedValue(Buffer.from("fake pdf"));
+    const parseDocument = vi.fn().mockResolvedValue(
+      "annual report overview management summary company performance financial statements revenue ebitda profit presentation document business",
+    );
+    const extracted: ExtractedData = {
+      metadata: { companyName: "Test Co", reportPeriod: "FY 2024", sourceLanguage: "en" },
+      metrics: [],
+      narratives: [
+        {
+          section: "executive_summary",
+          text: "The narrative is meaningful enough to pass the old check, but no financial metrics were extracted.",
+        },
+      ],
+      sentiment: { managementTone: "neutral", outlook: "Unclear", riskFactors: [] },
+    };
+    const extractFromText = vi.fn().mockResolvedValue(extracted);
+    const translateExtractedData = vi.fn();
+    const assemblePdf = vi.fn();
+    const saveReport = vi.fn();
+    const onJobComplete = vi.fn();
+
+    const states: JobState[] = [];
+    const originalUpdate = store.updateJob;
+    store.updateJob = vi.fn().mockImplementation(async (id, input) => {
+      if (input.state) states.push(input.state);
+      return originalUpdate(id, input);
+    });
+
+    await processJob(job, store, readFile, parseDocument, extractFromText, translateExtractedData, assemblePdf, saveReport, undefined, onJobComplete);
+
+    expect(states).toEqual(["parsing", "extracting", "failed"]);
+    expect(translateExtractedData).not.toHaveBeenCalled();
+    expect(assemblePdf).not.toHaveBeenCalled();
+    expect(saveReport).not.toHaveBeenCalled();
+    expect(onJobComplete).not.toHaveBeenCalled();
+
+    const updated = await store.getJob(job.id);
+    expect(updated!.state).toBe("failed");
+    expect(updated!.error).toContain("Report quality gate failed");
+    expect(updated!.error).toContain("No metrics were extracted");
+    expect(updated!.extractedText).toContain("annual report overview");
+    expect(JSON.parse(updated!.extractedJson!)).toMatchObject({
+      metadata: { companyName: "Test Co", reportPeriod: "FY 2024" },
+      qualityWarnings: expect.arrayContaining(["No metrics were extracted."]),
+    });
+  });
+
+  it("fails quality gate when remaining metrics are mostly null", async () => {
+    const job = await store.createJob({ originalFilename: "mostly-null.pdf" });
+    const readFile = vi.fn().mockResolvedValue(Buffer.from("fake pdf"));
+    const parseDocument = vi.fn().mockResolvedValue("Annual report summary financial data revenue ebitda profit margins growth performance business overview segment results");
+    const extractFromText = vi.fn().mockResolvedValue({
+      metadata: { companyName: "Test Co", reportPeriod: "FY 2024", sourceLanguage: "en" },
+      metrics: [
+        { label: "Revenue", value: 100, unit: "EUR" },
+        { label: "EBITDA", value: null, unit: "EUR" },
+        { label: "Net Profit", value: null, unit: "EUR" },
+      ],
+      narratives: [{ section: "executive_summary", text: "Results were discussed with enough detail to be meaningful." }],
+      sentiment: { managementTone: "neutral", outlook: "Unclear", riskFactors: [] },
+    } satisfies ExtractedData);
+    const translateExtractedData = vi.fn();
+    const assemblePdf = vi.fn();
+    const saveReport = vi.fn();
+
+    await processJob(job, store, readFile, parseDocument, extractFromText, translateExtractedData, assemblePdf, saveReport, undefined);
+
+    expect(translateExtractedData).not.toHaveBeenCalled();
+    expect(assemblePdf).not.toHaveBeenCalled();
+    const updated = await store.getJob(job.id);
+    expect(updated!.state).toBe("failed");
+    expect(updated!.error).toContain("dominated by null-valued metrics");
+    expect(JSON.parse(updated!.extractedJson!).qualityWarnings).toContain("Extraction is dominated by null-valued metrics (2/3).");
   });
 
   it("rejects auditor reports with user-friendly message before extraction", async () => {
