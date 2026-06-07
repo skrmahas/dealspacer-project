@@ -12,7 +12,13 @@ export async function GET(
       return NextResponse.json({ error: "Report not found" }, { status: 404 });
     }
     const fileStore = createAutoFileStore();
-    const buffer = Buffer.from(await fileStore.readReport(report.jobId ?? report.id));
+    // Derive the key ID from the stored s3Key ("reports/{id}.pdf") rather than
+    // falling back to report.id when jobId is null — the fallback constructs
+    // the wrong S3 path if the file was saved under the job UUID.
+    const keyId = report.s3Key
+      ? report.s3Key.replace(/^reports\//, "").replace(/\.pdf$/, "")
+      : (report.jobId ?? report.id);
+    const buffer = Buffer.from(await fileStore.readReport(keyId));
     return new NextResponse(new Uint8Array(buffer), {
       headers: {
         "Content-Type": "application/pdf",
