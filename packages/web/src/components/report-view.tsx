@@ -16,7 +16,7 @@ import type {
   ExtractedNarrative,
   ExtractedSentiment,
 } from "@bei/shared";
-import { inferCanonicalMetricId } from "@bei/shared";
+import { inferCanonicalMetricId } from "@bei/shared/canonical-metrics";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Single source of truth for rendering an extracted-report payload.

@@ -2,10 +2,12 @@ import {
   getCanonicalMetricLabel,
   getMetricValue,
   inferCanonicalMetricId,
-  type CanonicalMetricId,
-  type ExtractedData,
-  type ExtractedMetric,
-  type ProfitabilityTrends,
+} from "@bei/shared/canonical-metrics";
+import type {
+  CanonicalMetricId,
+  ExtractedData,
+  ExtractedMetric,
+  ProfitabilityTrends,
 } from "@bei/shared";
 import type { TrendSeries } from "@/components/charts/trend-line-chart";
 import type { BreakdownSegment } from "@/components/charts/breakdown-bar-chart";

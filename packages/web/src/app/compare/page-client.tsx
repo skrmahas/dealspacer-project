@@ -14,7 +14,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import type { ExtractedData, Report } from "@bei/shared";
-import { getMetricValue } from "@bei/shared";
+import { getMetricValue } from "@bei/shared/canonical-metrics";
 import { TrendLineChart } from "@/components/charts/trend-line-chart";
 import { BreakdownBarChart } from "@/components/charts/breakdown-bar-chart";
 import { AppSiteHeader } from "@/components/app-site-header";
