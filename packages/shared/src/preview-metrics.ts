@@ -199,6 +199,41 @@ export function hasProfitabilityTrendSeries(snapshot: PreviewSnapshot | null): b
   return (trends?.periods?.length ?? 0) >= 2;
 }
 
+function periodSortKey(period: string): number {
+  const trimmed = period.trim();
+  const yearMatch = trimmed.match(/\b(\d{4})\b/);
+  if (!yearMatch) return Number.MAX_SAFE_INTEGER;
+
+  const year = Number(yearMatch[1]);
+  const quarterMatch =
+    trimmed.match(/\bQ([1-4])\s*(\d{4})\b/i) ??
+    trimmed.match(/\b(\d{4})(?:-\d{4})?\s*Q([1-4])\b/i);
+  if (quarterMatch) {
+    const quarter = quarterMatch[1].length === 1 ? Number(quarterMatch[1]) : Number(quarterMatch[2]);
+    return year * 100 + quarter * 10;
+  }
+
+  const dateMatch = trimmed.match(/\b(\d{4})-(\d{2})(?:-\d{2})?\b/);
+  if (dateMatch) {
+    const month = Number(dateMatch[2]);
+    const quarter = month <= 3 ? 1 : month <= 6 ? 2 : month <= 9 ? 3 : 4;
+    return Number(dateMatch[1]) * 100 + quarter * 10;
+  }
+
+  if (/\b(H1|1H|6M|half[-\s]?year|semi[-\s]?annual)\b/i.test(trimmed)) return year * 100 + 25;
+  if (/\b(H2|2H|II\s+poolaasta|second\s+half)\b/i.test(trimmed)) return year * 100 + 50;
+  if (/\b(9M|nine\s+months|9\s+months)\b/i.test(trimmed)) return year * 100 + 35;
+
+  return year * 100 + 99;
+}
+
+function sortedTrendIndexes(periods: string[]): number[] {
+  return periods
+    .map((period, index) => ({ index, key: periodSortKey(period) }))
+    .sort((a, b) => a.key - b.key || a.index - b.index)
+    .map((entry) => entry.index);
+}
+
 export function buildTrendChartFromSnapshot(snapshot: PreviewSnapshot | null): {
   labels: string[];
   revenue: (number | null)[];
@@ -208,14 +243,16 @@ export function buildTrendChartFromSnapshot(snapshot: PreviewSnapshot | null): {
 } | null {
   const trends = snapshot?.profitabilityTrends;
   if (!trends?.periods?.length) return null;
+  const indexes = sortedTrendIndexes(trends.periods);
 
   const mapSeries = (field: TrendField) =>
-    (trends[field] ?? trends.periods.map(() => null)).map((v) =>
-      v == null ? null : normalizeTrendValue(v, snapshot),
-    );
+    indexes.map((index) => {
+      const v = (trends[field] ?? [])[index] ?? null;
+      return v == null ? null : normalizeTrendValue(v, snapshot);
+    });
 
   return {
-    labels: trends.periods,
+    labels: indexes.map((index) => trends.periods[index] ?? ""),
     revenue: mapSeries("revenue"),
     ebitda: mapSeries("ebitda"),
     netProfit: mapSeries("netProfit"),

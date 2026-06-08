@@ -57,4 +57,47 @@ describe("preview-metrics (Artea Bankas LT Q1)", () => {
     expect(chart?.revenue).toEqual([49_644_000, 45_786_000]);
     expect(chart?.netProfit).toEqual([17_683_000, 15_420_000]);
   });
+
+  it("sorts annual trend periods chronologically while preserving aligned values", () => {
+    const chart = buildTrendChartFromSnapshot({
+      metrics: [{ unit: "EUR", label: "Revenue", value: 174047 }],
+      profitabilityTrends: {
+        periods: ["2025", "2021", "2022", "2023", "2024"],
+        revenue: [174047, 152.8, 175.3, 209, 174.7],
+        ebitda: [null, 7.2, 0.2, 12.4, 10.4],
+        netProfit: [null, 2.6, -5.5, 5.2, 3.2],
+      },
+    });
+
+    expect(chart?.labels).toEqual(["2021", "2022", "2023", "2024", "2025"]);
+    expect(chart?.revenue).toEqual([152.8, 175.3, 209, 174.7, 174_047_000]);
+    expect(chart?.ebitda).toEqual([7.2, 0.2, 12.4, 10.4, null]);
+    expect(chart?.netProfit).toEqual([2.6, -5.5, 5.2, 3.2, null]);
+  });
+
+  it("sorts quarter and date trend periods by fiscal sequence", () => {
+    const chart = buildTrendChartFromSnapshot({
+      metrics: [{ unit: "EUR", label: "Revenue", value: 100 }],
+      profitabilityTrends: {
+        periods: ["Q3 2024", "2024-03-31", "Q2 2024", "2023"],
+        revenue: [30, 10, 20, 5],
+      },
+    });
+
+    expect(chart?.labels).toEqual(["2023", "2024-03-31", "Q2 2024", "Q3 2024"]);
+    expect(chart?.revenue).toEqual([5, 10, 20, 30]);
+  });
+
+  it("sorts live mixed fiscal period label variants", () => {
+    const chart = buildTrendChartFromSnapshot({
+      metrics: [{ unit: "EUR", label: "Revenue", value: 100 }],
+      profitabilityTrends: {
+        periods: ["2024 9 months", "2023-09", "2024 Q1", "H1 2024", "2023-2024 Q1"],
+        revenue: [50, 20, 40, 45, 30],
+      },
+    });
+
+    expect(chart?.labels).toEqual(["2023-2024 Q1", "2023-09", "2024 Q1", "H1 2024", "2024 9 months"]);
+    expect(chart?.revenue).toEqual([30, 20, 40, 45, 50]);
+  });
 });
