@@ -115,6 +115,14 @@ const reportTableHeaderClassName = "whitespace-nowrap pb-3 pr-3 font-medium";
 const reportTableNumberClassName =
   "py-3.5 pr-3 align-middle font-[family-name:var(--font-mono)] text-base/6 tabular-nums text-[#e8ecf2] sm:text-[13px]";
 
+function decodeRouteSlug(slug: string): string {
+  try {
+    return decodeURIComponent(slug);
+  } catch {
+    return slug;
+  }
+}
+
 function fmtCurrency(val: number | null | undefined): string {
   if (val == null) return "—";
   if (Math.abs(val) >= 1e9) return `€${(val / 1e9).toFixed(1)}B`;
@@ -211,7 +219,7 @@ function DashboardSection({
 export default function CompanyAnalyticsDashboardPage() {
   const params = useParams();
   const router = useRouter();
-  const slug = params.slug as string;
+  const slug = decodeRouteSlug(params.slug as string);
 
   const [company, setCompany] = useState<Company | null>(null);
   const [reports, setReports] = useState<Report[]>([]);
@@ -235,7 +243,7 @@ export default function CompanyAnalyticsDashboardPage() {
           setNotFound(true);
           return;
         }
-        const repRes = await fetch(`/api/companies/${slug}/reports`);
+        const repRes = await fetch(`/api/companies/${encodeURIComponent(slug)}/reports`);
         if (repRes.ok) {
           const reps: Report[] = await repRes.json();
           if (!cancelled) setReports(reps);
