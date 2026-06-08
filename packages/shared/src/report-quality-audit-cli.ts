@@ -1,7 +1,12 @@
 #!/usr/bin/env tsx
 import { closePool, getPool } from "./db";
 import type { Company, ExtractedData, ReportType, OutputLanguage, ReportWithPreview } from "./contracts";
-import { auditReportCompanyMismatch, type ReportMismatchAudit } from "./report-quality-audit";
+import {
+  auditReportCompanyMismatch,
+  auditReportQuality,
+  type ReportMismatchAudit,
+  type ReportQualityAudit,
+} from "./report-quality-audit";
 
 type Format = "table" | "json";
 
@@ -125,27 +130,41 @@ async function loadCatalog(): Promise<{ companies: Company[]; reports: ReportWit
   };
 }
 
-function printTable(audits: ReportMismatchAudit[]): void {
+function severityRank(severity: ReportQualityAudit["severity"]): number {
+  return severity === "high" ? 3 : severity === "medium" ? 2 : 1;
+}
+
+function sortQualityAudits(audits: ReportQualityAudit[]): ReportQualityAudit[] {
+  return [...audits].sort((a, b) => {
+    const severityDelta = severityRank(b.severity) - severityRank(a.severity);
+    if (severityDelta !== 0) return severityDelta;
+    return b.warnings.length - a.warnings.length;
+  });
+}
+
+function printTable(audits: ReportQualityAudit[]): void {
   if (audits.length === 0) {
-    console.log("No likely company/report mismatches found.");
+    console.log("No report quality issues found.");
     return;
   }
 
-  console.log(`Found ${audits.length} likely company/report mismatch(es):`);
+  console.log(`Found ${audits.length} report(s) with quality issue(s):`);
   for (const audit of audits) {
     console.log("");
     console.log(`report:    ${audit.reportId}`);
     console.log(`job:       ${audit.jobId ?? "-"}`);
     console.log(`period:    FY ${audit.fiscalYear} ${audit.reportType} (${audit.language})`);
+    console.log(`severity:  ${audit.severity}`);
     console.log(`catalog:   ${audit.catalogCompanyName ?? "-"} (${audit.catalogCompanyId ?? "-"})`);
-    console.log(`extracted: ${audit.extractedCompanyName}`);
-    console.log(`score:     ${audit.currentCompanyConfidence.toFixed(2)}`);
-    console.log(
-      `suggested: ${audit.suggestedCompanyName ?? "-"} ${
-        audit.suggestedCompanyId ? `(${audit.suggestedCompanyId}, ${audit.suggestedConfidence.toFixed(2)})` : ""
-      }`,
-    );
+    console.log(`extracted: ${audit.extractedCompanyName ?? "-"}`);
+    console.log(`issues:    ${audit.issueCodes.join(", ")}`);
+    if (audit.suggestedCompanyId) {
+      console.log(`suggested: ${audit.suggestedCompanyName ?? "-"} (${audit.suggestedCompanyId}, ${(audit.suggestedConfidence ?? 0).toFixed(2)})`);
+    }
     console.log(`s3 key:    ${audit.s3Key}`);
+    for (const warning of audit.warnings) {
+      console.log(`  - ${warning}`);
+    }
   }
 }
 
@@ -177,17 +196,34 @@ async function moveToUnmatched(audits: ReportMismatchAudit[], ids: string[], con
 async function main(): Promise<void> {
   const options = parseArgs(process.argv.slice(2));
   const { companies, reports } = await loadCatalog();
-  const audits = reports
+  const mismatchAudits = reports
     .map((report) => auditReportCompanyMismatch(report, companies, options.threshold))
     .filter((audit): audit is ReportMismatchAudit => audit !== null);
+  const audits = sortQualityAudits(
+    reports
+      .map((report) => auditReportQuality(report, companies, options.threshold))
+      .filter((audit): audit is ReportQualityAudit => audit !== null),
+  );
 
   if (options.format === "json") {
-    console.log(JSON.stringify({ count: audits.length, audits }, null, 2));
+    const issueCounts = audits.reduce<Record<string, number>>((counts, audit) => {
+      for (const issueCode of audit.issueCodes) {
+        counts[issueCode] = (counts[issueCode] ?? 0) + 1;
+      }
+      return counts;
+    }, {});
+    console.log(JSON.stringify({
+      reportCount: reports.length,
+      issueReportCount: audits.length,
+      mismatchCount: mismatchAudits.length,
+      issueCounts,
+      audits,
+    }, null, 2));
   } else {
     printTable(audits);
   }
 
-  await moveToUnmatched(audits, options.moveToUnmatchedIds, options.confirm);
+  await moveToUnmatched(mismatchAudits, options.moveToUnmatchedIds, options.confirm);
 }
 
 main()
