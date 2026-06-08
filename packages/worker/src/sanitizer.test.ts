@@ -26,7 +26,95 @@ describe("sanitizeExtractedData", () => {
     expect(data.revenueBreakdown).toBeUndefined();
     expect(warnings.duplicateLabels).toHaveLength(0);
     expect(warnings.droppedNullMetrics).toBe(0);
+    expect(warnings.nonCanonicalNarrativeSections).toHaveLength(0);
+    expect(warnings.missingExecutiveSummary).toBe(false);
     expect(warnings.revenueBreakdownDropped).toBe(false);
+  });
+
+  describe("narrative sections", () => {
+    it("normalizes known non-canonical narrative sections", () => {
+      const input = baseData({
+        narratives: [
+          { section: "financial_performance", text: "Revenue and EBITDA improved materially." },
+          { section: "riskFactors", text: "The company remains exposed to energy prices." },
+          { section: "company-profile", text: "The group operates across Baltic markets." },
+          { section: "strategic goals", text: "Management prioritizes automation and efficiency." },
+        ],
+      });
+
+      const { data, warnings } = sanitizeExtractedData(input);
+
+      expect(data.narratives).toEqual([
+        { section: "executive_summary", text: "Revenue and EBITDA improved materially." },
+        { section: "other", text: "The company remains exposed to energy prices." },
+        { section: "business_overview", text: "The group operates across Baltic markets." },
+        { section: "strategic_priorities", text: "Management prioritizes automation and efficiency." },
+      ]);
+      expect(warnings.nonCanonicalNarrativeSections).toEqual([
+        "financial_performance",
+        "riskFactors",
+        "company-profile",
+        "strategic goals",
+      ]);
+      expect(warnings.missingExecutiveSummary).toBe(false);
+    });
+
+    it("merges narratives that normalize to the same canonical section", () => {
+      const input = baseData({
+        narratives: [
+          { section: "financial_results", text: "Revenue increased." },
+          { section: "executive_summary", text: "Margins expanded." },
+          { section: "financial overview", text: "Cash generation improved." },
+        ],
+      });
+
+      const { data, warnings } = sanitizeExtractedData(input);
+
+      expect(data.narratives).toEqual([
+        {
+          section: "executive_summary",
+          text: "Revenue increased.\n\nMargins expanded.\n\nCash generation improved.",
+        },
+      ]);
+      expect(warnings.nonCanonicalNarrativeSections).toEqual([
+        "financial_results",
+        "financial overview",
+      ]);
+      expect(warnings.missingExecutiveSummary).toBe(false);
+    });
+
+    it("preserves unknown narrative content in an other bucket", () => {
+      const input = baseData({
+        narratives: [
+          { section: "shareholder_rights", text: "Shareholders approved dividend distribution." },
+        ],
+      });
+
+      const { data, warnings } = sanitizeExtractedData(input);
+
+      expect(data.narratives).toEqual([
+        { section: "other", text: "Shareholders approved dividend distribution." },
+      ]);
+      expect(warnings.nonCanonicalNarrativeSections).toEqual(["shareholder_rights"]);
+      expect(warnings.missingExecutiveSummary).toBe(true);
+    });
+
+    it("warns when executive summary is missing after normalization", () => {
+      const input = baseData({
+        narratives: [
+          { section: "management_commentary", text: "Management described stable demand." },
+          { section: "outlook", text: "The company expects moderate growth." },
+        ],
+      });
+
+      const { data, warnings } = sanitizeExtractedData(input);
+
+      expect(data.narratives.map((n) => n.section)).toEqual([
+        "management_commentary",
+        "outlook",
+      ]);
+      expect(warnings.missingExecutiveSummary).toBe(true);
+    });
   });
 
   describe("duplicate labels", () => {

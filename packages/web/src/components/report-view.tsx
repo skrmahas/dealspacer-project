@@ -40,7 +40,9 @@ export const NARRATIVE_ORDER = [
   "management_commentary",
   "business_overview",
   "segment_performance",
+  "strategic_priorities",
   "outlook",
+  "other",
 ] as const;
 
 export const PRIORITY_KPI_LABELS = [
@@ -91,7 +93,9 @@ export function narrativeTitle(section: string): string {
     management_commentary: "Management Commentary",
     business_overview: "Business Overview",
     segment_performance: "Segment Performance",
+    strategic_priorities: "Strategic Priorities",
     outlook: "Outlook",
+    other: "Other Narrative Notes",
   };
   return (
     map[section] ??

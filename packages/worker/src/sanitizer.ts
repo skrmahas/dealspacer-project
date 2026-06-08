@@ -1,12 +1,58 @@
-import type { ExtractedData, ExtractedMetric } from "@bei/shared";
+import type { ExtractedData, ExtractedMetric, ExtractedNarrative } from "@bei/shared";
 
 export interface SanitizationWarnings {
   duplicateLabels: string[];
   droppedNullMetrics: number;
+  nonCanonicalNarrativeSections: string[];
+  missingExecutiveSummary: boolean;
   revenueBreakdownDropped: boolean;
   profitabilityTrendsDropped: boolean;
   implausibleYoYCount: number;
 }
+
+const CANONICAL_NARRATIVE_SECTIONS = new Set([
+  "executive_summary",
+  "management_commentary",
+  "business_overview",
+  "segment_performance",
+  "strategic_priorities",
+  "outlook",
+  "other",
+]);
+
+const NARRATIVE_SECTION_ALIASES: Record<string, string> = {
+  business: "business_overview",
+  business_description: "business_overview",
+  business_model: "business_overview",
+  company_overview: "business_overview",
+  company_profile: "business_overview",
+  financial_highlights: "executive_summary",
+  financial_overview: "executive_summary",
+  financial_performance: "executive_summary",
+  financial_results: "executive_summary",
+  financial_summary: "executive_summary",
+  highlights: "executive_summary",
+  investment_highlights: "executive_summary",
+  key_highlights: "executive_summary",
+  management: "management_commentary",
+  management_board_report: "management_commentary",
+  management_comment: "management_commentary",
+  management_report: "management_commentary",
+  management_review: "management_commentary",
+  outlook_and_guidance: "outlook",
+  risks: "other",
+  risk_factors: "other",
+  riskfactors: "other",
+  segment: "segment_performance",
+  segment_analysis: "segment_performance",
+  segment_results: "segment_performance",
+  segments: "segment_performance",
+  strategy: "strategic_priorities",
+  strategic_focus: "strategic_priorities",
+  strategic_goals: "strategic_priorities",
+  strategic_priorities: "strategic_priorities",
+  strategic_review: "strategic_priorities",
+};
 
 /**
  * Post-extraction sanitization pass.
@@ -19,12 +65,18 @@ export function sanitizeExtractedData(
   const warnings: SanitizationWarnings = {
     duplicateLabels: [],
     droppedNullMetrics: 0,
+    nonCanonicalNarrativeSections: [],
+    missingExecutiveSummary: false,
     revenueBreakdownDropped: false,
     profitabilityTrendsDropped: false,
     implausibleYoYCount: 0,
   };
 
-  let cleaned = { ...data, metrics: [...data.metrics] };
+  let cleaned = {
+    ...data,
+    metrics: [...data.metrics],
+    narratives: normalizeNarratives(data.narratives, warnings),
+  };
 
   // 1. Safety-net duplicate label check (dedup in #28 should catch these,
   //    but guard against edge cases)
@@ -92,6 +144,62 @@ export function sanitizeExtractedData(
   }
 
   return { data: cleaned, warnings };
+}
+
+function normalizeSectionName(section: string): string {
+  return section
+    .trim()
+    .replace(/([a-z0-9])([A-Z])/g, "$1_$2")
+    .replace(/[\s-]+/g, "_")
+    .replace(/[^a-zA-Z0-9_]/g, "")
+    .replace(/_+/g, "_")
+    .toLowerCase();
+}
+
+function canonicalNarrativeSection(section: string): string {
+  const normalized = normalizeSectionName(section);
+  if (CANONICAL_NARRATIVE_SECTIONS.has(normalized)) return normalized;
+  return NARRATIVE_SECTION_ALIASES[normalized] ?? "other";
+}
+
+function normalizeNarratives(
+  narratives: ExtractedNarrative[],
+  warnings: SanitizationWarnings,
+): ExtractedNarrative[] {
+  const bySection = new Map<string, string[]>();
+  const seenNonCanonical = new Set<string>();
+
+  for (const narrative of narratives) {
+    const text = narrative.text?.trim();
+    if (!text) continue;
+
+    const originalSection = narrative.section?.trim() || "other";
+    const canonicalSection = canonicalNarrativeSection(originalSection);
+    if (normalizeSectionName(originalSection) !== canonicalSection) {
+      seenNonCanonical.add(originalSection);
+    }
+
+    const existing = bySection.get(canonicalSection) ?? [];
+    existing.push(text);
+    bySection.set(canonicalSection, existing);
+  }
+
+  warnings.nonCanonicalNarrativeSections = Array.from(seenNonCanonical);
+  warnings.missingExecutiveSummary = !bySection.has("executive_summary");
+
+  if (warnings.nonCanonicalNarrativeSections.length > 0) {
+    console.warn(
+      `[sanity] Normalized narrative section(s): ${warnings.nonCanonicalNarrativeSections.join(", ")}`,
+    );
+  }
+  if (warnings.missingExecutiveSummary) {
+    console.warn("[sanity] Executive summary narrative is missing");
+  }
+
+  return Array.from(bySection.entries()).map(([section, texts]) => ({
+    section,
+    text: texts.join("\n\n"),
+  }));
 }
 
 /**
