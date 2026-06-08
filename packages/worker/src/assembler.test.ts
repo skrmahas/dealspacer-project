@@ -50,6 +50,23 @@ describe("buildHtml", () => {
     expect(html).toContain("Strong quarter with revenue growth");
   });
 
+  it("includes strategic priorities and other narrative sections", () => {
+    const data: ExtractedData = {
+      ...minimalData,
+      narratives: [
+        ...minimalData.narratives,
+        { section: "strategic_priorities", text: "Management is prioritizing fleet efficiency." },
+        { section: "other", text: "Shareholders approved the dividend proposal." },
+      ],
+    };
+
+    const html = buildHtml(data, emptyCharts);
+    expect(html).toContain("Strategic Priorities");
+    expect(html).toContain("Management is prioritizing fleet efficiency.");
+    expect(html).toContain("Other Narrative Notes");
+    expect(html).toContain("Shareholders approved the dividend proposal.");
+  });
+
   it("includes sentiment analysis", () => {
     const html = buildHtml(minimalData, emptyCharts);
     expect(html).toContain("positive");

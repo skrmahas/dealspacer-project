@@ -40,6 +40,8 @@ const LABELS: Record<OutputLanguage, {
   profitabilityTrends: string;
   profitabilityTrendsChart: string;
   businessHighlights: string;
+  strategicPriorities: string;
+  otherNarratives: string;
   sentimentAnalysis: string;
   managementTone: string;
   outlook: string;
@@ -65,6 +67,8 @@ const LABELS: Record<OutputLanguage, {
     profitabilityTrends: "Profitability Trends",
     profitabilityTrendsChart: "Profitability Trends Chart",
     businessHighlights: "Business & Segment Highlights",
+    strategicPriorities: "Strategic Priorities",
+    otherNarratives: "Other Narrative Notes",
     sentimentAnalysis: "Sentiment Analysis",
     managementTone: "Management Tone",
     outlook: "Outlook",
@@ -90,6 +94,8 @@ const LABELS: Record<OutputLanguage, {
     profitabilityTrends: "Kasumlikkuse trendid",
     profitabilityTrendsChart: "Kasumlikkuse trendide graafik",
     businessHighlights: "Äri- ja segmentide ülevaade",
+    strategicPriorities: "Strateegilised prioriteedid",
+    otherNarratives: "Muud narratiivsed märkused",
     sentimentAnalysis: "Hoiaku analüüs",
     managementTone: "Juhtkonna hoiak",
     outlook: "Väljavaade",
@@ -115,6 +121,8 @@ const LABELS: Record<OutputLanguage, {
     profitabilityTrends: "Rentabilitātes tendences",
     profitabilityTrendsChart: "Rentabilitātes tendenču diagramma",
     businessHighlights: "Uzņēmējdarbības un segmentu pārskats",
+    strategicPriorities: "Stratēģiskās prioritātes",
+    otherNarratives: "Citas narratīva piezīmes",
     sentimentAnalysis: "Noskaņojuma analīze",
     managementTone: "Vadības tonis",
     outlook: "Perspektīva",
@@ -140,6 +148,8 @@ const LABELS: Record<OutputLanguage, {
     profitabilityTrends: "Pelningumo tendencijos",
     profitabilityTrendsChart: "Pelningumo tendencijų diagrama",
     businessHighlights: "Verslo ir segmentų apžvalga",
+    strategicPriorities: "Strateginiai prioritetai",
+    otherNarratives: "Kitos naratyvo pastabos",
     sentimentAnalysis: "Tono analizė",
     managementTone: "Vadovybės tonas",
     outlook: "Perspektyva",
@@ -302,6 +312,22 @@ export function buildHtml(data: ExtractedData, charts: ChartImages): string {
       </section>`);
   }
 
+  const strategicPriorities = data.narratives.find(
+    (n) => n.section === "strategic_priorities",
+  );
+  if (strategicPriorities) {
+    sections.push(`
+      <section id="strategic-priorities">
+        <h2>${escapeHtml(labels.strategicPriorities)}</h2>
+        ${strategicPriorities.text
+          .split("\n")
+          .filter((p) => p.trim())
+          .slice(0, 4)
+          .map((p) => `<p>${escapeHtml(p.trim())}</p>`)
+          .join("\n")}
+      </section>`);
+  }
+
   // Sentiment Analysis
   const sentiment = data.sentiment;
   const hasSentiment =
@@ -342,6 +368,20 @@ export function buildHtml(data: ExtractedData, charts: ChartImages): string {
           .split("\n")
           .filter((p) => p.trim())
           .slice(0, 3)
+          .map((p) => `<p>${escapeHtml(p.trim())}</p>`)
+          .join("\n")}
+      </section>`);
+  }
+
+  const otherNarrative = data.narratives.find((n) => n.section === "other");
+  if (otherNarrative) {
+    sections.push(`
+      <section id="other-narratives">
+        <h2>${escapeHtml(labels.otherNarratives)}</h2>
+        ${otherNarrative.text
+          .split("\n")
+          .filter((p) => p.trim())
+          .slice(0, 4)
           .map((p) => `<p>${escapeHtml(p.trim())}</p>`)
           .join("\n")}
       </section>`);
