@@ -70,6 +70,9 @@ export async function processJob(
 
     // Sanitize: validate structural coherence, drop broken sections
     const { data: sanitized, warnings } = sanitizeExtractedData(extracted);
+    if (warnings.chartWarnings.length > 0) {
+      sanitized.chartWarnings = warnings.chartWarnings;
+    }
     if (warnings.duplicateLabels.length > 0) {
       log(`Sanitizer: ${warnings.duplicateLabels.length} duplicate label(s) dropped`);
     }

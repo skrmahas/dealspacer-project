@@ -130,6 +130,7 @@ export interface ExtractedData {
   sentiment: ExtractedSentiment;
   revenueBreakdown?: RevenueBreakdown;
   profitabilityTrends?: ProfitabilityTrends;
+  chartWarnings?: string[];
 }
 
 export interface Company {
