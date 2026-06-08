@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildRevenueBreakdownSegments,
   buildReportPreview,
   buildTrendChartFromSnapshot,
   findMetricByKey,
@@ -99,5 +100,82 @@ describe("preview-metrics (Artea Bankas LT Q1)", () => {
 
     expect(chart?.labels).toEqual(["2023-2024 Q1", "2023-09", "2024 Q1", "H1 2024", "2024 9 months"]);
     expect(chart?.revenue).toEqual([30, 20, 40, 45, 50]);
+  });
+
+  it("normalizes revenue breakdown values to the headline revenue scale", () => {
+    const segments = buildRevenueBreakdownSegments(
+      {
+        metrics: [{ unit: "EUR", label: "Revenue", value: 35414 }],
+        revenueBreakdown: {
+          bySegment: [
+            { name: "Residential Real Estate", value: 33432 },
+            { name: "Commercial Real Estate", value: 1528 },
+            { name: "Headquarters", value: 454 },
+          ],
+        },
+      },
+      35_414_000,
+    );
+
+    expect(segments).toEqual([
+      { label: "Residential Real Estate", value: 33_432_000 },
+      { label: "Commercial Real Estate", value: 1_528_000 },
+      { label: "Headquarters", value: 454_000 },
+    ]);
+  });
+
+  it("uses million-scale breakdown values when that best matches headline revenue", () => {
+    const segments = buildRevenueBreakdownSegments(
+      {
+        metrics: [{ unit: "EUR", label: "Revenue", value: 67.977 }],
+        revenueBreakdown: {
+          bySegment: [
+            { name: "Oil terminals", value: 39.5 },
+            { name: "LNG terminal", value: 28.477 },
+          ],
+        },
+      },
+      67_977_000,
+    );
+
+    expect(segments).toEqual([
+      { label: "Oil terminals", value: 39_500_000 },
+      { label: "LNG terminal", value: 28_477_000 },
+    ]);
+  });
+
+  it("filters percentage share breakdowns instead of rendering them as euros", () => {
+    const segments = buildRevenueBreakdownSegments(
+      {
+        metrics: [{ unit: "EUR", label: "Revenue", value: 152425 }],
+        revenueBreakdown: {
+          byGeography: [
+            { name: "Lithuania", value: "56%" },
+            { name: "Latvia", value: "21%" },
+            { name: "Estonia", value: "23%" },
+          ],
+        },
+      },
+      152_425_000,
+    );
+
+    expect(segments).toEqual([]);
+  });
+
+  it("filters breakdowns when no available scale is comparable to headline revenue", () => {
+    const segments = buildRevenueBreakdownSegments(
+      {
+        metrics: [{ unit: "EUR", label: "Revenue", value: 1745 }],
+        revenueBreakdown: {
+          bySegment: [
+            { name: "Crop production", value: 28.4 },
+            { name: "Dairy", value: 16.42 },
+          ],
+        },
+      },
+      1_745_000,
+    );
+
+    expect(segments).toEqual([]);
   });
 });

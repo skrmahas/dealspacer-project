@@ -16,13 +16,14 @@ export {
 } from "./canonical-metrics";
 export {
   buildReportPreview,
+  buildRevenueBreakdownSegments,
   resolvePreviewMetric,
   resolvePriorPreviewMetric,
   findMetricByKey,
   buildTrendChartFromSnapshot,
   hasProfitabilityTrendSeries,
 } from "./preview-metrics";
-export type { PreviewMetricKey } from "./preview-metrics";
+export type { PreviewBreakdownSegment, PreviewMetricKey } from "./preview-metrics";
 export {
   pickHeadlineReports,
   pickTrendReports,
