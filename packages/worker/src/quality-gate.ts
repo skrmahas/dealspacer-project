@@ -1,4 +1,4 @@
-import { inferCanonicalMetricId, type ExtractedData, type ExtractedMetric } from "@bei/shared";
+import { inferCanonicalMetricId, getMetricValue, type ExtractedData, type ExtractedMetric } from "@bei/shared";
 import type { SanitizationWarnings } from "./sanitizer.js";
 
 export interface QualityGateResult {
@@ -104,6 +104,18 @@ export function assessReportQuality(
     warnings.push(
       `Sanitizer dropped ${sanitizationWarnings.droppedNullMetrics} null-valued metric(s).`,
     );
+  }
+
+  const revenueMetric = numericMetrics.find((m) => m.canonicalId === "revenue");
+  const netProfitMetric = numericMetrics.find((m) => m.canonicalId === "net_profit");
+  if (revenueMetric && netProfitMetric) {
+    const revenueVal = Math.abs(getMetricValue(revenueMetric) ?? 0);
+    const netProfitVal = Math.abs(getMetricValue(netProfitMetric) ?? 0);
+    if (revenueVal > 0 && netProfitVal > 2 * revenueVal) {
+      warnings.push(
+        `Net profit (${netProfitMetric.value}) is more than 2× revenue (${revenueMetric.value}) — likely extraction error.`,
+      );
+    }
   }
 
   return {
