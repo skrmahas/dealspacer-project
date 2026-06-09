@@ -596,6 +596,110 @@ describe("createReportStore", () => {
     expect(r.s3Key).toBe("new.pdf");
   });
 
+  it("createReportRerunCandidate stores successful reruns separately from public reports", async () => {
+    const snap = { metadata: { companyName: "X", reportPeriod: "2025", sourceLanguage: "en" }, metrics: [], narratives: [], sentiment: { managementTone: "", outlook: "", riskFactors: [] } };
+    const { query } = setupWithClient([{
+      id: "candidate-1",
+      report_id: "r1",
+      job_id: "j2",
+      s3_key: "reports/j2.pdf",
+      extracted_json_snapshot: JSON.stringify(snap),
+      status: "pending_review",
+      quality_warnings: [],
+      created_at: "2024-01-01",
+      approved_at: null,
+    }]);
+
+    const store = createReportStore();
+    const candidate = await store.createReportRerunCandidate({
+      reportId: "r1",
+      jobId: "j2",
+      s3Key: "reports/j2.pdf",
+      extractedJsonSnapshot: snap,
+    });
+
+    expect(candidate.status).toBe("pending_review");
+    expect(candidate.reportId).toBe("r1");
+    expect(query.mock.calls[0][0]).toContain("INSERT INTO report_rerun_candidates");
+    expect(query.mock.calls[0][0]).not.toContain("UPDATE reports");
+  });
+
+  it("createReportRerunCandidate stores failed-quality reruns with warnings", async () => {
+    const snap = { metadata: { companyName: "X", reportPeriod: "2025", sourceLanguage: "en" }, metrics: [], narratives: [], sentiment: { managementTone: "", outlook: "", riskFactors: [] } };
+    setupWithClient([{
+      id: "candidate-1",
+      report_id: "r1",
+      job_id: "j2",
+      s3_key: "reports/j2.pdf",
+      extracted_json_snapshot: JSON.stringify(snap),
+      status: "failed_quality",
+      quality_warnings: JSON.stringify(["Report sanity check failed"]),
+      created_at: "2024-01-01",
+      approved_at: null,
+    }]);
+
+    const store = createReportStore();
+    const candidate = await store.createReportRerunCandidate({
+      reportId: "r1",
+      jobId: "j2",
+      s3Key: "reports/j2.pdf",
+      extractedJsonSnapshot: snap,
+      status: "failed_quality",
+      qualityWarnings: ["Report sanity check failed"],
+    });
+
+    expect(candidate.status).toBe("failed_quality");
+    expect(candidate.qualityWarnings).toEqual(["Report sanity check failed"]);
+  });
+
+  it("promoteReportRerunCandidate approves the candidate and replaces the public report", async () => {
+    const snap = { metadata: { companyName: "X", reportPeriod: "2025", sourceLanguage: "en" }, metrics: [], narratives: [], sentiment: { managementTone: "", outlook: "", riskFactors: [] } };
+    const candidateRow = {
+      id: "candidate-1",
+      report_id: "r1",
+      job_id: "j2",
+      s3_key: "reports/j2.pdf",
+      extracted_json_snapshot: JSON.stringify(snap),
+      status: "pending_review",
+      quality_warnings: [],
+      created_at: "2024-01-01",
+      approved_at: null,
+    };
+    const reportRow = {
+      id: "r1",
+      company_id: "c1",
+      fiscal_year: 2025,
+      report_type: "annual",
+      language: "en",
+      job_id: "j2",
+      s3_key: "reports/j2.pdf",
+      extracted_json_snapshot: JSON.stringify(snap),
+      created_at: "2024-01-01",
+    };
+    const query = vi.fn()
+      .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+      .mockResolvedValueOnce({ rows: [candidateRow], rowCount: 1 })
+      .mockResolvedValueOnce({ rows: [reportRow], rowCount: 1 })
+      .mockResolvedValueOnce({ rows: [], rowCount: 1 })
+      .mockResolvedValueOnce({ rows: [], rowCount: 0 });
+    vi.mocked(db.withClient).mockImplementationOnce(
+      async (fn: (c: any) => Promise<unknown>) => fn({ query }),
+    );
+
+    const store = createReportStore();
+    const report = await store.promoteReportRerunCandidate("candidate-1");
+
+    expect(report.jobId).toBe("j2");
+    expect(report.s3Key).toBe("reports/j2.pdf");
+    expect(query.mock.calls.map((call) => call[0])).toEqual([
+      "BEGIN",
+      expect.stringContaining("FOR UPDATE"),
+      expect.stringContaining("UPDATE reports"),
+      expect.stringContaining("UPDATE report_rerun_candidates"),
+      "COMMIT",
+    ]);
+  });
+
   it("listRecentReports returns limited results", async () => {
     setupWithClient([{ id: "r1", company_id: null, fiscal_year: 2024, report_type: "annual", language: "en", job_id: null, s3_key: "r1.pdf", extracted_json_snapshot: null, created_at: "2024-01-01", company_name: null }]);
     const store = createReportStore();
