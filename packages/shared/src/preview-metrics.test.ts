@@ -47,6 +47,66 @@ describe("preview-metrics (Artea Bankas LT Q1)", () => {
     expect(preview.previewNetProfit).toBe(15_420_000);
   });
 
+  it("does not over-scale plain EUR profit metrics when revenue is already whole EUR", () => {
+    const preview = buildReportPreview({
+      metrics: [
+        { unit: "EUR", label: "Revenue", value: 76_200_000 },
+        { unit: "EUR", label: "EBITDA", value: 10_700_000 },
+        { unit: "EUR", label: "Net Profit", value: -897_103 },
+      ],
+    });
+
+    expect(preview.previewRevenue).toBe(76_200_000);
+    expect(preview.previewEbitda).toBe(10_700_000);
+    expect(preview.previewNetProfit).toBe(-897_103);
+  });
+
+  it("keeps J. Molner plain EUR EBITDA and net profit on the revenue scale", () => {
+    const preview = buildReportPreview({
+      metrics: [
+        { unit: "EUR", label: "Revenue", value: 1_146_274 },
+        { unit: "EUR", label: "EBITDA", value: 552_151 },
+        { unit: "EUR", label: "Net Profit (Loss)", value: 127_891 },
+        { unit: "EUR", label: "Free Cash Flow", value: -1_508_756 },
+      ],
+    });
+
+    expect(preview.previewRevenue).toBe(1_146_274);
+    expect(preview.previewEbitda).toBe(552_151);
+    expect(preview.previewNetProfit).toBe(127_891);
+    expect(preview.previewFcf).toBe(-1_508_756);
+  });
+
+  it("scales compact million-style EUR snapshots with small balance sheet values", () => {
+    const preview = buildReportPreview({
+      metrics: [
+        { unit: "EUR", label: "Revenue", value: 67.977 },
+        { unit: "EUR", label: "Net Profit", value: 11.862 },
+        { unit: "EUR", label: "Assets", value: 540.666 },
+        { unit: "EUR", label: "Equity", value: 158.826 },
+        { unit: "EUR", label: "Liabilities", value: 381.84 },
+      ],
+    });
+
+    expect(preview.previewRevenue).toBe(67_977_000);
+    expect(preview.previewNetProfit).toBe(11_862_000);
+  });
+
+  it("uses explicit million-scale sibling metrics for plain EUR aggregates", () => {
+    const preview = buildReportPreview({
+      metrics: [
+        { unit: "EUR", label: "Revenue", value: 1621.1 },
+        { unit: "EUR", label: "EBITDA", value: 397 },
+        { unit: "EUR", label: "Net Profit", value: 213.3 },
+        { unit: "EUR m", label: "Financial Income", value: 54.7 },
+      ],
+    });
+
+    expect(preview.previewRevenue).toBe(1_621_100_000);
+    expect(preview.previewEbitda).toBe(397_000_000);
+    expect(preview.previewNetProfit).toBe(213_300_000);
+  });
+
   it("reads prior period from profitabilityTrends for YoY", () => {
     expect(resolvePriorPreviewMetric(ARTEA_SNAPSHOT, "revenue")).toBe(49_644_000);
     expect(resolvePriorPreviewMetric(ARTEA_SNAPSHOT, "netProfit")).toBe(17_683_000);
