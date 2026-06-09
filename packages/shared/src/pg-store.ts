@@ -9,7 +9,9 @@ import type {
   CreateCompanyInput,
   CompanyStore,
   Report,
+  ReportRerunCandidate,
   CreateReportInput,
+  CreateReportRerunCandidateInput,
   ReportWithPreview,
   ReportStore,
   ExtractedData,
@@ -399,6 +401,38 @@ function parseJsonSnapshot(raw: unknown): ExtractedData | null {
   return null;
 }
 
+function parseQualityWarnings(raw: unknown): string[] {
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw.filter((value): value is string => typeof value === "string");
+  if (typeof raw === "string") {
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed)
+        ? parsed.filter((value): value is string => typeof value === "string")
+        : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
+function rowToReportRerunCandidate(row: Record<string, unknown>): ReportRerunCandidate {
+  const snapshot = parseJsonSnapshot(row.extracted_json_snapshot);
+  if (!snapshot) throw new Error(`Report rerun candidate ${row.id as string} has invalid snapshot`);
+  return {
+    id: row.id as string,
+    reportId: row.report_id as string,
+    jobId: row.job_id as string,
+    s3Key: row.s3_key as string,
+    extractedJsonSnapshot: snapshot,
+    status: row.status as ReportRerunCandidate["status"],
+    qualityWarnings: parseQualityWarnings(row.quality_warnings),
+    createdAt: row.created_at as string,
+    approvedAt: (row.approved_at as string | null) ?? null,
+  };
+}
+
 export function createReportStore(): ReportStore {
   return {
     async createReport(input: CreateReportInput): Promise<Report> {
@@ -518,6 +552,85 @@ export function createReportStore(): ReportStore {
         );
         if (result.rows.length === 0) throw new Error(`Report ${reportId} not found`);
         return rowToReport(result.rows[0]);
+      });
+    },
+
+    async createReportRerunCandidate(input: CreateReportRerunCandidateInput): Promise<ReportRerunCandidate> {
+      return withClient(async (client) => {
+        const result = await client.query(
+          `INSERT INTO report_rerun_candidates
+             (report_id, job_id, s3_key, extracted_json_snapshot, status, quality_warnings)
+           VALUES ($1, $2, $3, $4, $5, $6)
+           ON CONFLICT (report_id, job_id) DO UPDATE SET
+             s3_key = EXCLUDED.s3_key,
+             extracted_json_snapshot = EXCLUDED.extracted_json_snapshot,
+             status = EXCLUDED.status,
+             quality_warnings = EXCLUDED.quality_warnings
+           RETURNING *`,
+          [
+            input.reportId,
+            input.jobId,
+            input.s3Key,
+            JSON.stringify(input.extractedJsonSnapshot),
+            input.status ?? "pending_review",
+            JSON.stringify(input.qualityWarnings ?? []),
+          ],
+        );
+        return rowToReportRerunCandidate(result.rows[0]);
+      });
+    },
+
+    async getReportRerunCandidateById(id: string): Promise<ReportRerunCandidate | null> {
+      return withClient(async (client) => {
+        const result = await client.query(
+          `SELECT * FROM report_rerun_candidates WHERE id = $1`,
+          [id],
+        );
+        return result.rows.length > 0 ? rowToReportRerunCandidate(result.rows[0]) : null;
+      });
+    },
+
+    async promoteReportRerunCandidate(candidateId: string): Promise<Report> {
+      return withClient(async (client) => {
+        await client.query("BEGIN");
+        try {
+          const candidateResult = await client.query(
+            `SELECT * FROM report_rerun_candidates WHERE id = $1 FOR UPDATE`,
+            [candidateId],
+          );
+          if (candidateResult.rows.length === 0) throw new Error(`Report rerun candidate ${candidateId} not found`);
+
+          const candidate = rowToReportRerunCandidate(candidateResult.rows[0]);
+          if (candidate.status !== "pending_review") {
+            throw new Error(`Report rerun candidate ${candidateId} is not pending review`);
+          }
+
+          const reportResult = await client.query(
+            `UPDATE reports
+             SET job_id = $2, s3_key = $3, extracted_json_snapshot = $4
+             WHERE id = $1
+             RETURNING *`,
+            [
+              candidate.reportId,
+              candidate.jobId,
+              candidate.s3Key,
+              JSON.stringify(candidate.extractedJsonSnapshot),
+            ],
+          );
+          if (reportResult.rows.length === 0) throw new Error(`Report ${candidate.reportId} not found`);
+
+          await client.query(
+            `UPDATE report_rerun_candidates
+             SET status = 'approved', approved_at = NOW()
+             WHERE id = $1`,
+            [candidateId],
+          );
+          await client.query("COMMIT");
+          return rowToReport(reportResult.rows[0]);
+        } catch (err) {
+          await client.query("ROLLBACK");
+          throw err;
+        }
       });
     },
 

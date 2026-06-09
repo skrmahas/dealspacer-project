@@ -192,6 +192,20 @@ export interface ReportWithPreview extends Report {
   previewGuidanceSentiment?: string | null;
 }
 
+export type ReportRerunCandidateStatus = "pending_review" | "failed_quality" | "approved" | "rejected";
+
+export interface ReportRerunCandidate {
+  id: string;
+  reportId: string;
+  jobId: string;
+  s3Key: string;
+  extractedJsonSnapshot: ExtractedData;
+  status: ReportRerunCandidateStatus;
+  qualityWarnings: string[];
+  createdAt: string;
+  approvedAt: string | null;
+}
+
 export interface CreateReportInput {
   companyId?: string | null;
   fiscalYear: number;
@@ -200,6 +214,15 @@ export interface CreateReportInput {
   jobId?: string | null;
   s3Key: string;
   extractedJsonSnapshot?: ExtractedData | null;
+}
+
+export interface CreateReportRerunCandidateInput {
+  reportId: string;
+  jobId: string;
+  s3Key: string;
+  extractedJsonSnapshot: ExtractedData;
+  status?: Extract<ReportRerunCandidateStatus, "pending_review" | "failed_quality">;
+  qualityWarnings?: string[];
 }
 
 export interface ReportStore {
@@ -213,6 +236,9 @@ export interface ReportStore {
   countProcessedReports(): Promise<number>;
   updateReportCompany(reportId: string, companyId: string): Promise<Report>;
   replaceReport(reportId: string, newJobId: string, newS3Key: string, newSnapshot: ExtractedData): Promise<Report>;
+  createReportRerunCandidate(input: CreateReportRerunCandidateInput): Promise<ReportRerunCandidate>;
+  getReportRerunCandidateById(id: string): Promise<ReportRerunCandidate | null>;
+  promoteReportRerunCandidate(candidateId: string): Promise<Report>;
   listRecentReports(limit: number): Promise<ReportWithPreview[]>;
   listReportsForCompare(options?: { query?: string; limit?: number }): Promise<ReportWithPreview[]>;
 }

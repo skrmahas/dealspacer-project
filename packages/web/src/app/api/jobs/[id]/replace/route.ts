@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import type { ReportType, OutputLanguage } from "@bei/shared";
+import type { ExtractedData, ReportType, OutputLanguage } from "@bei/shared";
 import { createPostgresStore, createReportStore } from "@bei/shared";
 
 function parseReportPeriod(reportPeriod: string): { fiscalYear: number; reportType: ReportType } | null {
@@ -61,7 +61,11 @@ export async function POST(
       return NextResponse.json({ error: "Job not found" }, { status: 404 });
     }
 
-    let parsed: any;
+    if (job.state !== "duplicate" && job.state !== "complete" && job.state !== "failed") {
+      return NextResponse.json({ error: "Only completed, duplicate, or failed jobs can be queued for replacement review" }, { status: 409 });
+    }
+
+    let parsed: ExtractedData & { qualityWarnings?: unknown };
     try {
       parsed = job.extractedJson ? JSON.parse(job.extractedJson) : null;
     } catch {
@@ -91,17 +95,24 @@ export async function POST(
       return NextResponse.json({ replaced: false, message: "No existing report to replace" }, { status: 404 });
     }
 
-    // Reset job to pending so worker re-processes
-    await jobStore.updateJob(id, { state: "pending" });
+    const qualityWarnings = Array.isArray(parsed.qualityWarnings)
+      ? parsed.qualityWarnings.filter((warning): warning is string => typeof warning === "string")
+      : [];
+    const candidate = await reportStore.createReportRerunCandidate({
+      reportId: existingReport.id,
+      jobId: id,
+      s3Key: `reports/${id}.pdf`,
+      extractedJsonSnapshot: parsed,
+      status: job.state === "failed" || qualityWarnings.length > 0 ? "failed_quality" : "pending_review",
+      qualityWarnings,
+    });
 
-    await reportStore.replaceReport(
-      existingReport.id,
-      id,
-      `reports/${id}.pdf`,
-      parsed,
-    );
-
-    return NextResponse.json({ replaced: true, reportId: existingReport.id });
+    return NextResponse.json({
+      replaced: false,
+      candidateId: candidate.id,
+      reportId: existingReport.id,
+      status: candidate.status,
+    });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });
