@@ -1,17 +1,73 @@
 type CurrencySnapshot = {
-  metrics?: { unit?: string }[];
+  metrics?: CurrencyMetric[];
 };
 
 /** Normalize extracted metric values to whole EUR for display and comparison. */
 
+type CurrencyMetric = {
+  label?: string;
+  value?: number | null;
+  unit?: string;
+  evidence?: {
+    snippet?: string;
+    rationale?: string;
+  };
+};
+
+function unitMultiplier(unit?: string): number {
+  const u = (unit ?? "").trim().toLowerCase();
+  const compact = u.replace(/\s+/g, "");
+
+  if (!u) return 1;
+  if (/bn|billion/.test(u)) return 1_000_000_000;
+  if (
+    /\beur\s*m\b|\beurm\b|million|mln|\bmn\b/.test(compact) ||
+    (/\bm\b/.test(compact) && /eur|€|usd|\$/.test(compact) && !/thousand|k\b/.test(compact))
+  ) {
+    return 1_000_000;
+  }
+  if (/thousand|tis\.?\s*eur|tk\.?\s*eur|\bk\s*eur|eur\s*k\b/.test(u)) {
+    return 1_000;
+  }
+  return 1;
+}
+
+function evidenceText(metric: CurrencyMetric): string {
+  return [metric.evidence?.snippet, metric.evidence?.rationale]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+}
+
+function evidenceMultiplier(metric: CurrencyMetric): number {
+  const text = evidenceText(metric);
+  if (!text) return 1;
+  if (/bn|billion/.test(text)) return 1_000_000_000;
+  if (/million|mln|eur\s*m|€\s*m|\bm\s*eur\b|\bmn\b/.test(text)) return 1_000_000;
+  if (/thousand|eur\s*k|€\s*k|\bk\s*eur\b|thousands\s+of\s+euros?/.test(text)) return 1_000;
+  return 1;
+}
+
+function plainEurUnit(unit?: string): boolean {
+  const compact = (unit ?? "").trim().toLowerCase().replace(/\s+/g, "");
+  return !compact || /^eur$|^€$|^euro$/.test(compact);
+}
+
+function explicitMetricMultiplier(metric: CurrencyMetric): number {
+  return Math.max(unitMultiplier(metric.unit), evidenceMultiplier(metric));
+}
+
 /** When a filing mixes units, infer scale from explicit thousand/million labels in the same snapshot. */
 export function detectSnapshotCurrencyMultiplier(snapshot: CurrencySnapshot | null): number {
   if (!snapshot?.metrics?.length) return 1;
-  const units = snapshot.metrics.map((m) => (m.unit ?? "").toLowerCase());
-  if (units.some((u) => /thousand/.test(u))) return 1_000;
-  const compact = units.map((u) => u.replace(/\s+/g, ""));
-  if (compact.some((u) => /eurm|eur\s*m|million|mln|\bmn\b/.test(u))) return 1_000_000;
-  return 1;
+  const counts = new Map<number, number>();
+  for (const metric of snapshot.metrics) {
+    const mult = explicitMetricMultiplier(metric);
+    if (mult > 1) counts.set(mult, (counts.get(mult) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .filter(([, count]) => count >= 2)
+    .sort((a, b) => b[1] - a[1] || b[0] - a[0])[0]?.[0] ?? 1;
 }
 
 export function isPerShareOrRatioMetric(label: string): boolean {
@@ -30,19 +86,9 @@ export function isPerShareOrRatioMetric(label: string): boolean {
 export function looksLikeAggregateCurrency(label?: string): boolean {
   if (!label) return false;
   const l = label.toLowerCase();
-  return /revenue|sales|turnover|ebitda|profit|loss|cash flow|assets|liabilit|equity|debt|fcf|operating/.test(
+  return /revenue|sales|turnover|pajamos|käive|kaive|ie[nņ][ēe]mumi|ebitda|profit|loss|pelnas|peļņa|kasum|cash flow|pinigu srautas|assets|turtas|liabilit|isipareigojimai|equity|kapitalas|debt|fcf|operating|veiklos|darbības|tegevus/.test(
     l,
   );
-}
-
-function applyMislabeledThousandsHeuristic(value: number, label?: string): number {
-  if (label && isPerShareOrRatioMetric(label)) return value;
-  const abs = Math.abs(value);
-  if (abs >= 1_000_000) return value;
-  if (abs >= 1_000 && abs < 1_000_000 && looksLikeAggregateCurrency(label)) {
-    return value * 1_000;
-  }
-  return value;
 }
 
 /** Convert a metric value to whole EUR using its stated unit (and label heuristics). */
@@ -50,29 +96,60 @@ export function normalizeMetricToEur(value: number, unit?: string, label?: strin
   if (!Number.isFinite(value)) return value;
   if (label && isPerShareOrRatioMetric(label)) return value;
 
-  const u = (unit ?? "").trim().toLowerCase();
-  const compact = u.replace(/\s+/g, "");
+  return value * unitMultiplier(unit);
+}
 
-  if (!u) {
-    return applyMislabeledThousandsHeuristic(value, label);
-  }
+function inferCompactMillionScale(metric: CurrencyMetric, snapshot: CurrencySnapshot | null): number {
+  if (!snapshot?.metrics?.length || metric.value == null) return 1;
+  if (!looksLikeAggregateCurrency(metric.label)) return 1;
 
-  if (/bn|billion/.test(u)) return value * 1_000_000_000;
-  if (
-    /\beur\s*m\b|\beurm\b|million|mln|\bmn\b/.test(compact) ||
-    (/\bm\b/.test(compact) && /eur|€|usd|\$/.test(compact) && !/thousand|k\b/.test(compact))
-  ) {
-    return value * 1_000_000;
-  }
-  if (/thousand|tis\.?\s*eur|tk\.?\s*eur|\bk\s*eur|eur\s*k\b/.test(u)) {
-    return value * 1_000;
-  }
+  const aggregateValues = snapshot.metrics
+    .filter((m) => m.value != null && Number.isFinite(m.value) && looksLikeAggregateCurrency(m.label))
+    .map((m) => Math.abs(m.value!));
 
-  if (/^eur$|^€$|^euro$/.test(compact)) {
-    return applyMislabeledThousandsHeuristic(value, label);
-  }
+  if (aggregateValues.length < 3) return 1;
+  if (aggregateValues.some((value) => value >= 10_000)) return 1;
 
-  return value;
+  const hasDecimalAggregate = aggregateValues.some((value) => !Number.isInteger(value));
+  const hasExplicitMillionMetric = snapshot.metrics.some((m) => explicitMetricMultiplier(m) === 1_000_000);
+
+  return hasDecimalAggregate || hasExplicitMillionMetric ? 1_000_000 : 1;
+}
+
+function inferFilingWideMultiplier(snapshot: CurrencySnapshot | null): number {
+  if (!snapshot?.metrics?.length) return 1;
+  const counts = new Map<number, number>();
+  for (const metric of snapshot.metrics) {
+    const mult = evidenceMultiplier(metric);
+    if (mult > 1) counts.set(mult, (counts.get(mult) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .filter(([, count]) => count >= 2)
+    .sort((a, b) => b[1] - a[1] || b[0] - a[0])[0]?.[0] ?? 1;
+}
+
+export function normalizeMetricValueToEur(
+  metric: CurrencyMetric,
+  snapshot: CurrencySnapshot | null,
+): number | null {
+  if (metric.value == null || !Number.isFinite(metric.value)) return metric.value ?? null;
+  if (metric.label && isPerShareOrRatioMetric(metric.label)) return metric.value;
+
+  const normalized = normalizeMetricToEur(metric.value, metric.unit, metric.label);
+  if (Math.abs(normalized) !== Math.abs(metric.value)) return normalized;
+  if (!plainEurUnit(metric.unit) || !looksLikeAggregateCurrency(metric.label)) return normalized;
+  if (Math.abs(metric.value) >= 1_000_000) return normalized;
+
+  const ownEvidenceMultiplier = evidenceMultiplier(metric);
+  if (ownEvidenceMultiplier > 1) return metric.value * ownEvidenceMultiplier;
+
+  const filingWideMultiplier = inferFilingWideMultiplier(snapshot);
+  if (filingWideMultiplier > 1) return metric.value * filingWideMultiplier;
+
+  const compactMillionMultiplier = inferCompactMillionScale(metric, snapshot);
+  if (compactMillionMultiplier > 1) return metric.value * compactMillionMultiplier;
+
+  return normalized;
 }
 
 /** Apply filing-wide unit scale when a metric is plain EUR but siblings use thousand/million. */
@@ -83,10 +160,10 @@ export function applySnapshotCurrencyScale(
   snapshot: CurrencySnapshot | null,
   normalized: number,
 ): number {
-  const mult = detectSnapshotCurrencyMultiplier(snapshot);
+  const mult = inferFilingWideMultiplier(snapshot);
   if (mult <= 1) return normalized;
   const compact = (unit ?? "").trim().toLowerCase().replace(/\s+/g, "");
-  if (!/^eur$|^€$|^euro$/.test(compact)) return normalized;
+  if (compact && !/^eur$|^€$|^euro$/.test(compact)) return normalized;
   if (!looksLikeAggregateCurrency(label)) return normalized;
   if (Math.abs(normalized) !== Math.abs(value)) return normalized;
   if (Math.abs(value) >= 1_000_000) return normalized;

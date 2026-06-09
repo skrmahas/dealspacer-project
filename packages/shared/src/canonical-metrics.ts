@@ -1,9 +1,8 @@
 import type { CanonicalMetricId, ExtractedData, ExtractedMetric } from "./contracts";
 import {
-  applySnapshotCurrencyScale,
   isPerShareOrRatioMetric,
   looksLikeAggregateCurrency,
-  normalizeMetricToEur,
+  normalizeMetricValueToEur,
 } from "./metric-units";
 
 type MetricSnapshot = Pick<ExtractedData, "metrics">;
@@ -115,13 +114,7 @@ export function canonicalizeMetric(
   const normalizedValue =
     metric.value == null
       ? metric.value
-      : applySnapshotCurrencyScale(
-          metric.value,
-          metric.unit,
-          originalLabel,
-          snapshot,
-          normalizeMetricToEur(metric.value, metric.unit, originalLabel),
-        );
+      : normalizeMetricValueToEur({ ...metric, label: originalLabel }, snapshot);
 
   return {
     ...metric,
