@@ -83,6 +83,7 @@ BALTIC CONTEXT:
 - Currency is typically EUR (euros). Historical documents may reference EEK (Estonian kroon, pre-2011), LVL (Latvian lats, pre-2014), or LTL (Lithuanian litas, pre-2015). Convert or note historical currencies as appropriate.
 - Nasdaq Baltic (Nasdaq Tallinn, Nasdaq Riga, Nasdaq Vilnius) listed companies file in a specific format following exchange disclosure requirements.
 - Baltic strategic plans and investor presentations often contain multi-year projections (typically 3-5 year horizons) with specific target metrics.
+- MULTI-ENTITY REPORTS: Baltic annual reports frequently present Consolidated (Group) and Separate (Company) financial statements side-by-side in the same table with four columns: Group current period | Group prior period | Company current period | Company prior period. Always extract primary metrics (revenue, net profit, EBITDA, cash flow) from the CONSOLIDATED (Group) CURRENT PERIOD column. Never substitute Company-only (Separate) figures when Group figures are available. When the management narrative presents segment results or "normalized" figures in a different unit (e.g. millions), the IFRS financial statement tables are authoritative — use those values for all primary metrics.
 - Output ONLY the JSON object, no markdown fences, no explanation.`;
 
 // ── Targeted extraction prompts ─────────────────────────────────────────────
@@ -113,6 +114,7 @@ Return a JSON object with:
    - snippet should be under 240 characters; confidence is 0 to 1
 
 BALTIC: Local section names may include "Tegevusaruanne", "Vadibas zinojums", "Vadovybes ataskaita". Currency is EUR (historical EEK/LVL/LTL possible).
+MULTI-ENTITY: When Group (Consolidated) and Company (Separate) figures appear side-by-side, always use the Group current period column. IFRS financial statement tables take precedence over management narrative figures.
 If [STRUCTURED FINANCIAL TABLE ...] blocks are present, use them as primary evidence and preserve row/column context: row label = metric, column header = period/unit.
 
 Output ONLY the JSON object, no markdown.`;
@@ -132,6 +134,7 @@ Return a JSON object with:
    - Extract from comparative tables, prior-year comparisons, or multi-year projections
    - Omit section entirely if fewer than 2 periods found
 
+MULTI-ENTITY: When Group (Consolidated) and Company (Separate) trend data appear together, always use Group figures. Prefer IFRS statement values over management narrative summaries.
 DO NOT fabricate numbers. Translate to English. Output ONLY the JSON object, no markdown.`;
 
 const NARRATIVES_PROMPT = `You are a financial document analyst. Extract qualitative narratives and sentiment from the document.
