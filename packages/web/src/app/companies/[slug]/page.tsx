@@ -24,6 +24,7 @@ import { AppSiteHeader } from "@/components/app-site-header";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
+  buildRevenueBreakdownSegments,
   buildTrendChartFromSnapshot,
   compareReportRecency,
   hasProfitabilityTrendSeries,
@@ -59,11 +60,6 @@ interface ExtractedSentiment {
   outlook?: string;
   riskFactors?: string[];
   guidanceDirection?: "raised" | "maintained" | "lowered" | null;
-}
-
-interface RevenueBreakdown {
-  bySegment?: { name: string; value: number }[];
-  byGeography?: { name: string; value: number }[];
 }
 
 interface Report {
@@ -369,11 +365,10 @@ export default function CompanyAnalyticsDashboardPage() {
   }, [trendReports, latest]);
 
   const breakdownSegments: BreakdownSegment[] = useMemo(() => {
-    const breakdown = latest?.extractedJsonSnapshot?.revenueBreakdown;
-    const source = breakdown?.bySegment ?? breakdown?.byGeography ?? [];
-    return source
-      .filter((s) => Number.isFinite(s.value))
-      .map((s) => ({ label: s.name, value: s.value }));
+    return buildRevenueBreakdownSegments(
+      latest?.extractedJsonSnapshot ?? null,
+      latest?.previewRevenue ?? null,
+    );
   }, [latest]);
 
   function toggleSelect(id: string) {

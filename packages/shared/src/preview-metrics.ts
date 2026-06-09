@@ -14,6 +14,15 @@ type TrendField = "revenue" | "ebitda" | "netProfit" | "freeCashFlow";
 type PreviewSnapshot = {
   metrics?: ExtractedMetric[];
   profitabilityTrends?: ProfitabilityTrends;
+  revenueBreakdown?: {
+    bySegment?: { name: string; value: unknown }[];
+    byGeography?: { name: string; value: unknown }[];
+  };
+};
+
+export type PreviewBreakdownSegment = {
+  label: string;
+  value: number;
 };
 
 const TREND_FIELD: Record<PreviewMetricKey, TrendField> = {
@@ -258,4 +267,85 @@ export function buildTrendChartFromSnapshot(snapshot: PreviewSnapshot | null): {
     netProfit: mapSeries("netProfit"),
     fcf: mapSeries("freeCashFlow"),
   };
+}
+
+function parseBreakdownValue(value: unknown): number | null {
+  if (typeof value === "number") return Number.isFinite(value) ? value : null;
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed || trimmed.includes("%")) return null;
+  const parsed = Number(trimmed.replace(/,/g, ""));
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function usableBreakdownSegments(
+  segments: { name: string; value: unknown }[] | undefined,
+): PreviewBreakdownSegment[] {
+  return (segments ?? [])
+    .map((segment) => ({
+      label: segment.name,
+      value: parseBreakdownValue(segment.value),
+    }))
+    .filter(
+      (segment): segment is PreviewBreakdownSegment =>
+        Boolean(segment.label?.trim()) && segment.value != null && segment.value !== 0,
+    );
+}
+
+function looksLikePercentageBreakdown(segments: PreviewBreakdownSegment[]): boolean {
+  if (segments.length === 0) return false;
+  const total = segments.reduce((sum, segment) => sum + Math.abs(segment.value), 0);
+  return total >= 95 && total <= 105 && segments.every((segment) => Math.abs(segment.value) <= 100);
+}
+
+function scaleBreakdownSegments(
+  segments: PreviewBreakdownSegment[],
+  snapshot: PreviewSnapshot | null,
+  headlineRevenue: number | null | undefined,
+): PreviewBreakdownSegment[] {
+  if (segments.length === 0 || looksLikePercentageBreakdown(segments)) return [];
+
+  const total = segments.reduce((sum, segment) => sum + Math.abs(segment.value), 0);
+  if (!Number.isFinite(total) || total === 0) return [];
+
+  const revenue = headlineRevenue ?? resolvePreviewMetric(snapshot, "revenue");
+  const absRevenue = revenue == null ? null : Math.abs(revenue);
+  const candidates = [1, detectSnapshotCurrencyMultiplier(snapshot), 1_000, 1_000_000]
+    .filter((candidate, index, all) => candidate > 0 && all.indexOf(candidate) === index)
+    .sort((a, b) => a - b);
+
+  const scale =
+    absRevenue != null && absRevenue > 0
+      ? candidates.reduce((best, candidate) => {
+          const bestDistance = Math.abs(Math.log((total * best) / absRevenue));
+          const candidateDistance = Math.abs(Math.log((total * candidate) / absRevenue));
+          return candidateDistance < bestDistance ? candidate : best;
+        }, candidates[0] ?? 1)
+      : detectSnapshotCurrencyMultiplier(snapshot);
+
+  if (absRevenue != null && absRevenue > 0) {
+    const scaledRatio = (total * scale) / absRevenue;
+    if (scaledRatio < 0.2 || scaledRatio > 5) return [];
+  }
+
+  return segments.map((segment) => ({
+    ...segment,
+    value: segment.value * scale,
+  }));
+}
+
+export function buildRevenueBreakdownSegments(
+  snapshot: PreviewSnapshot | null,
+  headlineRevenue?: number | null,
+): PreviewBreakdownSegment[] {
+  const breakdown = snapshot?.revenueBreakdown;
+  if (!breakdown) return [];
+
+  const bySegment = usableBreakdownSegments(breakdown.bySegment);
+  if (bySegment.length > 0) {
+    return scaleBreakdownSegments(bySegment, snapshot, headlineRevenue);
+  }
+
+  const byGeography = usableBreakdownSegments(breakdown.byGeography);
+  return scaleBreakdownSegments(byGeography, snapshot, headlineRevenue);
 }
