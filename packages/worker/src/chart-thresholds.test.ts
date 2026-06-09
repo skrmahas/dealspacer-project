@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { createCanvas, loadImage } from "canvas";
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { renderSparkline, renderRevenueBreakdownBar, renderRevenueDonut, renderProfitabilityTrends } from "./chart-renderer.js";
 
@@ -13,6 +14,15 @@ beforeAll(async () => {
 afterAll(async () => {
   await fs.rm(tempDir, { recursive: true, force: true }).catch(() => {});
 });
+
+async function getPixelColor(dataUrl: string, x: number, y: number) {
+  const image = await loadImage(dataUrl);
+  const canvas = createCanvas(image.width, image.height);
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(image, 0, 0);
+  const [r, g, b] = ctx.getImageData(x, y, 1, 1).data;
+  return { r, g, b };
+}
 
 describe("Sparkline thresholds", () => {
   it("returns empty string when fewer than 3 non-null values", async () => {
@@ -125,5 +135,19 @@ describe("Profitability trends thresholds", () => {
       ebitda: [50, 55, 60],
     }, tempDir);
     expect(result).toMatch(/^data:image\/jpeg;base64,/);
+  });
+
+  it("renders with a white JPEG background", async () => {
+    const result = await renderProfitabilityTrends({
+      periods: ["2022", "2023", "2024"],
+      revenue: [98, 78, 0],
+      ebitda: [6, 6.4, null],
+      netProfit: [5, 5.0, null],
+    }, tempDir);
+
+    const color = await getPixelColor(result, 8, 8);
+    expect(color.r).toBeGreaterThan(180);
+    expect(color.g).toBeGreaterThan(180);
+    expect(color.b).toBeGreaterThan(180);
   });
 });
