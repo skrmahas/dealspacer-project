@@ -19,14 +19,14 @@ function unitMultiplier(unit?: string): number {
   const compact = u.replace(/\s+/g, "");
 
   if (!u) return 1;
-  if (/bn|billion/.test(u)) return 1_000_000_000;
+  if (/bn|billion|miljards?/.test(u)) return 1_000_000_000;
   if (
-    /\beur\s*m\b|\beurm\b|million|mln|\bmn\b/.test(compact) ||
+    /\beur\s*m\b|\beurm\b|million|mln|milj|\bmn\b/.test(compact) ||
     (/\bm\b/.test(compact) && /eur|€|usd|\$/.test(compact) && !/thousand|k\b/.test(compact))
   ) {
     return 1_000_000;
   }
-  if (/thousand|tis\.?\s*eur|tk\.?\s*eur|\bk\s*eur|eur\s*k\b/.test(u)) {
+  if (/thousand|tuhat|tūkst|tukst|tūkstoš|tukstos|tūkstan|tukstan|tis\.?\s*eur|tk\.?\s*eur|\bk\s*eur|eur\s*k\b/.test(u)) {
     return 1_000;
   }
   return 1;
@@ -42,9 +42,9 @@ function evidenceText(metric: CurrencyMetric): string {
 function evidenceMultiplier(metric: CurrencyMetric): number {
   const text = evidenceText(metric);
   if (!text) return 1;
-  if (/bn|billion/.test(text)) return 1_000_000_000;
-  if (/million|mln|eur\s*m|€\s*m|\bm\s*eur\b|\bmn\b/.test(text)) return 1_000_000;
-  if (/thousand|eur\s*k|€\s*k|\bk\s*eur\b|thousands\s+of\s+euros?/.test(text)) return 1_000;
+  if (/bn|billion|miljards?/.test(text)) return 1_000_000_000;
+  if (/million|mln|milj|eur\s*m|€\s*m|\bm\s*eur\b|\bmn\b/.test(text)) return 1_000_000;
+  if (/thousand|tuhat|tūkst|tukst|tūkstoš|tukstos|tūkstan|tukstan|eur\s*k|€\s*k|\bk\s*eur\b|thousands\s+of\s+euros?/.test(text)) return 1_000;
   return 1;
 }
 
@@ -86,7 +86,7 @@ export function isPerShareOrRatioMetric(label: string): boolean {
 export function looksLikeAggregateCurrency(label?: string): boolean {
   if (!label) return false;
   const l = label.toLowerCase();
-  return /revenue|sales|turnover|pajamos|käive|kaive|ie[nņ][ēe]mumi|ebitda|profit|loss|pelnas|peļņa|kasum|cash flow|pinigu srautas|assets|turtas|liabilit|isipareigojimai|equity|kapitalas|debt|fcf|operating|veiklos|darbības|tegevus/.test(
+  return /revenue|sales|turnover|müügitulu|muugitulu|pajamos|käive|kaive|ie[nņ][ēe]mumi|ebitda|profit|loss|pelnas|peļņa|pelna|kasum|cash flow|rahavoog|naudas plūsma|naudas plusma|pinigu srautas|assets|turtas|varad|aktīvi|aktivi|liabilit|isipareigojimai|kohust|saistības|saistibas|equity|kapitalas|omakapital|pašu kapitāls|pasu kapitals|debt|fcf|operating|veiklos|darbības|darbibas|tegevus/.test(
     l,
   );
 }
