@@ -730,7 +730,7 @@ export default function Home({ initialCompanySlug }: HomeClientProps) {
                           }}
                         />
                         <PipelineActionButton
-                          label={retrying ? "Replacing..." : "Replace"}
+                          label={retrying ? "Queuing..." : "Queue Review"}
                           disabled={retrying}
                           onClick={async () => {
                             setRetrying(true);

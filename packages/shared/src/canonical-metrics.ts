@@ -1,9 +1,8 @@
 import type { CanonicalMetricId, ExtractedData, ExtractedMetric } from "./contracts";
 import {
-  applySnapshotCurrencyScale,
   isPerShareOrRatioMetric,
   looksLikeAggregateCurrency,
-  normalizeMetricToEur,
+  normalizeMetricValueToEur,
 } from "./metric-units";
 
 type MetricSnapshot = Pick<ExtractedData, "metrics">;
@@ -43,9 +42,11 @@ export function inferCanonicalMetricId(label: string): CanonicalMetricId | null 
   if (/\beps\b|\bearnings per share\b|\bprofit per share\b/.test(l)) return "eps";
   if (/\bdividends?\b|\bdividend per share\b/.test(l)) return "dividends";
   if (/\bcapex\b|\bcapital expenditures?\b|\bcapital investments?\b/.test(l)) return "capex";
-  if (/\bfree cash flow\b|\bfcf\b|\blaisvasis pinigu srautas\b/.test(l)) return "free_cash_flow";
+  if (/\bfree cash flow\b|\bfcf\b|\blaisvasis pinigu srautas\b|\bbriva naudas plusma\b/.test(l)) {
+    return "free_cash_flow";
+  }
   if (
-    /\boperating cash flow\b|\bcash flow from operating\b|\bnet cash from operating\b/.test(l)
+    /\boperating cash flow\b|\bcash flow from operating\b|\bnet cash from operating\b|\baritegevuse rahavoog\b|\bpamatdarbibas naudas plusma\b|\bveiklos pinigu srautas\b/.test(l)
   ) {
     return "operating_cash_flow";
   }
@@ -66,11 +67,13 @@ export function inferCanonicalMetricId(label: string): CanonicalMetricId | null 
   ) {
     return "net_profit";
   }
-  if (/\btotal assets\b|\bassets total\b|\bassets\b|\bturtas\b/.test(l)) return "total_assets";
-  if (/\btotal liabilities\b|\bliabilities\b|\bliability\b|\bdebt\b|\bisipareigojimai\b/.test(l)) {
+  if (/\btotal assets\b|\bassets total\b|\bassets\b|\bturtas\b|\bvarad\b|\bvarad kokku\b|\bkopejie aktivi\b|\baktivi\b/.test(l)) {
+    return "total_assets";
+  }
+  if (/\btotal liabilities\b|\bliabilities\b|\bliability\b|\bdebt\b|\bisipareigojimai\b|\bkohustised\b|\bkohustused\b|\bsaistibas\b/.test(l)) {
     return "liabilities";
   }
-  if (/\btotal equity\b|\bequity\b|\bshareholders equity\b|\bnuosavas kapitalas\b/.test(l)) {
+  if (/\btotal equity\b|\bequity\b|\bshareholders equity\b|\bnuosavas kapitalas\b|\bomakapital\b|\bpasu kapitals\b/.test(l)) {
     return "equity";
   }
   if (
@@ -80,6 +83,7 @@ export function inferCanonicalMetricId(label: string): CanonicalMetricId | null 
       /^net sales$/,
       /^sales$/,
       /^turnover$/,
+      /^muugitulu$/,
       /^pajamos$/,
       /^kaive$/,
       /^ie[nn]emumi$/,
@@ -115,13 +119,7 @@ export function canonicalizeMetric(
   const normalizedValue =
     metric.value == null
       ? metric.value
-      : applySnapshotCurrencyScale(
-          metric.value,
-          metric.unit,
-          originalLabel,
-          snapshot,
-          normalizeMetricToEur(metric.value, metric.unit, originalLabel),
-        );
+      : normalizeMetricValueToEur({ ...metric, label: originalLabel }, snapshot);
 
   return {
     ...metric,

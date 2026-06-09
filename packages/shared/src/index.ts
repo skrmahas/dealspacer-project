@@ -8,6 +8,17 @@ export { assessPipelineHealth } from "./pipeline-health";
 export type { PipelineHealthSnapshot } from "./pipeline-health";
 export { normalizeMetricToEur, isPerShareOrRatioMetric } from "./metric-units";
 export {
+  formatHeadlineMetricIssue,
+  validateHeadlineMetric,
+  validateHeadlineMetrics,
+} from "./headline-metric-validation";
+export type { HeadlineMetricId, HeadlineMetricIssue } from "./headline-metric-validation";
+export {
+  assessReportSanity,
+  formatReportSanityIssue,
+} from "./report-sanity";
+export type { HistoricalReportSnapshot, ReportSanityIssue } from "./report-sanity";
+export {
   canonicalizeExtractedData,
   canonicalizeMetric,
   getCanonicalMetricLabel,
@@ -16,13 +27,14 @@ export {
 } from "./canonical-metrics";
 export {
   buildReportPreview,
+  buildRevenueBreakdownSegments,
   resolvePreviewMetric,
   resolvePriorPreviewMetric,
   findMetricByKey,
   buildTrendChartFromSnapshot,
   hasProfitabilityTrendSeries,
 } from "./preview-metrics";
-export type { PreviewMetricKey } from "./preview-metrics";
+export type { PreviewBreakdownSegment, PreviewMetricKey } from "./preview-metrics";
 export {
   pickHeadlineReports,
   pickTrendReports,
@@ -54,6 +66,10 @@ export type {
   ReportType,
   Report,
   ReportWithPreview,
+  ReportRerunCandidateStatus,
+  ReportRerunCandidate,
+  ReportRerunCandidateWithReport,
   CreateReportInput,
+  CreateReportRerunCandidateInput,
   ReportStore,
 } from "./contracts";

@@ -124,6 +124,29 @@ async function migrate() {
     `);
 
     await client.query(`
+      CREATE TABLE IF NOT EXISTS report_rerun_candidates (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        report_id UUID NOT NULL REFERENCES reports(id) ON DELETE CASCADE,
+        job_id UUID NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+        s3_key TEXT NOT NULL,
+        extracted_json_snapshot JSONB NOT NULL,
+        status TEXT NOT NULL DEFAULT 'pending_review',
+        quality_warnings JSONB NOT NULL DEFAULT '[]'::jsonb,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        approved_at TIMESTAMPTZ,
+        UNIQUE (report_id, job_id)
+      );
+    `);
+
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_report_rerun_candidates_report_id ON report_rerun_candidates(report_id);
+    `);
+
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_report_rerun_candidates_status ON report_rerun_candidates(status);
+    `);
+
+    await client.query(`
       ALTER TABLE jobs ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES companies(id);
     `);
 

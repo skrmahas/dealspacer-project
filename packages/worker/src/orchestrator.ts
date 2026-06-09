@@ -70,11 +70,20 @@ export async function processJob(
 
     // Sanitize: validate structural coherence, drop broken sections
     const { data: sanitized, warnings } = sanitizeExtractedData(extracted);
+    if (warnings.chartWarnings.length > 0) {
+      sanitized.chartWarnings = warnings.chartWarnings;
+    }
     if (warnings.duplicateLabels.length > 0) {
       log(`Sanitizer: ${warnings.duplicateLabels.length} duplicate label(s) dropped`);
     }
     if (warnings.droppedNullMetrics > 0) {
       log(`Sanitizer: ${warnings.droppedNullMetrics} null-value metric(s) dropped`);
+    }
+    if (warnings.nonCanonicalNarrativeSections.length > 0) {
+      log(`Sanitizer: ${warnings.nonCanonicalNarrativeSections.length} narrative section(s) normalized`);
+    }
+    if (warnings.missingExecutiveSummary) {
+      log("Sanitizer: executive summary narrative missing");
     }
     if (warnings.revenueBreakdownDropped) log("Sanitizer: revenue breakdown dropped");
     if (warnings.profitabilityTrendsDropped) log("Sanitizer: profitability trends dropped");

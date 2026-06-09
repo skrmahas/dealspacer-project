@@ -1,6 +1,7 @@
 import React from "react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { useParams } from "next/navigation";
 import CompanyAnalyticsDashboardPage from "./page";
 
 vi.mock("next/navigation", () => ({
@@ -92,6 +93,7 @@ describe("CompanyAnalyticsDashboardPage", () => {
   beforeEach(() => {
     cleanup();
     vi.unstubAllGlobals();
+    vi.mocked(useParams).mockReturnValue({ slug: "tallink-grupp" });
   });
 
   it("shows company header with name, ticker, exchange badge, and report count", async () => {
@@ -111,6 +113,35 @@ describe("CompanyAnalyticsDashboardPage", () => {
     expect(link).toHaveAttribute("href", "/upload?company=tallink-grupp");
   });
 
+  it("loads companies whose route slug contains encoded Unicode characters", async () => {
+    vi.mocked(useParams).mockReturnValue({ slug: "vilky%C5%A1kiu-pienine" });
+    const unicodeCompany = {
+      ...MOCK_COMPANY,
+      id: "vilkyskiai",
+      name: "Vilkyškių pieninė",
+      ticker: "VLP1L",
+      exchange: "Nasdaq Vilnius",
+      slug: "vilkyškiu-pienine",
+      country: "LT",
+      reportCount: 1,
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce({ ok: true, json: async () => [unicodeCompany] })
+        .mockResolvedValueOnce({ ok: true, json: async () => [] }),
+    );
+
+    render(<CompanyAnalyticsDashboardPage />);
+
+    await waitFor(() => expect(screen.getByText("Vilkyškių pieninė")).toBeInTheDocument());
+    expect(screen.queryByText("Company not found")).not.toBeInTheDocument();
+    expect(vi.mocked(fetch)).toHaveBeenLastCalledWith(
+      "/api/companies/vilky%C5%A1kiu-pienine/reports",
+    );
+  });
+
   it("renders 4 KPI cards with YoY delta and FY label", async () => {
     mockSuccessfulLoad();
     render(<CompanyAnalyticsDashboardPage />);
@@ -128,6 +159,60 @@ describe("CompanyAnalyticsDashboardPage", () => {
     expect(screen.getAllByText("€60M").length).toBeGreaterThanOrEqual(1);
 
     expect(screen.getAllByText("+25.0%").length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("uses a populated interim filing when the latest annual has no core KPI data", async () => {
+    vi.mocked(useParams).mockReturnValue({ slug: "ekspress-grupp" });
+    const emptyAnnual = {
+      ...MOCK_REPORTS[0],
+      id: "empty-annual",
+      fiscalYear: 2025,
+      reportType: "annual",
+      previewRevenue: null,
+      previewEbitda: null,
+      previewNetProfit: null,
+      previewFcf: null,
+      extractedJsonSnapshot: {
+        ...MOCK_REPORTS[0].extractedJsonSnapshot,
+        metadata: { companyName: "Ekspress Grupp", reportPeriod: "FY 2025" },
+        metrics: [
+          { label: "Profit Distribution", value: 1.031, unit: "million EUR" },
+        ],
+      },
+    };
+    const populatedQ4 = {
+      ...MOCK_REPORTS[1],
+      id: "populated-q4",
+      fiscalYear: 2025,
+      reportType: "q4",
+      previewRevenue: 76_200_000,
+      previewEbitda: 10_700_000,
+      previewNetProfit: -897_103,
+      previewFcf: null,
+      extractedJsonSnapshot: {
+        ...MOCK_REPORTS[1].extractedJsonSnapshot,
+        metadata: { companyName: "Ekspress Grupp", reportPeriod: "Q4 2025" },
+        profitabilityTrends: {
+          periods: ["12M 2024", "12M 2025"],
+          revenue: [null, 76_200_000],
+          ebitda: [null, 10_700_000],
+          netProfit: [3_252_483, -897_103],
+        },
+      },
+    };
+    mockSuccessfulLoad([emptyAnnual, populatedQ4], {
+      ...MOCK_COMPANY,
+      name: "Ekspress Grupp",
+      ticker: "EEG1T",
+      slug: "ekspress-grupp",
+    });
+
+    render(<CompanyAnalyticsDashboardPage />);
+
+    await waitFor(() => expect(screen.getByText("Ekspress Grupp")).toBeInTheDocument());
+    expect(screen.getAllByText("€76M").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("€11M").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/Q4 2025/i).length).toBeGreaterThanOrEqual(1);
   });
 
   it("renders the trend line chart container", async () => {

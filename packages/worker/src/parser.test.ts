@@ -1,5 +1,13 @@
 import { describe, it, expect, vi } from "vitest";
-import { detectFileType, parseCsvBuffer, parseDocument, parseHtml, parsePdf, NO_FINANCIAL_DATA_MESSAGE } from "./parser.js";
+import {
+  detectFileType,
+  extractStructuredTablesFromPdfItems,
+  parseCsvBuffer,
+  parseDocument,
+  parseHtml,
+  parsePdf,
+  NO_FINANCIAL_DATA_MESSAGE,
+} from "./parser.js";
 import { readFileSync } from "node:fs";
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
@@ -19,6 +27,11 @@ const ignitisPath = resolve(
   import.meta.dirname,
   "__fixtures__",
   "ignitis-strategic-plan.pdf",
+);
+const problematicTablePath = resolve(
+  import.meta.dirname,
+  "__fixtures__",
+  "problematic-table-report.html",
 );
 
 describe("parsePdf", () => {
@@ -87,6 +100,15 @@ describe("parseDocument", () => {
     expect(text).not.toContain("window.hidden");
   });
 
+  it("preserves financial HTML tables as structured extraction context", async () => {
+    const text = await parseHtml(readFileSync(problematicTablePath));
+
+    expect(text).toContain("[STRUCTURED FINANCIAL TABLE source=\"html-table-1\"]");
+    expect(text).toContain("| Metric | 2025 | 2024 | Unit |");
+    expect(text).toContain("| Revenue | 1 200 | 980 | thousand EUR |");
+    expect(text).toContain("[/STRUCTURED FINANCIAL TABLE]");
+  });
+
   it("routes CSV files by filename", async () => {
     const text = await parseDocument(Buffer.from([
       "Metric,Amount",
@@ -94,6 +116,29 @@ describe("parseDocument", () => {
     ].join("\n")), "report.csv");
 
     expect(text).toContain("Metric: Revenue");
+  });
+});
+
+describe("structured PDF table reconstruction", () => {
+  it("reconstructs financial table rows from positioned PDF text items", () => {
+    const items = [
+      { str: "Metric", transform: [1, 0, 0, 1, 10, 100] },
+      { str: "2025", transform: [1, 0, 0, 1, 150, 100] },
+      { str: "2024", transform: [1, 0, 0, 1, 230, 100] },
+      { str: "Revenue", transform: [1, 0, 0, 1, 10, 80] },
+      { str: "1 200", transform: [1, 0, 0, 1, 150, 80] },
+      { str: "980", transform: [1, 0, 0, 1, 230, 80] },
+      { str: "Net profit", transform: [1, 0, 0, 1, 10, 60] },
+      { str: "120", transform: [1, 0, 0, 1, 150, 60] },
+      { str: "90", transform: [1, 0, 0, 1, 230, 60] },
+    ];
+
+    const table = extractStructuredTablesFromPdfItems(items, 4);
+
+    expect(table).toContain("[STRUCTURED FINANCIAL TABLE source=\"pdf-page-4\"]");
+    expect(table).toContain("| Metric | 2025 | 2024 |");
+    expect(table).toContain("| Revenue | 1 200 | 980 |");
+    expect(table).toContain("| Net profit | 120 | 90 |");
   });
 });
 

@@ -24,6 +24,7 @@ import { AppSiteHeader } from "@/components/app-site-header";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
+  buildRevenueBreakdownSegments,
   buildTrendChartFromSnapshot,
   compareReportRecency,
   hasProfitabilityTrendSeries,
@@ -59,11 +60,6 @@ interface ExtractedSentiment {
   outlook?: string;
   riskFactors?: string[];
   guidanceDirection?: "raised" | "maintained" | "lowered" | null;
-}
-
-interface RevenueBreakdown {
-  bySegment?: { name: string; value: number }[];
-  byGeography?: { name: string; value: number }[];
 }
 
 interface Report {
@@ -115,6 +111,14 @@ const reportTableHeaderClassName = "whitespace-nowrap pb-3 pr-3 font-medium";
 const reportTableNumberClassName =
   "py-3.5 pr-3 align-middle font-[family-name:var(--font-mono)] text-base/6 tabular-nums text-[#e8ecf2] sm:text-[13px]";
 
+function decodeRouteSlug(slug: string): string {
+  try {
+    return decodeURIComponent(slug);
+  } catch {
+    return slug;
+  }
+}
+
 function fmtCurrency(val: number | null | undefined): string {
   if (val == null) return "—";
   if (Math.abs(val) >= 1e9) return `€${(val / 1e9).toFixed(1)}B`;
@@ -162,7 +166,7 @@ function getComparablePrior(
 ): number | null | undefined {
   const fromPriorReport = getMetric(previous, key);
   if (fromPriorReport != null) return fromPriorReport;
-  if (latest && !previous) return getMetric(latest, key, { prior: true });
+  if (latest) return getMetric(latest, key, { prior: true });
   return null;
 }
 
@@ -211,7 +215,7 @@ function DashboardSection({
 export default function CompanyAnalyticsDashboardPage() {
   const params = useParams();
   const router = useRouter();
-  const slug = params.slug as string;
+  const slug = decodeRouteSlug(params.slug as string);
 
   const [company, setCompany] = useState<Company | null>(null);
   const [reports, setReports] = useState<Report[]>([]);
@@ -235,7 +239,7 @@ export default function CompanyAnalyticsDashboardPage() {
           setNotFound(true);
           return;
         }
-        const repRes = await fetch(`/api/companies/${slug}/reports`);
+        const repRes = await fetch(`/api/companies/${encodeURIComponent(slug)}/reports`);
         if (repRes.ok) {
           const reps: Report[] = await repRes.json();
           if (!cancelled) setReports(reps);
@@ -361,11 +365,10 @@ export default function CompanyAnalyticsDashboardPage() {
   }, [trendReports, latest]);
 
   const breakdownSegments: BreakdownSegment[] = useMemo(() => {
-    const breakdown = latest?.extractedJsonSnapshot?.revenueBreakdown;
-    const source = breakdown?.bySegment ?? breakdown?.byGeography ?? [];
-    return source
-      .filter((s) => Number.isFinite(s.value))
-      .map((s) => ({ label: s.name, value: s.value }));
+    return buildRevenueBreakdownSegments(
+      latest?.extractedJsonSnapshot ?? null,
+      latest?.previewRevenue ?? null,
+    );
   }, [latest]);
 
   function toggleSelect(id: string) {

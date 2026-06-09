@@ -3,11 +3,12 @@
 export type { ExtractedData, ReportType } from "./contracts";
 
 export {
+  buildRevenueBreakdownSegments,
   buildTrendChartFromSnapshot,
   hasProfitabilityTrendSeries,
   resolvePriorPreviewMetric,
 } from "./preview-metrics";
-export type { PreviewMetricKey } from "./preview-metrics";
+export type { PreviewBreakdownSegment, PreviewMetricKey } from "./preview-metrics";
 
 export {
   compareReportRecency,
