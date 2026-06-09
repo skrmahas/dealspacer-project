@@ -1,5 +1,7 @@
 import {
+  assessReportSanity,
   formatHeadlineMetricIssue,
+  formatReportSanityIssue,
   inferCanonicalMetricId,
   validateHeadlineMetrics,
   type ExtractedData,
@@ -104,6 +106,10 @@ export function assessReportQuality(
 
   for (const issue of validateHeadlineMetrics(data)) {
     warnings.push(formatHeadlineMetricIssue(issue));
+  }
+
+  for (const issue of assessReportSanity(data)) {
+    warnings.push(formatReportSanityIssue(issue));
   }
 
   if (!hasMeaningfulNarrative(data) && numericMetrics.length < 2) {

@@ -1,5 +1,11 @@
 import type { Job, ExtractedData } from "@bei/shared";
-import { createCompanyStore, createReportStore, DuplicateReportError } from "@bei/shared";
+import {
+  assessReportSanity,
+  createCompanyStore,
+  createReportStore,
+  DuplicateReportError,
+  formatReportSanityIssue,
+} from "@bei/shared";
 import { matchCompany, parseReportPeriod, pickBestMatch } from "./company-matcher.js";
 
 /**
@@ -66,6 +72,35 @@ export async function onJobComplete(
   // 3. Try creating the report row
   try {
     const s3Key = `reports/${job.id}.pdf`;
+    const history = companyId
+      ? await reportStore.listReportsByCompany(companyId)
+      : [];
+    const sanityWarnings = assessReportSanity(data, {
+      currentFiscalYear: parsed.fiscalYear,
+      currentReportType: parsed.reportType,
+      history: history
+        .filter((report) => report.jobId !== job.id)
+        .map((report) => ({
+          fiscalYear: report.fiscalYear,
+          reportType: report.reportType,
+          extractedJsonSnapshot: report.extractedJsonSnapshot,
+        })),
+    }).map(formatReportSanityIssue);
+
+    if (sanityWarnings.length > 0) {
+      const message = `Report quality gate failed: ${sanityWarnings.join(" ")}`;
+      log(message);
+      await store.updateJob(job.id, {
+        state: "failed",
+        extractedJson: JSON.stringify({
+          ...data,
+          qualityWarnings: sanityWarnings,
+        }),
+        error: message,
+      });
+      return;
+    }
+
     await reportStore.createReport({
       companyId,
       fiscalYear: parsed.fiscalYear,
