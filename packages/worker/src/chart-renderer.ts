@@ -1,9 +1,20 @@
-import { Chart, ChartConfiguration, registerables } from "chart.js";
+import { Chart, ChartConfiguration, Plugin, registerables } from "chart.js";
 import { createCanvas, Canvas, CanvasRenderingContext2D } from "canvas";
 import type { ExtractedMetric, RevenueBreakdown, ProfitabilityTrends } from "@bei/shared";
 
 // Register all chart.js components
 Chart.register(...registerables);
+
+const whiteCanvasBackgroundPlugin: Plugin = {
+  id: "white-canvas-background",
+  beforeDraw(chart) {
+    const { ctx, width, height } = chart;
+    ctx.save();
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, width, height);
+    ctx.restore();
+  },
+};
 
 // ── Canvas setup helpers ────────────────────────────────────────────────────
 
@@ -26,9 +37,13 @@ async function renderChartToFile(
   _filename: string,
 ): Promise<string> {
   const { canvas } = makeCanvas(width, height);
+  const chartConfig: ChartConfiguration = {
+    ...config,
+    plugins: [whiteCanvasBackgroundPlugin, ...(config.plugins ?? [])],
+  };
 
   // chart.js needs the canvas element to be cast-friendly
-  const chart = new Chart(canvas as unknown as HTMLCanvasElement, config);
+  const chart = new Chart(canvas as unknown as HTMLCanvasElement, chartConfig);
   // Force synchronous rendering (Chart.js v4 renders synchronously by default)
   const buffer = canvas.toBuffer("image/jpeg", { quality: 0.85 });
   chart.destroy();
