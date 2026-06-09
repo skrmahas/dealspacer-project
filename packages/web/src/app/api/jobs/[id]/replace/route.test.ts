@@ -53,6 +53,7 @@ describe("POST /api/jobs/:id/replace", () => {
       replaced: false,
       candidateId: "candidate-1",
       reportId: "report-1",
+      reviewUrl: "/admin/report-reruns?candidate=candidate-1",
       status: "pending_review",
     });
     expect(createReportRerunCandidate).toHaveBeenCalledWith(expect.objectContaining({
@@ -96,5 +97,49 @@ describe("POST /api/jobs/:id/replace", () => {
       status: "failed_quality",
       qualityWarnings: ["Report sanity check failed"],
     }));
+  });
+
+  it("uses the duplicate error company id when the job has no selected company context", async () => {
+    const getReportByMatch = vi.fn().mockResolvedValue({ id: "amber-report" });
+    const createReportRerunCandidate = vi.fn().mockResolvedValue({
+      id: "candidate-amber",
+      status: "pending_review",
+    });
+    vi.mocked(createPostgresStore).mockReturnValue({
+      getJob: vi.fn().mockResolvedValue({
+        id: "job-amber",
+        state: "duplicate",
+        outputLanguage: "en",
+        companyId: null,
+        error: "Duplicate report: company=e972dd7e-20d3-4570-99d2-17db426c79d5, year=2024, type=annual, lang=en",
+        extractedJson: JSON.stringify({
+          ...snapshot,
+          metadata: { ...snapshot.metadata, companyName: "AS Amber Latvijas balzams", reportPeriod: "FY 2024" },
+        }),
+      }),
+    } as any);
+    vi.mocked(createReportStore).mockReturnValue({
+      getReportByMatch,
+      createReportRerunCandidate,
+    } as any);
+
+    const response = await POST(
+      new Request("http://localhost/api/jobs/job-amber/replace") as any,
+      { params: Promise.resolve({ id: "job-amber" }) },
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(getReportByMatch).toHaveBeenCalledWith(
+      "e972dd7e-20d3-4570-99d2-17db426c79d5",
+      2024,
+      "annual",
+      "en",
+    );
+    expect(body).toMatchObject({
+      candidateId: "candidate-amber",
+      reportId: "amber-report",
+      reviewUrl: "/admin/report-reruns?candidate=candidate-amber",
+    });
   });
 });

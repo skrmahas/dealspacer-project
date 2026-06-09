@@ -738,7 +738,8 @@ export default function Home({ initialCompanySlug }: HomeClientProps) {
                               const res = await fetch(`/api/jobs/${job.jobId}/replace`, { method: "POST" });
                               if (res.ok) {
                                 const data = await res.json();
-                                if (data.reportId) router.push(`/reports/${data.reportId}`);
+                                if (data.reviewUrl) router.push(data.reviewUrl);
+                                else if (data.candidateId) router.push(`/admin/report-reruns?candidate=${data.candidateId}`);
                               }
                             } catch {
                             } finally {

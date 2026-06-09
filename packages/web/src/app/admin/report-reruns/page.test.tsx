@@ -9,6 +9,10 @@ vi.mock("next/link", () => ({
   ),
 }));
 
+vi.mock("next/navigation", () => ({
+  useSearchParams: () => new URLSearchParams(),
+}));
+
 const CANDIDATES = [
   {
     id: "candidate-1",
