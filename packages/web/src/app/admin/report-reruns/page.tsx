@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { ArrowLeft, Check, ExternalLink, X } from "lucide-react";
@@ -104,6 +104,22 @@ function statusLabel(status: Candidate["status"]): string {
 }
 
 export default function AdminReportRerunsPage() {
+  return (
+    <Suspense fallback={<AdminReportRerunsFallback />}>
+      <AdminReportRerunsContent />
+    </Suspense>
+  );
+}
+
+function AdminReportRerunsFallback() {
+  return (
+    <AdminShell>
+      <p className="py-16 text-center text-[#8b9aad]">Loading...</p>
+    </AdminShell>
+  );
+}
+
+function AdminReportRerunsContent() {
   const searchParams = useSearchParams();
   const requestedCandidateId = searchParams.get("candidate");
   const [candidates, setCandidates] = useState<Candidate[]>([]);
