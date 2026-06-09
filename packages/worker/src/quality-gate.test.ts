@@ -129,6 +129,23 @@ describe("assessReportQuality", () => {
     expect(result.warnings).toContain('Headline metric "Revenue" is invalid: missing source evidence snippet.');
   });
 
+  it.each([
+    ["en", "Revenue"],
+    ["et", "Müügitulu"],
+    ["lv", "Ieņēmumi"],
+    ["lt", "Pajamos"],
+  ] as const)("fails when a %s headline metric lacks source evidence", (sourceLanguage, label) => {
+    const result = assessReportQuality(
+      baseData({
+        metadata: { companyName: "Test Co", reportPeriod: "FY 2024", sourceLanguage },
+        metrics: [{ label, value: 1000, unit: "EUR" }],
+      }),
+    );
+
+    expect(result.passed).toBe(false);
+    expect(result.warnings).toContain(`Headline metric "${label}" is invalid: missing source evidence snippet.`);
+  });
+
   it("fails when a headline metric is missing a clear unit", () => {
     const result = assessReportQuality(
       baseData({
