@@ -20,24 +20,72 @@ export function compareReportRecency<
   return reportRecencyScore(a.fiscalYear, a.reportType) - reportRecencyScore(b.fiscalYear, b.reportType);
 }
 
+type HeadlineMetricFields = {
+  previewRevenue?: number | null;
+  previewEbitda?: number | null;
+  previewNetProfit?: number | null;
+  previewFcf?: number | null;
+};
+
+function hasHeadlineMetricFields(report: HeadlineMetricFields): boolean {
+  return (
+    "previewRevenue" in report ||
+    "previewEbitda" in report ||
+    "previewNetProfit" in report ||
+    "previewFcf" in report
+  );
+}
+
+function coreHeadlineMetricCount(report: HeadlineMetricFields): number {
+  return [report.previewRevenue, report.previewEbitda, report.previewNetProfit].filter(
+    (value) => value != null && Number.isFinite(value),
+  ).length;
+}
+
+function hasUsableHeadlineMetrics(report: HeadlineMetricFields): boolean {
+  if (!hasHeadlineMetricFields(report)) return true;
+  return coreHeadlineMetricCount(report) > 0;
+}
+
+function pickPreviousForHeadline<T extends { fiscalYear: number; reportType: ReportType } & HeadlineMetricFields>(
+  reports: T[],
+  latest: T,
+): T | undefined {
+  const older = reports.filter((r) => compareReportRecency(r, latest) < 0);
+  if (latest.reportType === "annual") {
+    const annuals = older.filter((r) => r.reportType === "annual").sort(compareReportRecency);
+    return annuals[annuals.length - 1];
+  }
+  const sorted = older.sort(compareReportRecency);
+  return sorted[sorted.length - 1];
+}
+
 /** Prefer the latest annual filing for headline KPIs; fall back to the newest report. */
-export function pickHeadlineReports<T extends { fiscalYear: number; reportType: ReportType }>(
+export function pickHeadlineReports<T extends { fiscalYear: number; reportType: ReportType } & HeadlineMetricFields>(
   reports: T[],
 ): { latest: T | undefined; previous: T | undefined } {
   if (reports.length === 0) return { latest: undefined, previous: undefined };
 
-  const annuals = [...reports].filter((r) => r.reportType === "annual").sort(compareReportRecency);
-  if (annuals.length >= 1) {
+  const usable = reports.filter(hasUsableHeadlineMetrics).sort(compareReportRecency);
+  if (usable.length === 0) return { latest: undefined, previous: undefined };
+
+  const annuals = usable.filter((r) => r.reportType === "annual").sort(compareReportRecency);
+  const latestAnnual = annuals[annuals.length - 1];
+  const newestUsable = usable[usable.length - 1];
+  const annualIsMateriallyStale =
+    latestAnnual && newestUsable.fiscalYear - latestAnnual.fiscalYear >= 2;
+  const latest = latestAnnual && !annualIsMateriallyStale ? latestAnnual : newestUsable;
+
+  if (latest.reportType === "annual") {
     return {
-      latest: annuals[annuals.length - 1],
+      latest,
       previous: annuals.length >= 2 ? annuals[annuals.length - 2] : undefined,
     };
   }
 
-  const sorted = [...reports].sort(compareReportRecency);
   return {
-    latest: sorted[sorted.length - 1],
-    previous: sorted.length >= 2 ? sorted[sorted.length - 2] : undefined,
+    latest,
+    previous: pickPreviousForHeadline(usable, latest),
   };
 }
 

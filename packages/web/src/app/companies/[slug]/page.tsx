@@ -166,7 +166,7 @@ function getComparablePrior(
 ): number | null | undefined {
   const fromPriorReport = getMetric(previous, key);
   if (fromPriorReport != null) return fromPriorReport;
-  if (latest && !previous) return getMetric(latest, key, { prior: true });
+  if (latest) return getMetric(latest, key, { prior: true });
   return null;
 }
 
