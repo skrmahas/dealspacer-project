@@ -66,6 +66,9 @@ Extract the following from the provided document text into a JSON object. Follow
    - Omit fields whose data is not available; omit section entirely if less than 2 periods found
 
 IMPORTANT:
+- If the document contains [STRUCTURED FINANCIAL TABLE ...] blocks, treat them as primary evidence.
+- Preserve row/column relationships from structured tables when assigning values to labels, periods, and units.
+- For table values, use the row label plus column header as context; do not mix values across adjacent rows or columns.
 - Evidence object shape: { page?, chunkIndex?, snippet?, confidence?, rationale? }
 - Keep evidence compact: snippet should be the shortest nearby source text that supports the fact, ideally under 240 characters.
 - confidence is 0 to 1. Use lower confidence when the value is computed, inferred from a table header, or source text is ambiguous.
@@ -110,6 +113,7 @@ Return a JSON object with:
    - snippet should be under 240 characters; confidence is 0 to 1
 
 BALTIC: Local section names may include "Tegevusaruanne", "Vadibas zinojums", "Vadovybes ataskaita". Currency is EUR (historical EEK/LVL/LTL possible).
+If [STRUCTURED FINANCIAL TABLE ...] blocks are present, use them as primary evidence and preserve row/column context: row label = metric, column header = period/unit.
 
 Output ONLY the JSON object, no markdown.`;
 
@@ -466,6 +470,7 @@ export function detectExtractionStages(text: string): {
   needsNarratives: boolean;
 } {
   const lower = text.toLowerCase();
+  const hasStructuredTables = lower.includes("[structured financial table");
 
   // Trends: text contains multi-period indicators or segment breakdowns
   const trendIndicators = [
@@ -480,7 +485,7 @@ export function detectExtractionStages(text: string): {
     /\bmulti[\s-]year\b/i,
     /\b(periods?|years?)\s+(20\d{2}[,\s]+)*(20\d{2})\b/i,  // "for the years 2024, 2025, 2026"
   ];
-  const needsTrends = trendIndicators.some((p) => p.test(lower));
+  const needsTrends = hasStructuredTables || trendIndicators.some((p) => p.test(lower));
 
   // Narratives: text is long enough to contain meaningful commentary
   const needsNarratives = text.length > 5000;
