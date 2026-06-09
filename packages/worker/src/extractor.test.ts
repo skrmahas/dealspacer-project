@@ -642,4 +642,13 @@ describe("detectExtractionStages", () => {
     const stages = detectExtractionStages(text);
     expect(stages.needsTrends).toBe(true);
   });
+
+  it("detects trends when structured financial tables are present", () => {
+    const text = `[STRUCTURED FINANCIAL TABLE source="html-table-1"]
+| Metric | 2025 | 2024 |
+| Revenue | 1200 | 980 |
+[/STRUCTURED FINANCIAL TABLE]`;
+    const stages = detectExtractionStages(text);
+    expect(stages.needsTrends).toBe(true);
+  });
 });
