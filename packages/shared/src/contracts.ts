@@ -206,6 +206,10 @@ export interface ReportRerunCandidate {
   approvedAt: string | null;
 }
 
+export interface ReportRerunCandidateWithReport extends ReportRerunCandidate {
+  report: ReportWithPreview;
+}
+
 export interface CreateReportInput {
   companyId?: string | null;
   fiscalYear: number;
@@ -238,7 +242,10 @@ export interface ReportStore {
   replaceReport(reportId: string, newJobId: string, newS3Key: string, newSnapshot: ExtractedData): Promise<Report>;
   createReportRerunCandidate(input: CreateReportRerunCandidateInput): Promise<ReportRerunCandidate>;
   getReportRerunCandidateById(id: string): Promise<ReportRerunCandidate | null>;
+  getReportRerunCandidateForReview(id: string): Promise<ReportRerunCandidateWithReport | null>;
+  listReportRerunCandidates(statuses?: ReportRerunCandidateStatus[]): Promise<ReportRerunCandidateWithReport[]>;
   promoteReportRerunCandidate(candidateId: string): Promise<Report>;
+  rejectReportRerunCandidate(candidateId: string): Promise<ReportRerunCandidate>;
   listRecentReports(limit: number): Promise<ReportWithPreview[]>;
   listReportsForCompare(options?: { query?: string; limit?: number }): Promise<ReportWithPreview[]>;
 }
