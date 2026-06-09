@@ -161,6 +161,60 @@ describe("CompanyAnalyticsDashboardPage", () => {
     expect(screen.getAllByText("+25.0%").length).toBeGreaterThanOrEqual(1);
   });
 
+  it("uses a populated interim filing when the latest annual has no core KPI data", async () => {
+    vi.mocked(useParams).mockReturnValue({ slug: "ekspress-grupp" });
+    const emptyAnnual = {
+      ...MOCK_REPORTS[0],
+      id: "empty-annual",
+      fiscalYear: 2025,
+      reportType: "annual",
+      previewRevenue: null,
+      previewEbitda: null,
+      previewNetProfit: null,
+      previewFcf: null,
+      extractedJsonSnapshot: {
+        ...MOCK_REPORTS[0].extractedJsonSnapshot,
+        metadata: { companyName: "Ekspress Grupp", reportPeriod: "FY 2025" },
+        metrics: [
+          { label: "Profit Distribution", value: 1.031, unit: "million EUR" },
+        ],
+      },
+    };
+    const populatedQ4 = {
+      ...MOCK_REPORTS[1],
+      id: "populated-q4",
+      fiscalYear: 2025,
+      reportType: "q4",
+      previewRevenue: 76_200_000,
+      previewEbitda: 10_700_000,
+      previewNetProfit: -897_103,
+      previewFcf: null,
+      extractedJsonSnapshot: {
+        ...MOCK_REPORTS[1].extractedJsonSnapshot,
+        metadata: { companyName: "Ekspress Grupp", reportPeriod: "Q4 2025" },
+        profitabilityTrends: {
+          periods: ["12M 2024", "12M 2025"],
+          revenue: [null, 76_200_000],
+          ebitda: [null, 10_700_000],
+          netProfit: [3_252_483, -897_103],
+        },
+      },
+    };
+    mockSuccessfulLoad([emptyAnnual, populatedQ4], {
+      ...MOCK_COMPANY,
+      name: "Ekspress Grupp",
+      ticker: "EEG1T",
+      slug: "ekspress-grupp",
+    });
+
+    render(<CompanyAnalyticsDashboardPage />);
+
+    await waitFor(() => expect(screen.getByText("Ekspress Grupp")).toBeInTheDocument());
+    expect(screen.getAllByText("€76M").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("€11M").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/Q4 2025/i).length).toBeGreaterThanOrEqual(1);
+  });
+
   it("renders the trend line chart container", async () => {
     mockSuccessfulLoad();
     render(<CompanyAnalyticsDashboardPage />);
