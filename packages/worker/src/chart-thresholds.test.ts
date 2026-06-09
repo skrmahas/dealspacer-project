@@ -30,16 +30,16 @@ describe("Sparkline thresholds", () => {
     expect(result).toBe("");
   });
 
-  it("returns a valid file:// URL when ≥3 non-null values", async () => {
+  it("returns a valid data image URL when ≥3 non-null values", async () => {
     const result = await renderSparkline([100, 200, 150, 180], tempDir, "spark-4.jpg");
-    expect(result).toMatch(/^file:\/\//);
+    expect(result).toMatch(/^data:image\/jpeg;base64,/);
     expect(result.length).toBeGreaterThan(10);
   });
 
   it("fills null gaps and still renders if ≥3 clean values remain", async () => {
     const result = await renderSparkline([100, null, 200, 150], tempDir, "spark-5.jpg");
     // null gets filled → 4 clean values → renders
-    expect(result).toMatch(/^file:\/\//);
+    expect(result).toMatch(/^data:image\/jpeg;base64,/);
   });
 });
 
@@ -59,7 +59,7 @@ describe("Revenue breakdown bar thresholds", () => {
       { name: "Ferries", value: 100 },
       { name: "Cargo", value: 50 },
     ], tempDir);
-    expect(result).toMatch(/^file:\/\//);
+    expect(result).toMatch(/^data:image\/jpeg;base64,/);
   });
 
   it("renders for 3+ segments", async () => {
@@ -68,7 +68,7 @@ describe("Revenue breakdown bar thresholds", () => {
       { name: "B", value: 200 },
       { name: "C", value: 300 },
     ], tempDir);
-    expect(result).toMatch(/^file:\/\//);
+    expect(result).toMatch(/^data:image\/jpeg;base64,/);
   });
 });
 
@@ -88,7 +88,7 @@ describe("Revenue donut thresholds", () => {
       { name: "A", value: 60 },
       { name: "B", value: 40 },
     ], tempDir);
-    expect(result).toMatch(/^file:\/\//);
+    expect(result).toMatch(/^data:image\/jpeg;base64,/);
   });
 });
 
@@ -115,7 +115,7 @@ describe("Profitability trends thresholds", () => {
       periods: ["2024", "2025"],
       revenue: [100, 120],
     }, tempDir);
-    expect(result).toMatch(/^file:\/\//);
+    expect(result).toMatch(/^data:image\/jpeg;base64,/);
   });
 
   it("renders with multiple series where one meets threshold", async () => {
@@ -124,6 +124,6 @@ describe("Profitability trends thresholds", () => {
       revenue: [100, null, null],
       ebitda: [50, 55, 60],
     }, tempDir);
-    expect(result).toMatch(/^file:\/\//);
+    expect(result).toMatch(/^data:image\/jpeg;base64,/);
   });
 });

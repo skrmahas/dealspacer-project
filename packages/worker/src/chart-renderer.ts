@@ -1,5 +1,3 @@
-import fs from "node:fs/promises";
-import path from "node:path";
 import { Chart, ChartConfiguration, registerables } from "chart.js";
 import { createCanvas, Canvas, CanvasRenderingContext2D } from "canvas";
 import type { ExtractedMetric, RevenueBreakdown, ProfitabilityTrends } from "@bei/shared";
@@ -24,8 +22,8 @@ async function renderChartToFile(
   config: ChartConfiguration,
   width: number,
   height: number,
-  tempDir: string,
-  filename: string,
+  _tempDir: string,
+  _filename: string,
 ): Promise<string> {
   const { canvas } = makeCanvas(width, height);
 
@@ -35,9 +33,7 @@ async function renderChartToFile(
   const buffer = canvas.toBuffer("image/jpeg", { quality: 0.85 });
   chart.destroy();
 
-  const filePath = path.join(tempDir, filename);
-  await fs.writeFile(filePath, buffer);
-  return `file://${filePath}`;
+  return `data:image/jpeg;base64,${buffer.toString("base64")}`;
 }
 
 // ── Sparkline ───────────────────────────────────────────────────────────────
@@ -388,11 +384,11 @@ function getTrendSeries(
 // ── Combined renderer for the assembler ─────────────────────────────────────
 
 export interface ChartImages {
-  sparklines: Map<string, string>; // metric label → file:// URL
+  sparklines: Map<string, string>; // metric label → embeddable image src
   yoyChanges: Map<string, number | null>; // metric label → YoY %
-  revenueBarChart: string;     // file:// URL or ""
-  revenueDonutChart: string;   // file:// URL or ""
-  profitabilityChart: string;  // file:// URL or ""
+  revenueBarChart: string;     // embeddable image src or ""
+  revenueDonutChart: string;   // embeddable image src or ""
+  profitabilityChart: string;  // embeddable image src or ""
 }
 
 export async function renderAllCharts(

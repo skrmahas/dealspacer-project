@@ -80,10 +80,10 @@ describe("buildHtml", () => {
   });
 
   it("includes revenue breakdown when chart present", () => {
-    const charts = { ...emptyCharts, revenueBarChart: "file:///tmp/chart.jpg" };
+    const charts = { ...emptyCharts, revenueBarChart: "data:image/jpeg;base64,abc123" };
     const html = buildHtml(minimalData, charts);
     expect(html).toContain("Revenue Breakdown");
-    expect(html).toContain('src="file:///tmp/chart.jpg"');
+    expect(html).toContain('src="data:image/jpeg;base64,abc123"');
   });
 
   it("uses localized labels for non-English output", () => {
