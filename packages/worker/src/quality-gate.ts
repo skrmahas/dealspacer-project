@@ -1,4 +1,10 @@
-import { inferCanonicalMetricId, type ExtractedData, type ExtractedMetric } from "@bei/shared";
+import {
+  formatHeadlineMetricIssue,
+  inferCanonicalMetricId,
+  validateHeadlineMetrics,
+  type ExtractedData,
+  type ExtractedMetric,
+} from "@bei/shared";
 import type { SanitizationWarnings } from "./sanitizer.js";
 
 export interface QualityGateResult {
@@ -94,6 +100,10 @@ export function assessReportQuality(
     warnings.push(
       `Core metric "${metric.label}" evidence confidence is low (${metric.evidence!.confidence!.toFixed(2)}).`,
     );
+  }
+
+  for (const issue of validateHeadlineMetrics(data)) {
+    warnings.push(formatHeadlineMetricIssue(issue));
   }
 
   if (!hasMeaningfulNarrative(data) && numericMetrics.length < 2) {

@@ -144,6 +144,25 @@ describe("deduplicateMetrics", () => {
     expect(result[0].period).toBe("2025");
   });
 
+  it("preserves evidence and canonical metadata when returning metrics", () => {
+    const metrics: ExtractedMetric[] = [
+      {
+        label: "Revenue",
+        value: 100,
+        unit: "EUR",
+        canonicalId: "revenue",
+        evidence: { snippet: "Revenue was EUR 100", confidence: 0.9 },
+      },
+    ];
+
+    const result = deduplicateMetrics(metrics);
+
+    expect(result[0]).toMatchObject({
+      canonicalId: "revenue",
+      evidence: { snippet: "Revenue was EUR 100", confidence: 0.9 },
+    });
+  });
+
   it("keeps first occurrence when both have period annotations", () => {
     const metrics: ExtractedMetric[] = [
       { label: "EBITDA", value: 50, unit: "EUR", period: "2024" },

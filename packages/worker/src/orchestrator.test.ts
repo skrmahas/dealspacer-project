@@ -5,7 +5,15 @@ import { processJob } from "./orchestrator.js";
 function mockExtraction(): ExtractedData {
   return {
     metadata: { companyName: "Test Co", reportPeriod: "2024", sourceLanguage: "en" },
-    metrics: [{ label: "Revenue", value: 1000000, unit: "EUR" }],
+    metrics: [
+      {
+        label: "Revenue",
+        value: 1000000,
+        unit: "EUR",
+        period: "2024",
+        evidence: { snippet: "Revenue in 2024 was EUR 1,000,000", confidence: 0.92 },
+      },
+    ],
     narratives: [{ section: "executive_summary", text: "Test summary text that is long enough to pass the meaningful text check." }],
     sentiment: { managementTone: "positive", outlook: "Good", riskFactors: ["None"] },
   };
@@ -337,7 +345,15 @@ describe("processJob", () => {
     const parseDocument = vi.fn().mockResolvedValue("Annual report summary financial data revenue ebitda profit margins growth performance business overview segment results");
     const extractFromText = vi.fn().mockResolvedValue({
       metadata: { companyName: "Test", reportPeriod: "Q1", sourceLanguage: "en" },
-      metrics: [{ label: "Revenue", value: 100, unit: "EUR" }],
+      metrics: [
+        {
+          label: "Revenue",
+          value: 100,
+          unit: "EUR",
+          period: "Q1",
+          evidence: { snippet: "Revenue for Q1 was EUR 100", confidence: 0.9 },
+        },
+      ],
       narratives: [{ section: "executive_summary", text: "Good results with strong growth across all segments of the business." }],
       sentiment: { managementTone: "positive", outlook: "Good", riskFactors: [] },
     });
@@ -360,7 +376,13 @@ describe("processJob", () => {
     const extractFromText = vi.fn().mockResolvedValue({
       metadata: { companyName: "Test", reportPeriod: "Q1", sourceLanguage: "en" },
       metrics: [
-        { label: "Revenue", value: 100, unit: "EUR" },
+        {
+          label: "Revenue",
+          value: 100,
+          unit: "EUR",
+          period: "Q1",
+          evidence: { snippet: "Revenue for Q1 was EUR 100", confidence: 0.9 },
+        },
         { label: "Bad Metric", value: null },
       ],
       narratives: [{ section: "executive_summary", text: "Results were strong with good growth across all segments." }],

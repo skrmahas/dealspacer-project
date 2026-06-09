@@ -172,12 +172,8 @@ export function deduplicateMetrics(metrics: ExtractedMetric[]): ExtractedMetric[
       // Actually, since we use i as anchor, just push best
     }
 
-    result.push({
-      label: best.label,
-      value: best.value,
-      unit: best.unit,
-      period: best.period,
-    });
+    const { _normalizedLabel, _originalIndex, ...metric } = best;
+    result.push(metric);
   }
 
   return result;

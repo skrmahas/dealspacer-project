@@ -8,6 +8,12 @@ export { assessPipelineHealth } from "./pipeline-health";
 export type { PipelineHealthSnapshot } from "./pipeline-health";
 export { normalizeMetricToEur, isPerShareOrRatioMetric } from "./metric-units";
 export {
+  formatHeadlineMetricIssue,
+  validateHeadlineMetric,
+  validateHeadlineMetrics,
+} from "./headline-metric-validation";
+export type { HeadlineMetricId, HeadlineMetricIssue } from "./headline-metric-validation";
+export {
   canonicalizeExtractedData,
   canonicalizeMetric,
   getCanonicalMetricLabel,
