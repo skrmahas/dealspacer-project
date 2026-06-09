@@ -700,6 +700,60 @@ describe("createReportStore", () => {
     ]);
   });
 
+  it("listReportRerunCandidates returns candidates with report context", async () => {
+    const snap = { metadata: { companyName: "X", reportPeriod: "2025", sourceLanguage: "en" }, metrics: [], narratives: [], sentiment: { managementTone: "", outlook: "", riskFactors: [] } };
+    const { query } = setupWithClient([{
+      id: "candidate-1",
+      report_id: "r1",
+      job_id: "j2",
+      s3_key: "reports/j2.pdf",
+      extracted_json_snapshot: JSON.stringify(snap),
+      status: "pending_review",
+      quality_warnings: [],
+      created_at: "2024-01-01",
+      approved_at: null,
+      report_company_id: "c1",
+      report_fiscal_year: 2025,
+      report_report_type: "annual",
+      report_language: "en",
+      report_job_id: "j1",
+      report_s3_key: "reports/j1.pdf",
+      report_extracted_json_snapshot: JSON.stringify(snap),
+      report_created_at: "2024-01-01",
+      company_name: "Test Co",
+      company_slug: "test-co",
+    }]);
+
+    const store = createReportStore();
+    const candidates = await store.listReportRerunCandidates(["pending_review"]);
+
+    expect(candidates).toHaveLength(1);
+    expect(candidates[0].report.companyName).toBe("Test Co");
+    expect(candidates[0].report.fiscalYear).toBe(2025);
+    expect(query.mock.calls[0][0]).toContain("FROM report_rerun_candidates");
+  });
+
+  it("rejectReportRerunCandidate marks pending or failed-quality candidates as rejected", async () => {
+    const snap = { metadata: { companyName: "X", reportPeriod: "2025", sourceLanguage: "en" }, metrics: [], narratives: [], sentiment: { managementTone: "", outlook: "", riskFactors: [] } };
+    const { query } = setupWithClient([{
+      id: "candidate-1",
+      report_id: "r1",
+      job_id: "j2",
+      s3_key: "reports/j2.pdf",
+      extracted_json_snapshot: JSON.stringify(snap),
+      status: "rejected",
+      quality_warnings: [],
+      created_at: "2024-01-01",
+      approved_at: null,
+    }]);
+
+    const store = createReportStore();
+    const candidate = await store.rejectReportRerunCandidate("candidate-1");
+
+    expect(candidate.status).toBe("rejected");
+    expect(query.mock.calls[0][0]).toContain("SET status = 'rejected'");
+  });
+
   it("listRecentReports returns limited results", async () => {
     setupWithClient([{ id: "r1", company_id: null, fiscal_year: 2024, report_type: "annual", language: "en", job_id: null, s3_key: "r1.pdf", extracted_json_snapshot: null, created_at: "2024-01-01", company_name: null }]);
     const store = createReportStore();

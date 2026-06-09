@@ -66,6 +66,10 @@ export type {
   ReportType,
   Report,
   ReportWithPreview,
+  ReportRerunCandidateStatus,
+  ReportRerunCandidate,
+  ReportRerunCandidateWithReport,
   CreateReportInput,
+  CreateReportRerunCandidateInput,
   ReportStore,
 } from "./contracts";

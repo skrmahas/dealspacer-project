@@ -10,6 +10,8 @@ import type {
   CompanyStore,
   Report,
   ReportRerunCandidate,
+  ReportRerunCandidateStatus,
+  ReportRerunCandidateWithReport,
   CreateReportInput,
   CreateReportRerunCandidateInput,
   ReportWithPreview,
@@ -433,6 +435,45 @@ function rowToReportRerunCandidate(row: Record<string, unknown>): ReportRerunCan
   };
 }
 
+function rowToReportRerunCandidateWithReport(row: Record<string, unknown>): ReportRerunCandidateWithReport {
+  const reportRow = {
+    id: row.report_id,
+    company_id: row.report_company_id,
+    fiscal_year: row.report_fiscal_year,
+    report_type: row.report_report_type,
+    language: row.report_language,
+    job_id: row.report_job_id,
+    s3_key: row.report_s3_key,
+    extracted_json_snapshot: row.report_extracted_json_snapshot,
+    created_at: row.report_created_at,
+    company_name: row.company_name,
+    company_slug: row.company_slug,
+  };
+  return {
+    ...rowToReportRerunCandidate(row),
+    report: rowToReportWithPreview(reportRow),
+  };
+}
+
+const reportRerunCandidateReviewSelect = `
+  SELECT
+    rrc.*,
+    r.id AS report_id,
+    r.company_id AS report_company_id,
+    r.fiscal_year AS report_fiscal_year,
+    r.report_type AS report_report_type,
+    r.language AS report_language,
+    r.job_id AS report_job_id,
+    r.s3_key AS report_s3_key,
+    r.extracted_json_snapshot AS report_extracted_json_snapshot,
+    r.created_at AS report_created_at,
+    c.name AS company_name,
+    c.slug AS company_slug
+  FROM report_rerun_candidates rrc
+  JOIN reports r ON r.id = rrc.report_id
+  LEFT JOIN companies c ON c.id = r.company_id
+`;
+
 export function createReportStore(): ReportStore {
   return {
     async createReport(input: CreateReportInput): Promise<Report> {
@@ -590,6 +631,35 @@ export function createReportStore(): ReportStore {
       });
     },
 
+    async getReportRerunCandidateForReview(id: string): Promise<ReportRerunCandidateWithReport | null> {
+      return withClient(async (client) => {
+        const result = await client.query(
+          `${reportRerunCandidateReviewSelect}
+           WHERE rrc.id = $1`,
+          [id],
+        );
+        return result.rows.length > 0 ? rowToReportRerunCandidateWithReport(result.rows[0]) : null;
+      });
+    },
+
+    async listReportRerunCandidates(statuses?: ReportRerunCandidateStatus[]): Promise<ReportRerunCandidateWithReport[]> {
+      const filteredStatuses = statuses?.filter((status) =>
+        status === "pending_review" ||
+        status === "failed_quality" ||
+        status === "approved" ||
+        status === "rejected",
+      );
+      return withClient(async (client) => {
+        const result = await client.query(
+          `${reportRerunCandidateReviewSelect}
+           WHERE ($1::text[] IS NULL OR rrc.status = ANY($1::text[]))
+           ORDER BY rrc.created_at DESC`,
+          [filteredStatuses && filteredStatuses.length > 0 ? filteredStatuses : null],
+        );
+        return result.rows.map(rowToReportRerunCandidateWithReport);
+      });
+    },
+
     async promoteReportRerunCandidate(candidateId: string): Promise<Report> {
       return withClient(async (client) => {
         await client.query("BEGIN");
@@ -631,6 +701,20 @@ export function createReportStore(): ReportStore {
           await client.query("ROLLBACK");
           throw err;
         }
+      });
+    },
+
+    async rejectReportRerunCandidate(candidateId: string): Promise<ReportRerunCandidate> {
+      return withClient(async (client) => {
+        const result = await client.query(
+          `UPDATE report_rerun_candidates
+           SET status = 'rejected'
+           WHERE id = $1 AND status = ANY($2::text[])
+           RETURNING *`,
+          [candidateId, ["pending_review", "failed_quality"]],
+        );
+        if (result.rows.length === 0) throw new Error(`Report rerun candidate ${candidateId} not found or not rejectable`);
+        return rowToReportRerunCandidate(result.rows[0]);
       });
     },
 
