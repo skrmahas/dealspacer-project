@@ -14,6 +14,11 @@ export {
 } from "./headline-metric-validation";
 export type { HeadlineMetricId, HeadlineMetricIssue } from "./headline-metric-validation";
 export {
+  assessReportSanity,
+  formatReportSanityIssue,
+} from "./report-sanity";
+export type { HistoricalReportSnapshot, ReportSanityIssue } from "./report-sanity";
+export {
   canonicalizeExtractedData,
   canonicalizeMetric,
   getCanonicalMetricLabel,

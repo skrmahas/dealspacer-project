@@ -168,4 +168,32 @@ describe("assessReportQuality", () => {
       'Headline metric "Free Cash Flow" is invalid: period "FY 2023" does not match report period "FY 2024".',
     );
   });
+
+  it("fails when current-report sanity checks detect incompatible headline metrics", () => {
+    const result = assessReportQuality(
+      baseData({
+        metrics: [
+          {
+            label: "Revenue",
+            value: 139,
+            unit: "EUR",
+            canonicalId: "revenue",
+            normalizedValue: 139,
+            evidence: { snippet: "Revenue was EUR 139", confidence: 0.9 },
+          },
+          {
+            label: "Net Profit",
+            value: -61_792_000,
+            unit: "EUR",
+            canonicalId: "net_profit",
+            normalizedValue: -61_792_000,
+            evidence: { snippet: "Net profit was EUR -61,792,000", confidence: 0.9 },
+          },
+        ],
+      }),
+    );
+
+    expect(result.passed).toBe(false);
+    expect(result.warnings.some((warning) => warning.includes("Net profit"))).toBe(true);
+  });
 });
