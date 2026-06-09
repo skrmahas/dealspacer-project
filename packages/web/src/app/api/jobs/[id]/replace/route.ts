@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import type { ExtractedData, ReportType, OutputLanguage } from "@bei/shared";
 import { createPostgresStore, createReportStore } from "@bei/shared";
 
+function extractDuplicateCompanyId(error: string | null): string | null {
+  return error?.match(/Duplicate report: company=([0-9a-f-]{36})/i)?.[1] ?? null;
+}
+
 function parseReportPeriod(reportPeriod: string): { fiscalYear: number; reportType: ReportType } | null {
   const s = reportPeriod.trim();
 
@@ -87,7 +91,7 @@ export async function POST(
     }
 
     const reportStore = createReportStore();
-    const companyId = job.companyId ?? null;
+    const companyId = job.companyId ?? extractDuplicateCompanyId(job.error);
 
     // Find existing report matching company + fiscal year + report type + language
     const existingReport = await reportStore.getReportByMatch(companyId, period.fiscalYear, period.reportType, language);
@@ -111,6 +115,7 @@ export async function POST(
       replaced: false,
       candidateId: candidate.id,
       reportId: existingReport.id,
+      reviewUrl: `/admin/report-reruns?candidate=${candidate.id}`,
       status: candidate.status,
     });
   } catch (err) {

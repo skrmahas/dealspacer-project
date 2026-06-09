@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { ArrowLeft, Check, ExternalLink, X } from "lucide-react";
 import { AppSiteHeader } from "@/components/app-site-header";
 
@@ -103,6 +104,8 @@ function statusLabel(status: Candidate["status"]): string {
 }
 
 export default function AdminReportRerunsPage() {
+  const searchParams = useSearchParams();
+  const requestedCandidateId = searchParams.get("candidate");
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -115,12 +118,16 @@ export default function AdminReportRerunsPage() {
       .then((data) => {
         if (Array.isArray(data)) {
           setCandidates(data);
-          setSelectedId(data[0]?.id ?? null);
+          setSelectedId(
+            data.some((candidate) => candidate.id === requestedCandidateId)
+              ? requestedCandidateId
+              : data[0]?.id ?? null,
+          );
         }
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
-  }, []);
+  }, [requestedCandidateId]);
 
   const selected = useMemo(
     () => candidates.find((candidate) => candidate.id === selectedId) ?? candidates[0] ?? null,
