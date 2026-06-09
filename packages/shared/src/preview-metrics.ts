@@ -1,11 +1,9 @@
 import type { ExtractedMetric, ProfitabilityTrends } from "./contracts";
 import { inferCanonicalMetricId } from "./canonical-metrics";
 import {
-  applySnapshotCurrencyScale,
   detectSnapshotCurrencyMultiplier,
-  isPerShareOrRatioMetric,
-  looksLikeAggregateCurrency,
   normalizeMetricToEur,
+  normalizeMetricValueToEur,
 } from "./metric-units";
 
 export type PreviewMetricKey = "revenue" | "ebitda" | "netProfit" | "fcf";
@@ -134,94 +132,14 @@ export function findMetricByKey(
   );
 }
 
-function isPlainEurUnit(unit: string | undefined): boolean {
-  const compact = (unit ?? "").trim().toLowerCase().replace(/\s+/g, "");
-  return /^eur$|^€$|^euro$/.test(compact);
-}
-
-function findPlainEurRevenueMetric(snapshot: PreviewSnapshot | null): ExtractedMetric | null {
-  return (
-    snapshot?.metrics?.find(
-      (metric) =>
-        metric.value != null &&
-        Number.isFinite(metric.value) &&
-        isPlainEurUnit(metric.unit) &&
-        labelMatchesKey(metric.originalLabel ?? metric.label, "revenue"),
-    ) ?? null
-  );
-}
-
-function isBalanceSheetLabel(label: string): boolean {
-  return /\bassets?\b|\bequity\b|\bliabilit|\bdebt\b/i.test(label);
-}
-
-function plainEurSnapshotScale(snapshot: PreviewSnapshot | null): 1 | 1_000_000 | null {
-  const revenue = findPlainEurRevenueMetric(snapshot);
-  if (revenue?.value == null) return null;
-  const absRevenue = Math.abs(revenue.value);
-  if (absRevenue >= 1_000_000) return 1;
-
-  if (absRevenue > 0 && absRevenue < 1_000) {
-    const balanceSheetMetrics =
-      snapshot?.metrics?.filter(
-        (metric) =>
-          metric.value != null &&
-          Number.isFinite(metric.value) &&
-          isPlainEurUnit(metric.unit) &&
-          isBalanceSheetLabel(metric.originalLabel ?? metric.label),
-      ) ?? [];
-    if (
-      balanceSheetMetrics.length >= 2 &&
-      balanceSheetMetrics.every((metric) => Math.abs(metric.value ?? 0) < 10_000)
-    ) {
-      return 1_000_000;
-    }
-  }
-
-  return null;
-}
-
-/** Baltic filings often store thousands as plain EUR (e.g. 45 786 = €45.8M). */
-function ensureThousandsEurScale(value: number, unit: string | undefined, normalized: number): number {
-  if (!isPlainEurUnit(unit)) return normalized;
-  if (Math.abs(normalized) >= 1_000_000) return normalized;
-  if (Math.abs(normalized) !== Math.abs(value)) return normalized;
-  const abs = Math.abs(value);
-  if (abs >= 1_000 && abs < 1_000_000) return value * 1_000;
-  return normalized;
-}
-
-function normalizeExtractedValue(
-  value: number,
-  unit: string | undefined,
-  label: string,
+function normalizeExtractedMetric(
+  metric: ExtractedMetric,
   snapshot: PreviewSnapshot | null,
 ): number {
-  const snapshotMultiplier = detectSnapshotCurrencyMultiplier(snapshot);
-  if (
-    isPlainEurUnit(unit) &&
-    snapshotMultiplier > 1 &&
-    looksLikeAggregateCurrency(label) &&
-    !isPerShareOrRatioMetric(label) &&
-    Math.abs(value) < 10_000
-  ) {
-    return value * snapshotMultiplier;
-  }
-
-  const plainEurScale = isPlainEurUnit(unit) ? plainEurSnapshotScale(snapshot) : null;
-  if (plainEurScale === 1) return value;
-  if (
-    plainEurScale === 1_000_000 &&
-    looksLikeAggregateCurrency(label) &&
-    !isPerShareOrRatioMetric(label) &&
-    Math.abs(value) < 10_000
-  ) {
-    return value * 1_000_000;
-  }
-
-  const normalized = normalizeMetricToEur(value, unit, label);
-  const scaled = applySnapshotCurrencyScale(value, unit, label, snapshot, normalized);
-  return ensureThousandsEurScale(value, unit, scaled);
+  return normalizeMetricValueToEur(
+    { ...metric, label: metric.originalLabel ?? metric.label },
+    snapshot,
+  ) ?? metric.value ?? 0;
 }
 
 function inferTrendMultiplier(target: number | null, values: (number | null)[] | undefined): number | null {
@@ -257,7 +175,7 @@ function inferTrendMultipliers(
     const target =
       metric?.value != null
         ? metric.normalizedValue ??
-          normalizeExtractedValue(metric.value, metric.unit, metric.originalLabel ?? metric.label, snapshot)
+          normalizeExtractedMetric(metric, snapshot)
         : null;
     const multiplier = inferTrendMultiplier(target, trends?.[trendField]);
     if (multiplier != null) {
@@ -300,7 +218,7 @@ function normalizeTrendValue(
   if (mult > 1 && Math.abs(value) < 1_000_000) {
     return value * mult;
   }
-  return ensureThousandsEurScale(value, "EUR", normalizeMetricToEur(value, "EUR", "Revenue"));
+  return normalizeMetricToEur(value, "EUR", "Revenue");
 }
 
 function trendValueAt(
@@ -327,7 +245,7 @@ export function resolvePreviewMetric(
 ): number | null {
   const m = findMetricByKey(snapshot, key);
   if (m?.value != null) {
-    return m.normalizedValue ?? normalizeExtractedValue(m.value, m.unit, m.originalLabel ?? m.label, snapshot);
+    return m.normalizedValue ?? normalizeExtractedMetric(m, snapshot);
   }
   return trendValueAt(snapshot, key, -1);
 }

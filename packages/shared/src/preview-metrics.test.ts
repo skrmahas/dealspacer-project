@@ -22,6 +22,14 @@ const ARTEA_SNAPSHOT = {
   },
 };
 
+const ARTEA_THOUSANDS_SNAPSHOT = {
+  ...ARTEA_SNAPSHOT,
+  metrics: ARTEA_SNAPSHOT.metrics.map((metric) => ({
+    ...metric,
+    evidence: { snippet: "Financial results table, EUR thousand" },
+  })),
+};
+
 describe("preview-metrics (Artea Bankas LT Q1)", () => {
   it("finds revenue and net profit from Lithuanian labels", () => {
     expect(findMetricByKey(ARTEA_SNAPSHOT, "revenue")?.label).toBe("Pajamos");
@@ -42,9 +50,15 @@ describe("preview-metrics (Artea Bankas LT Q1)", () => {
   });
 
   it("builds normalized previews in whole EUR", () => {
-    const preview = buildReportPreview(ARTEA_SNAPSHOT);
+    const preview = buildReportPreview(ARTEA_THOUSANDS_SNAPSHOT);
     expect(preview.previewRevenue).toBe(45_786_000);
     expect(preview.previewNetProfit).toBe(15_420_000);
+  });
+
+  it("preserves plain EUR previews without explicit scale evidence", () => {
+    const preview = buildReportPreview(ARTEA_SNAPSHOT);
+    expect(preview.previewRevenue).toBe(45_786);
+    expect(preview.previewNetProfit).toBe(15_420);
   });
 
   it("does not over-scale plain EUR profit metrics when revenue is already whole EUR", () => {
@@ -75,6 +89,32 @@ describe("preview-metrics (Artea Bankas LT Q1)", () => {
     expect(preview.previewEbitda).toBe(552_151);
     expect(preview.previewNetProfit).toBe(127_891);
     expect(preview.previewFcf).toBe(-1_508_756);
+  });
+
+  it("does not inflate Airobot plain EUR loss metrics", () => {
+    const preview = buildReportPreview({
+      metrics: [
+        { unit: "EUR", label: "Revenue", value: 1_679_919 },
+        { unit: "EUR", label: "Net Profit (Loss)", value: -425_779 },
+        { unit: "EUR", label: "Free Cash Flow", value: -191_022 },
+      ],
+    });
+
+    expect(preview.previewRevenue).toBe(1_679_919);
+    expect(preview.previewNetProfit).toBe(-425_779);
+    expect(preview.previewFcf).toBe(-191_022);
+  });
+
+  it("does not inflate Grab2Go plain EUR net loss metrics", () => {
+    const preview = buildReportPreview({
+      metrics: [
+        { unit: "EUR", label: "Revenue", value: 5664 },
+        { unit: "EUR", label: "Net Profit", value: -188_162 },
+      ],
+    });
+
+    expect(preview.previewRevenue).toBe(5664);
+    expect(preview.previewNetProfit).toBe(-188_162);
   });
 
   it("scales compact million-style EUR snapshots with small balance sheet values", () => {
@@ -108,12 +148,12 @@ describe("preview-metrics (Artea Bankas LT Q1)", () => {
   });
 
   it("reads prior period from profitabilityTrends for YoY", () => {
-    expect(resolvePriorPreviewMetric(ARTEA_SNAPSHOT, "revenue")).toBe(49_644_000);
-    expect(resolvePriorPreviewMetric(ARTEA_SNAPSHOT, "netProfit")).toBe(17_683_000);
+    expect(resolvePriorPreviewMetric(ARTEA_THOUSANDS_SNAPSHOT, "revenue")).toBe(49_644_000);
+    expect(resolvePriorPreviewMetric(ARTEA_THOUSANDS_SNAPSHOT, "netProfit")).toBe(17_683_000);
   });
 
   it("builds multi-period trend chart from a single filing", () => {
-    const chart = buildTrendChartFromSnapshot(ARTEA_SNAPSHOT);
+    const chart = buildTrendChartFromSnapshot(ARTEA_THOUSANDS_SNAPSHOT);
     expect(chart?.labels).toEqual(["Q1 2025", "Q1 2026"]);
     expect(chart?.revenue).toEqual([49_644_000, 45_786_000]);
     expect(chart?.netProfit).toEqual([17_683_000, 15_420_000]);
@@ -162,9 +202,9 @@ describe("preview-metrics (Artea Bankas LT Q1)", () => {
   it("keeps small trend values aligned with the inferred filing scale", () => {
     const chart = buildTrendChartFromSnapshot({
       metrics: [
-        { unit: "EUR", label: "Revenue", value: 152425 },
-        { unit: "EUR", label: "EBITDA", value: -4122 },
-        { unit: "EUR", label: "Net Profit", value: -5155 },
+        { unit: "EUR", label: "Revenue", value: 152425, evidence: { snippet: "Financial table, EUR thousand" } },
+        { unit: "EUR", label: "EBITDA", value: -4122, evidence: { snippet: "Financial table, EUR thousand" } },
+        { unit: "EUR", label: "Net Profit", value: -5155, evidence: { snippet: "Financial table, EUR thousand" } },
       ],
       profitabilityTrends: {
         periods: ["Q3 2022", "9M 2022", "Q3 2024", "9M 2024"],
@@ -180,7 +220,7 @@ describe("preview-metrics (Artea Bankas LT Q1)", () => {
 
   it("sorts annual trend periods chronologically while preserving aligned values", () => {
     const chart = buildTrendChartFromSnapshot({
-      metrics: [{ unit: "EUR", label: "Revenue", value: 174047 }],
+      metrics: [{ unit: "EUR", label: "Revenue", value: 174047, evidence: { snippet: "Financial results table, EUR thousand" } }],
       profitabilityTrends: {
         periods: ["2025", "2021", "2022", "2023", "2024"],
         revenue: [174047, 152.8, 175.3, 209, 174.7],

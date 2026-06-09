@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { applySnapshotCurrencyScale, normalizeMetricToEur } from "./metric-units.js";
+import {
+  applySnapshotCurrencyScale,
+  normalizeMetricToEur,
+  normalizeMetricValueToEur,
+} from "./metric-units.js";
 
 describe("normalizeMetricToEur", () => {
   it("converts EUR millions", () => {
@@ -15,9 +19,10 @@ describe("normalizeMetricToEur", () => {
     expect(normalizeMetricToEur(210_400_000, "EUR", "Revenue")).toBe(210_400_000);
   });
 
-  it("scales mislabeled plain EUR thousands for aggregate metrics", () => {
-    expect(normalizeMetricToEur(7685, "EUR", "Revenue")).toBe(7_685_000);
-    expect(normalizeMetricToEur(7685, "EUR", "Net Profit")).toBe(7_685_000);
+  it("preserves plain EUR aggregates by default", () => {
+    expect(normalizeMetricToEur(7685, "EUR", "Revenue")).toBe(7685);
+    expect(normalizeMetricToEur(7685, "EUR", "Net Profit")).toBe(7685);
+    expect(normalizeMetricToEur(7685, undefined, "Revenue")).toBe(7685);
   });
 
   it("does not scale per-share metrics", () => {
@@ -32,7 +37,7 @@ describe("normalizeMetricToEur", () => {
 });
 
 describe("applySnapshotCurrencyScale", () => {
-  it("scales plain EUR aggregates when the filing uses thousand EUR elsewhere", () => {
+  it("does not scale a plain EUR aggregate just because one sibling uses thousand EUR", () => {
     const snapshot = {
       metrics: [
         { label: "Revenue", value: 7685, unit: "EUR" },
@@ -41,6 +46,47 @@ describe("applySnapshotCurrencyScale", () => {
     };
     expect(
       applySnapshotCurrencyScale(-479, "EUR", "Net Profit", snapshot, -479),
+    ).toBe(-479);
+  });
+
+  it("scales a plain EUR aggregate when its own evidence says values are thousands", () => {
+    const snapshot = {
+      metrics: [
+        {
+          label: "Net Profit",
+          value: -479,
+          unit: "EUR",
+          evidence: { snippet: "Consolidated statement of profit or loss, in thousands of euros" },
+        },
+      ],
+    };
+
+    expect(
+      normalizeMetricValueToEur(snapshot.metrics[0]!, snapshot),
+    ).toBe(-479_000);
+  });
+
+  it("uses consistent filing-wide evidence only when multiple siblings agree", () => {
+    const snapshot = {
+      metrics: [
+        {
+          label: "Revenue",
+          value: 7685,
+          unit: "EUR",
+          evidence: { snippet: "Revenue table, EUR thousand" },
+        },
+        {
+          label: "Assets",
+          value: 49873,
+          unit: "EUR",
+          evidence: { snippet: "Balance sheet, EUR thousand" },
+        },
+        { label: "Net Profit", value: -479, unit: "EUR" },
+      ],
+    };
+
+    expect(
+      normalizeMetricValueToEur(snapshot.metrics[2]!, snapshot),
     ).toBe(-479_000);
   });
 });
