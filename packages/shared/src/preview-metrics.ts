@@ -41,6 +41,13 @@ const CANONICAL_KEY: Record<PreviewMetricKey, PreviewCanonicalId> = {
   fcf: "free_cash_flow",
 };
 
+const PREVIEW_KEY_FOR_TREND_FIELD: Record<TrendField, PreviewMetricKey> = {
+  revenue: "revenue",
+  ebitda: "ebitda",
+  netProfit: "netProfit",
+  freeCashFlow: "fcf",
+};
+
 function isExcludedMetricLabel(label: string): boolean {
   const l = label.toLowerCase();
   return (
@@ -217,7 +224,78 @@ function normalizeExtractedValue(
   return ensureThousandsEurScale(value, unit, scaled);
 }
 
-function normalizeTrendValue(value: number, snapshot: PreviewSnapshot | null): number {
+function inferTrendMultiplier(target: number | null, values: (number | null)[] | undefined): number | null {
+  if (target == null || !Number.isFinite(target) || target === 0 || !values?.length) return null;
+  const candidates = [1, 1_000, 1_000_000];
+  let best: { multiplier: number; distance: number } | null = null;
+
+  for (const raw of values) {
+    if (raw == null || !Number.isFinite(raw) || raw === 0) continue;
+    for (const multiplier of candidates) {
+      const scaled = Math.abs(raw * multiplier);
+      if (scaled === 0) continue;
+      const distance = Math.abs(Math.log(scaled / Math.abs(target)));
+      if (!best || distance < best.distance) {
+        best = { multiplier, distance };
+      }
+    }
+  }
+
+  return best?.multiplier ?? null;
+}
+
+function inferTrendMultipliers(
+  snapshot: PreviewSnapshot | null,
+  trends: ProfitabilityTrends | undefined,
+): { field: Partial<Record<TrendField, number>>; fallback: number | null } {
+  const field: Partial<Record<TrendField, number>> = {};
+  const inferred: number[] = [];
+
+  for (const trendField of Object.values(TREND_FIELD)) {
+    const key = PREVIEW_KEY_FOR_TREND_FIELD[trendField];
+    const metric = findMetricByKey(snapshot, key);
+    const target =
+      metric?.value != null
+        ? metric.normalizedValue ??
+          normalizeExtractedValue(metric.value, metric.unit, metric.originalLabel ?? metric.label, snapshot)
+        : null;
+    const multiplier = inferTrendMultiplier(target, trends?.[trendField]);
+    if (multiplier != null) {
+      field[trendField] = multiplier;
+      inferred.push(multiplier);
+    }
+  }
+
+  const fallback =
+    inferred.length > 0
+      ? [...new Set(inferred)]
+          .map((multiplier) => ({
+            multiplier,
+            count: inferred.filter((value) => value === multiplier).length,
+          }))
+          .sort((a, b) => b.count - a.count || b.multiplier - a.multiplier)[0]?.multiplier ?? null
+      : null;
+
+  return { field, fallback };
+}
+
+function hasLargeMixedTrendValues(values: (number | null)[] | undefined): boolean {
+  const finite = (values ?? []).filter((value): value is number => value != null && Number.isFinite(value));
+  return finite.some((value) => Math.abs(value) >= 100_000) && finite.some((value) => Math.abs(value) > 0 && Math.abs(value) < 1_000);
+}
+
+function normalizeTrendValue(
+  value: number,
+  snapshot: PreviewSnapshot | null,
+  multiplier?: number | null,
+  hasLargeMixedValues = false,
+): number {
+  if (multiplier != null) {
+    if (multiplier === 1_000 && hasLargeMixedValues && Math.abs(value) > 0 && Math.abs(value) < 1_000) {
+      return value * 1_000_000;
+    }
+    return value * multiplier;
+  }
   const mult = detectSnapshotCurrencyMultiplier(snapshot);
   if (mult > 1 && Math.abs(value) < 1_000_000) {
     return value * mult;
@@ -234,11 +312,13 @@ function trendValueAt(
   const field = TREND_FIELD[key];
   const arr = trends?.[field];
   if (!arr?.length) return null;
+  const multipliers = inferTrendMultipliers(snapshot, trends);
+  const multiplier = multipliers.field[field] ?? multipliers.fallback;
   const idx = indexFromEnd < 0 ? arr.length + indexFromEnd : indexFromEnd;
   if (idx < 0 || idx >= arr.length) return null;
   const raw = arr[idx];
   if (raw == null || !Number.isFinite(raw)) return null;
-  return normalizeTrendValue(raw, snapshot);
+  return normalizeTrendValue(raw, snapshot, multiplier, hasLargeMixedTrendValues(arr));
 }
 
 export function resolvePreviewMetric(
@@ -323,12 +403,17 @@ export function buildTrendChartFromSnapshot(snapshot: PreviewSnapshot | null): {
   const trends = snapshot?.profitabilityTrends;
   if (!trends?.periods?.length) return null;
   const indexes = sortedTrendIndexes(trends.periods);
+  const multipliers = inferTrendMultipliers(snapshot, trends);
 
-  const mapSeries = (field: TrendField) =>
-    indexes.map((index) => {
-      const v = (trends[field] ?? [])[index] ?? null;
-      return v == null ? null : normalizeTrendValue(v, snapshot);
+  const mapSeries = (field: TrendField) => {
+    const values = trends[field] ?? [];
+    const multiplier = multipliers.field[field] ?? multipliers.fallback;
+    const hasLargeMixedValues = hasLargeMixedTrendValues(values);
+    return indexes.map((index) => {
+      const v = values[index] ?? null;
+      return v == null ? null : normalizeTrendValue(v, snapshot, multiplier, hasLargeMixedValues);
     });
+  };
 
   return {
     labels: indexes.map((index) => trends.periods[index] ?? ""),

@@ -119,6 +119,65 @@ describe("preview-metrics (Artea Bankas LT Q1)", () => {
     expect(chart?.netProfit).toEqual([17_683_000, 15_420_000]);
   });
 
+  it("infers million-scale trend values from current metric values", () => {
+    const chart = buildTrendChartFromSnapshot({
+      metrics: [
+        { unit: "million EUR", label: "Revenue", value: 919.6 },
+        { unit: "million EUR", label: "EBITDA", value: 77.4 },
+        { unit: "million EUR", label: "Net Profit", value: 17.5 },
+        { unit: "thousand EUR", label: "Capital Expenditures", value: 14366 },
+      ],
+      profitabilityTrends: {
+        periods: ["2024", "2025"],
+        revenue: [944.6, 919.6],
+        ebitda: [90.7, 77.4],
+        netProfit: [27, 17.5],
+      },
+    });
+
+    expect(chart?.revenue).toEqual([944_600_000, 919_600_000]);
+    expect(chart?.ebitda).toEqual([90_700_000, 77_400_000]);
+    expect(chart?.netProfit).toEqual([27_000_000, 17_500_000]);
+  });
+
+  it("uses the inferred trend scale for series that are missing headline metrics", () => {
+    const preview = buildReportPreview({
+      metrics: [
+        { unit: "EUR m", label: "Revenue", value: 17.99 },
+        { unit: "EUR m", label: "Net Profit", value: 4.28 },
+        { unit: "EUR m", label: "Free Cash Flow", value: 7.09 },
+      ],
+      profitabilityTrends: {
+        periods: ["Q1 2025", "Q1 2026"],
+        revenue: [16004, 17993],
+        ebitda: [null, 8442],
+        netProfit: [3436, 4277],
+        freeCashFlow: [7402, 7093],
+      },
+    });
+
+    expect(preview.previewEbitda).toBe(8_442_000);
+  });
+
+  it("keeps small trend values aligned with the inferred filing scale", () => {
+    const chart = buildTrendChartFromSnapshot({
+      metrics: [
+        { unit: "EUR", label: "Revenue", value: 152425 },
+        { unit: "EUR", label: "EBITDA", value: -4122 },
+        { unit: "EUR", label: "Net Profit", value: -5155 },
+      ],
+      profitabilityTrends: {
+        periods: ["Q3 2022", "9M 2022", "Q3 2024", "9M 2024"],
+        revenue: [62960, 151745, 61104, 152425],
+        ebitda: [1117, 43, -2557, -4122],
+        netProfit: [1819, -218, -2879, -5155],
+      },
+    });
+
+    expect(chart?.ebitda).toEqual([1_117_000, 43_000, -2_557_000, -4_122_000]);
+    expect(chart?.netProfit).toEqual([1_819_000, -218_000, -2_879_000, -5_155_000]);
+  });
+
   it("sorts annual trend periods chronologically while preserving aligned values", () => {
     const chart = buildTrendChartFromSnapshot({
       metrics: [{ unit: "EUR", label: "Revenue", value: 174047 }],
@@ -131,9 +190,9 @@ describe("preview-metrics (Artea Bankas LT Q1)", () => {
     });
 
     expect(chart?.labels).toEqual(["2021", "2022", "2023", "2024", "2025"]);
-    expect(chart?.revenue).toEqual([152.8, 175.3, 209, 174.7, 174_047_000]);
-    expect(chart?.ebitda).toEqual([7.2, 0.2, 12.4, 10.4, null]);
-    expect(chart?.netProfit).toEqual([2.6, -5.5, 5.2, 3.2, null]);
+    expect(chart?.revenue).toEqual([152_800_000, 175_300_000, 209_000_000, 174_700_000, 174_047_000]);
+    expect(chart?.ebitda).toEqual([7_200, 200, 12_400, 10_400, null]);
+    expect(chart?.netProfit).toEqual([2_600, -5_500, 5_200, 3_200, null]);
   });
 
   it("sorts quarter and date trend periods by fiscal sequence", () => {
