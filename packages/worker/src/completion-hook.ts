@@ -119,9 +119,20 @@ export async function onJobComplete(
   } catch (err) {
     if (err instanceof DuplicateReportError) {
       log(`Duplicate report: ${err.message}`);
+      // Resolve the existing report so the UI's "View Existing" button has somewhere
+      // to navigate to. The current job has no report row of its own.
+      const existing = await reportStore.getReportByMatch(
+        companyId,
+        parsed.fiscalYear,
+        parsed.reportType,
+        job.outputLanguage,
+      );
       await store.updateJob(job.id, {
         state: "duplicate",
         error: err.message,
+        extractedJson: existing
+          ? JSON.stringify({ duplicateOfReportId: existing.id })
+          : undefined,
       });
     } else {
       throw err;

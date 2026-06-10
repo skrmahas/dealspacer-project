@@ -52,12 +52,14 @@ function makeData(overrides: Partial<ExtractedData> = {}): ExtractedData {
 function mockReportStore(overrides: Partial<ReportStore> = {}) {
   const createReport = vi.fn().mockResolvedValue(undefined);
   const listReportsByCompany = vi.fn().mockResolvedValue([]);
+  const getReportByMatch = vi.fn().mockResolvedValue(null);
   vi.mocked(createReportStore).mockReturnValue({
     createReport,
     listReportsByCompany,
+    getReportByMatch,
     ...overrides,
   } as unknown as ReportStore);
-  return { createReport, listReportsByCompany };
+  return { createReport, listReportsByCompany, getReportByMatch };
 }
 
 describe("onJobComplete", () => {
@@ -203,8 +205,11 @@ describe("onJobComplete", () => {
     expect(store.updateJob).not.toHaveBeenCalled();
   });
 
-  it("marks the job as duplicate when report creation hits a duplicate", async () => {
-    mockReportStore({ createReport: vi.fn().mockRejectedValue(new DuplicateReportError("already exists")) as any });
+  it("marks the job as duplicate and stashes the existing report id for View Existing", async () => {
+    mockReportStore({
+      createReport: vi.fn().mockRejectedValue(new DuplicateReportError("already exists")) as any,
+      getReportByMatch: vi.fn().mockResolvedValue({ id: "existing-report-id" }) as any,
+    });
     vi.mocked(matchCompany).mockResolvedValue({ companyId: "company-123", confidence: 0.91 });
     vi.mocked(parseReportPeriod).mockReturnValue({ fiscalYear: 2024, reportType: "annual" });
 
@@ -218,6 +223,29 @@ describe("onJobComplete", () => {
     expect(store.updateJob).toHaveBeenCalledWith("job-1", {
       state: "duplicate",
       error: "already exists",
+      extractedJson: JSON.stringify({ duplicateOfReportId: "existing-report-id" }),
+    });
+  });
+
+  it("still marks the job as duplicate even if the existing report can't be resolved", async () => {
+    mockReportStore({
+      createReport: vi.fn().mockRejectedValue(new DuplicateReportError("already exists")) as any,
+      getReportByMatch: vi.fn().mockResolvedValue(null) as any,
+    });
+    vi.mocked(matchCompany).mockResolvedValue({ companyId: "company-123", confidence: 0.91 });
+    vi.mocked(parseReportPeriod).mockReturnValue({ fiscalYear: 2024, reportType: "annual" });
+
+    const store = {
+      updateJob: vi.fn().mockResolvedValue(undefined),
+      getJob: vi.fn(),
+    };
+
+    await onJobComplete(makeJob(), makeData(), store);
+
+    expect(store.updateJob).toHaveBeenCalledWith("job-1", {
+      state: "duplicate",
+      error: "already exists",
+      extractedJson: undefined,
     });
   });
 
