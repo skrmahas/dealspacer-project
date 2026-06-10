@@ -7,7 +7,9 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const report = await createReportStore().getReportById(id);
+    // Accept either a report ID or a job ID — share URLs from the upload page use jobId.
+    const store = createReportStore();
+    const report = (await store.getReportById(id)) ?? (await store.getReportByJobId(id));
     if (!report) {
       return NextResponse.json({ error: "Report not found" }, { status: 404 });
     }
