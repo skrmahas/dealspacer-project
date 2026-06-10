@@ -14,7 +14,8 @@ const standardFontsDir = path.resolve(
   "pdfjs-dist",
   "standard_fonts",
 );
-const standardFontDataUrl = `${standardFontsDir}${path.sep}`;
+// pdfjs requires a URL-style path with a trailing forward slash (Windows path.sep = "\" trips it).
+const standardFontDataUrl = `${standardFontsDir.replace(/\\/g, "/")}/`;
 
 export const NO_FINANCIAL_DATA_MESSAGE = "No financial data found in this document";
 

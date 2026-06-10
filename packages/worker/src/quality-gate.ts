@@ -7,7 +7,6 @@ import {
   type ExtractedData,
   type ExtractedMetric,
 } from "@bei/shared";
-import type { SanitizationWarnings } from "./sanitizer.js";
 
 export interface QualityGateResult {
   passed: boolean;
@@ -57,10 +56,7 @@ function hasLowConfidence(metric: ExtractedMetric): boolean {
   return typeof confidence === "number" && Number.isFinite(confidence) && confidence < 0.6;
 }
 
-export function assessReportQuality(
-  data: ExtractedData,
-  sanitizationWarnings?: SanitizationWarnings,
-): QualityGateResult {
+export function assessReportQuality(data: ExtractedData): QualityGateResult {
   const warnings: string[] = [];
   const companyName = data.metadata.companyName.trim();
   const reportPeriod = data.metadata.reportPeriod.trim();
@@ -114,12 +110,6 @@ export function assessReportQuality(
 
   if (!hasMeaningfulNarrative(data) && numericMetrics.length < 2) {
     warnings.push("Extraction has neither meaningful narrative text nor enough numeric metrics.");
-  }
-
-  if (sanitizationWarnings?.droppedNullMetrics && sanitizationWarnings.droppedNullMetrics >= 3) {
-    warnings.push(
-      `Sanitizer dropped ${sanitizationWarnings.droppedNullMetrics} null-valued metric(s).`,
-    );
   }
 
   return {

@@ -21,16 +21,14 @@ Extract the following from the provided document text into a JSON object. Follow
 2. metrics: an array of { label, value, unit?, period?, evidence? }
    - Extract ALL financial figures, with special attention to the PRIMARY TARGETS:
    - Revenue (total operating revenue / income)
-   - Free Cash Flow (FCF): operating cash flow minus CAPEX. Look for "free cash flow",
-     "FCF", "net cash from operating activities" and "capital expenditures" / "CAPEX".
-     If both operating cash flow and CAPEX are present, compute FCF = OCF - CAPEX.
-     If only operating cash flow is present, extract it and note unit.
+   - Operating Cash Flow (OCF): "net cash from operating activities", "cash flow from operating activities". Extract as a separate metric.
+   - CAPEX (Capital Expenditure): "capital expenditures", "purchases of property/plant/equipment", "investments in fixed assets". Extract as a separate metric.
+   - Free Cash Flow (FCF): ONLY emit if the document explicitly states a Free Cash Flow / FCF figure. Do NOT compute FCF yourself from OCF and CAPEX — that calculation is performed deterministically after extraction. If you only see OCF or only see CAPEX (not both, or the explicit FCF line is absent), extract them separately and do NOT emit a Free Cash Flow entry.
    - EBITDA (operating profit + depreciation + amortization)
    - Net Profit (bottom-line net income / profit for the period)
-   - Other figures: operating profit, investment (CAPEX), assets, equity, liabilities,
-     cash flow, EPS, dividends, financial targets, projections, budget figures, etc.
+   - Other figures: operating profit, assets, equity, liabilities, EPS, dividends, financial targets, projections, budget figures, etc.
    - Include both historical results AND forward-looking targets/projections. Mark targets with period like "2026 target", "2029 plan".
-   - value must be a number (use null if value is mentioned but unclear)
+   - value must be a number. If a metric is mentioned but the figure is missing, unclear, or in a different section, OMIT the entry entirely — do NOT emit value:null. Never narrate absence ("not explicitly stated", "not reported", etc.).
    - unit should be the stated unit (e.g. "EUR", "EUR m", "EUR bn", "thousand EUR")
    - period can be omitted if the metric applies to the full report period
    - evidence should be included for important facts: revenue, EBITDA, net profit,
@@ -92,9 +90,9 @@ const METRICS_PROMPT = `You are a financial data extraction specialist. Extract 
 
 PRIMARY TARGETS (most important):
 1. Revenue — total operating revenue / income
-2. Free Cash Flow (FCF) — operating cash flow minus CAPEX. Look for "free cash flow",
-   "FCF", "net cash from operating activities" and "capital expenditures" / "CAPEX".
-   If both OCF and CAPEX are present, compute FCF = OCF - CAPEX.
+2. Operating Cash Flow (OCF) — "net cash from operating activities", "cash flow from operating activities". Extract as a separate metric.
+3. CAPEX — "capital expenditures", "purchases of property/plant/equipment", "investments in fixed assets". Extract as a separate metric.
+4. Free Cash Flow (FCF) — ONLY emit if the document explicitly states an FCF / Free Cash Flow figure. Do NOT compute FCF from OCF/CAPEX yourself; that calculation runs deterministically after extraction. If you only see OCF or only see CAPEX (not both, or no explicit FCF line), extract them separately and do NOT emit a Free Cash Flow entry.
 
 Return a JSON object with:
 1. metadata: { companyName, reportPeriod, sourceLanguage, evidence? }
@@ -104,9 +102,9 @@ Return a JSON object with:
    - evidence: { companyName?: evidence, reportPeriod?: evidence }
 
 2. metrics: array of { label, value, unit?, period?, evidence? }
-   - Extract ALL financial figures: revenue, Free Cash Flow (FCF = OCF - CAPEX), EBITDA, net profit, operating profit, CAPEX, assets, equity, liabilities, cash flow, EPS, dividends, targets, projections
+   - Extract ALL financial figures: revenue, EBITDA, net profit, operating profit, OCF, CAPEX, FCF (only if explicit), assets, equity, liabilities, EPS, dividends, targets, projections
    - Include historical AND forward-looking targets. Mark targets with period like "2026 target"
-   - value must be a number (null if unclear). unit: "EUR", "EUR m", "EUR bn", "thousand EUR"
+   - value must be a number. If a figure is missing, unclear, or in a different chunk, OMIT the entry — never emit value:null. Never narrate absence ("not explicitly stated", etc.). unit: "EUR", "EUR m", "EUR bn", "thousand EUR"
    - Translate labels to English; DO NOT fabricate numbers
    - Add compact evidence for companyName, reportPeriod, revenue, EBITDA, net profit,
      free cash flow / operating cash flow / CAPEX

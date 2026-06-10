@@ -1,6 +1,7 @@
 import { canonicalizeExtractedData, type Job, type JobStore, type ExtractedData } from "@bei/shared";
 import { classifyDocument } from "./classifier.js";
 import { deduplicateMetrics } from "./deduplicator.js";
+import { deriveFreeCashFlow } from "./free-cash-flow.js";
 import { sanitizeExtractedData } from "./sanitizer.js";
 import { prefilterDocumentText } from "./prefilter.js";
 import type { OpenAIClient } from "./extractor.js";
@@ -66,7 +67,14 @@ export async function processJob(
     if (dedupedMetrics.length !== extracted.metrics.length) {
       log(`Deduped metrics: ${extracted.metrics.length} → ${dedupedMetrics.length}`);
     }
-    extracted.metrics = dedupedMetrics;
+    // Derive FCF deterministically from OCF and CAPEX when both are present.
+    // Chunked extraction often separates OCF and CAPEX into different chunks, so the LLM
+    // cannot reliably compute FCF itself — we do it once metrics are merged.
+    const metricsWithFcf = deriveFreeCashFlow(dedupedMetrics);
+    if (metricsWithFcf.length !== dedupedMetrics.length) {
+      log(`Derived Free Cash Flow from OCF and CAPEX`);
+    }
+    extracted.metrics = metricsWithFcf;
 
     // Sanitize: validate structural coherence, drop broken sections
     const { data: sanitized, warnings } = sanitizeExtractedData(extracted);
@@ -97,7 +105,7 @@ export async function processJob(
 
     const canonicalized = canonicalizeExtractedData(sanitized);
 
-    const quality = assessReportQuality(canonicalized, warnings);
+    const quality = assessReportQuality(canonicalized);
     if (!quality.passed) {
       const message = buildQualityGateFailureMessage(quality.warnings);
       log(message);

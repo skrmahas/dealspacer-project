@@ -397,4 +397,41 @@ describe("processJob", () => {
     const updated = await store.getJob(job.id);
     expect(updated!.state).toBe("complete");
   });
+
+  // Regression for the DelfinGroup 2024 annual report: gpt-4o-mini intermittently emits
+  // "stub" entries (value:null, no unit) for metrics it expected but couldn't find,
+  // e.g. label="Free Cash Flow" with snippet "...not explicitly stated". The sanitizer
+  // correctly drops them; the gate must NOT then fail the job for a report whose core
+  // numeric metrics are otherwise present.
+  it("completes job when the sanitizer drops several null-valued stubs but core metrics are healthy", async () => {
+    const job = await store.createJob({ originalFilename: "delfin-2024.pdf" });
+    const readFile = vi.fn().mockResolvedValue(Buffer.from("fake pdf"));
+    const parseDocument = vi.fn().mockResolvedValue("Annual report financial highlights revenue ebitda net profit business overview segment results");
+    const extractFromText = vi.fn().mockResolvedValue({
+      metadata: { companyName: "AS DelfinGroup", reportPeriod: "FY 2024", sourceLanguage: "en" },
+      metrics: [
+        { label: "Revenue", canonicalId: "revenue", value: 63_000_000, unit: "EUR", period: "FY 2024",
+          evidence: { snippet: "Revenue for FY 2024 was EUR 63 000 000", confidence: 0.9 } },
+        { label: "Net Profit", canonicalId: "net_profit", value: 7_276_206, unit: "EUR", period: "FY 2024",
+          evidence: { snippet: "Net profit was EUR 7,276,206", confidence: 0.9 } },
+        { label: "EBITDA", canonicalId: "ebitda", value: 21_900_000, unit: "EUR", period: "FY 2024",
+          evidence: { snippet: "EBITDA EUR 21,900,000", confidence: 0.9 } },
+        // Three sanitizer-dropped stubs — the exact pattern that previously failed the gate.
+        { label: "Free Cash Flow", value: null, evidence: { snippet: "Net cash flow from operating activities (15 252 602)", confidence: 0.8 } },
+        { label: "Operating Profit", value: null, evidence: { snippet: "Operating profit not explicitly stated.", confidence: 0.5 } },
+        { label: "Cash Flow", value: null, evidence: { snippet: "Cash flow not explicitly stated.", confidence: 0.5 } },
+      ],
+      narratives: [{ section: "executive_summary", text: "Strong year with solid revenue and profit growth across pawn and retail segments." }],
+      sentiment: { managementTone: "positive", outlook: "Stable", riskFactors: [] },
+    });
+    const translateExtractedData = vi.fn().mockImplementation(async (data: ExtractedData) => ({ ...data, metadata: { ...data.metadata, outputLanguage: "en" } }));
+    const assemblePdf = vi.fn().mockResolvedValue(Buffer.from("pdf"));
+    const saveReport = vi.fn();
+
+    await processJob(job, store, readFile, parseDocument, extractFromText, translateExtractedData, assemblePdf, saveReport, undefined);
+
+    const updated = await store.getJob(job.id);
+    expect(updated!.state).toBe("complete");
+    expect(updated!.error).toBeFalsy();
+  });
 });
