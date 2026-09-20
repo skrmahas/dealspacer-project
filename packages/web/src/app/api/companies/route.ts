@@ -10,6 +10,9 @@ export async function GET() {
     return NextResponse.json(companies);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
+    if (message === "DATABASE_URL environment variable is required") {
+      return NextResponse.json([]);
+    }
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
