@@ -63,6 +63,15 @@ describe("computeYoYChange", () => {
     expect(change).toBe(10);
   });
 
+  it("does not reuse EBITDA values for an EBITDA margin metric", () => {
+    const trends: ProfitabilityTrends = {
+      periods: ["2023", "2024"],
+      ebitda: [50, 55],
+    };
+    const change = computeYoYChange("EBITDA Margin", trends);
+    expect(change).toBeNull();
+  });
+
   it("matches Net Profit / Net Income label", () => {
     const trends: ProfitabilityTrends = {
       periods: ["2023", "2024"],

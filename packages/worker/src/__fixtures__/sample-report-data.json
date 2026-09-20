@@ -1,0 +1,75 @@
+{
+  "metadata": {
+    "companyName": "Telia Lietuva, AB",
+    "reportPeriod": "FY 2025",
+    "sourceLanguage": "en",
+    "outputLanguage": "en"
+  },
+  "metrics": [
+    { "label": "Revenue", "value": 507.3, "unit": "EUR million", "canonicalId": "revenue" },
+    { "label": "Adjusted EBITDA", "value": 196.7, "unit": "EUR million", "canonicalId": "ebitda" },
+    { "label": "Net Profit", "value": 90.4, "unit": "EUR million", "canonicalId": "net_profit" },
+    { "label": "Free Cash Flow", "value": 117.8, "unit": "EUR million", "canonicalId": "free_cash_flow" },
+    { "label": "Capital Expenditure", "value": 63.8, "unit": "EUR million", "canonicalId": "capex" },
+    { "label": "Operating Cash Flow", "value": 180.6, "unit": "EUR million", "canonicalId": "operating_cash_flow" },
+    { "label": "EBITDA Margin", "value": 38.8, "unit": "%" },
+    { "label": "Earnings per Share", "value": 0.155, "unit": "EUR", "canonicalId": "eps" },
+    { "label": "Dividend per Share", "value": 0.11, "unit": "EUR", "canonicalId": "dividends" },
+    { "label": "Total Assets", "value": 658.1, "unit": "EUR million", "canonicalId": "total_assets" },
+    { "label": "Shareholders' Equity", "value": 402.3, "unit": "EUR million", "canonicalId": "equity" },
+    { "label": "Market Capitalization", "value": 1101.1, "unit": "EUR million" }
+  ],
+  "narratives": [
+    {
+      "section": "executive_summary",
+      "text": "Telia Lietuva closed 2025 with revenue above EUR 500 million for the first time. Revenue rose 3.3% to EUR 507.3 million, adjusted EBITDA increased 12.8% to EUR 196.7 million, and net profit advanced 26.3% to EUR 90.4 million.\n\nProfitability improved faster than revenue as operational efficiencies and a richer service mix lifted the adjusted EBITDA margin to 38.8%. Free cash flow reached EUR 117.8 million, supporting continued network investment and shareholder returns.\n\nThe company maintained nationwide connectivity leadership while investing in 5G, fiber capacity, cybersecurity, and digital customer services. Management's tone remained positive, while acknowledging competitive, regulatory, and geopolitical risks."
+    },
+    {
+      "section": "management_commentary",
+      "text": "Management highlighted disciplined execution, stronger customer satisfaction, and the practical use of automation and AI across operations. The company expects technology investment and service quality to remain the main drivers of sustainable growth."
+    },
+    {
+      "section": "business_overview",
+      "text": "Telia Lietuva provides mobile, fixed broadband, television, and IT services to consumer and business customers across Lithuania. Its integrated network combines nationwide mobile coverage with a modern fiber backbone.\n\nDuring 2025, the company expanded network capacity, launched a private standalone 5G deployment, and continued strengthening privacy and security controls."
+    },
+    {
+      "section": "segment_performance",
+      "text": "Consumer services generated EUR 322.9 million of revenue, while business services contributed EUR 179.4 million. Both segments benefited from demand for connectivity, cloud, and digital services."
+    },
+    {
+      "section": "strategic_priorities",
+      "text": "Priorities for the next phase include expanding 5G and fiber capacity, improving digital customer journeys, and using automation to simplify operations.\n\nThe company is also working toward a 90% reduction in operational emissions by 2030, with greater use of renewable energy, refurbished devices, and circular service models."
+    },
+    {
+      "section": "outlook",
+      "text": "Management expects continued revenue and profitability growth, supported by network quality, digital services, and disciplined cost management.\n\nA new data center near Vilnius is planned for completion by 2027, adding capacity for cloud and data-intensive services.\n\nCapital allocation will balance infrastructure investment, financial resilience, and consistent shareholder returns."
+    }
+  ],
+  "sentiment": {
+    "managementTone": "positive",
+    "outlook": "Management expects measured growth, margin resilience, and continued investment in network and digital infrastructure.",
+    "riskFactors": [
+      "Competitive pressure across mobile, broadband, and IT services",
+      "Macroeconomic and geopolitical uncertainty in the Baltic region",
+      "Cybersecurity incidents, privacy breaches, or network disruption",
+      "Regulatory changes affecting telecommunications and data services",
+      "Energy-price volatility and climate-related operational risks",
+      "Execution risk on large infrastructure and digital-transformation projects"
+    ],
+    "guidanceDirection": "maintained"
+  },
+  "revenueBreakdown": {
+    "bySegment": [
+      { "name": "Consumer services", "value": 322.9 },
+      { "name": "Business services", "value": 179.4 },
+      { "name": "Other", "value": 5.0 }
+    ]
+  },
+  "profitabilityTrends": {
+    "periods": ["2023", "2024", "2025"],
+    "revenue": [476.6, 491.1, 507.3],
+    "ebitda": [159.0, 174.4, 196.7],
+    "netProfit": [56.5, 71.6, 90.4],
+    "freeCashFlow": [102.0, 109.4, 117.8]
+  }
+}

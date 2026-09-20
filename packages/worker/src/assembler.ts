@@ -22,6 +22,30 @@ function formatMetricRow(m: ExtractedMetric): string {
     </tr>`;
 }
 
+function uniqueText(items: string[], limit: number): string[] {
+  const seen = new Set<string>();
+  const result: string[] = [];
+
+  for (const item of items) {
+    const text = item.trim();
+    if (!text) continue;
+    const key = text.toLocaleLowerCase().replace(/\s+/g, " ");
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push(text);
+    if (result.length === limit) break;
+  }
+
+  return result;
+}
+
+function narrativeParagraphs(texts: string[], limit: number): string[] {
+  return uniqueText(
+    texts.flatMap((text) => text.split(/\n\s*\n|\n/)),
+    limit,
+  );
+}
+
 const LABELS: Record<OutputLanguage, {
   earningsReport: string;
   generatedOn: string;
@@ -183,15 +207,15 @@ export function buildHtml(data: ExtractedData, charts: ChartImages): string {
     (n) => n.section === "management_commentary",
   );
   if (execSummary || mgmtCommentary) {
-    const text = (execSummary?.text ?? "") + (mgmtCommentary?.text ?? "");
+    const paragraphs = narrativeParagraphs(
+      [execSummary?.text ?? "", mgmtCommentary?.text ?? ""],
+      4,
+    );
     sections.push(`
       <section id="executive-summary">
         <h2>${escapeHtml(labels.executiveSummary)}</h2>
-        ${text
-          .split("\n")
-          .filter((p) => p.trim())
-          .slice(0, 4) // cap at 4 paragraphs for readability
-          .map((p) => `<p>${escapeHtml(p.trim())}</p>`)
+        ${paragraphs
+          .map((p) => `<p>${escapeHtml(p)}</p>`)
           .join("\n")}
       </section>`);
   }
@@ -299,15 +323,15 @@ export function buildHtml(data: ExtractedData, charts: ChartImages): string {
     (n) => n.section === "segment_performance",
   );
   if (businessOverview || segmentPerf) {
-    const text = (businessOverview?.text ?? "") + (segmentPerf?.text ?? "");
+    const paragraphs = narrativeParagraphs(
+      [businessOverview?.text ?? "", segmentPerf?.text ?? ""],
+      4,
+    );
     sections.push(`
       <section id="business-highlights">
         <h2>${escapeHtml(labels.businessHighlights)}</h2>
-        ${text
-          .split("\n")
-          .filter((p) => p.trim())
-          .slice(0, 4)
-          .map((p) => `<p>${escapeHtml(p.trim())}</p>`)
+        ${paragraphs
+          .map((p) => `<p>${escapeHtml(p)}</p>`)
           .join("\n")}
       </section>`);
   }
@@ -335,9 +359,10 @@ export function buildHtml(data: ExtractedData, charts: ChartImages): string {
     sentiment?.outlook ||
     (sentiment?.riskFactors && sentiment.riskFactors.length > 0);
   if (hasSentiment) {
+    const risks = uniqueText(sentiment.riskFactors, 8);
     const riskItems =
-      sentiment.riskFactors.length > 0
-        ? `<ul>${sentiment.riskFactors.map((r) => `<li>${escapeHtml(r)}</li>`).join("\n")}</ul>`
+      risks.length > 0
+        ? `<ul class="risk-list">${risks.map((r) => `<li>${escapeHtml(r)}</li>`).join("\n")}</ul>`
         : "";
     sections.push(`
       <section id="sentiment-analysis">
@@ -349,7 +374,7 @@ export function buildHtml(data: ExtractedData, charts: ChartImages): string {
         }
         ${sentiment.outlook ? `<p><strong>${escapeHtml(labels.outlook)}:</strong> ${escapeHtml(sentiment.outlook)}</p>` : ""}
         ${
-          sentiment.riskFactors.length > 0
+          risks.length > 0
             ? `<p><strong>${escapeHtml(labels.riskFactors)}:</strong></p>${riskItems}`
             : ""
         }
@@ -470,6 +495,7 @@ export function buildHtml(data: ExtractedData, charts: ChartImages): string {
       padding-bottom: 6pt;
       margin-bottom: 12pt;
       page-break-before: always;
+      break-after: avoid-page;
     }
     /* First h2 should not push a page break before itself */
     section:first-of-type h2 {
@@ -484,6 +510,11 @@ export function buildHtml(data: ExtractedData, charts: ChartImages): string {
       width: 100%;
       border-collapse: collapse;
       margin-bottom: 12pt;
+    }
+    thead { display: table-header-group; }
+    tr, li {
+      break-inside: avoid;
+      page-break-inside: avoid;
     }
     th, td {
       text-align: left;
@@ -519,6 +550,11 @@ export function buildHtml(data: ExtractedData, charts: ChartImages): string {
     li {
       margin-bottom: 4pt;
     }
+    .risk-list {
+      columns: 2;
+      column-gap: 24pt;
+      font-size: 10pt;
+    }
 
     /* Disclaimer footer */
     .disclaimer {
@@ -538,10 +574,14 @@ export function buildHtml(data: ExtractedData, charts: ChartImages): string {
       display: flex;
       gap: 16pt;
       justify-content: center;
+      break-inside: avoid;
+      page-break-inside: avoid;
     }
     .chart-container {
       text-align: center;
       margin-bottom: 12pt;
+      break-inside: avoid;
+      page-break-inside: avoid;
     }
     .chart-container img {
       max-width: 100%;

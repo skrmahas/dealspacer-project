@@ -389,6 +389,13 @@ function getTrendSeries(
   trends: ProfitabilityTrends,
 ): (number | null)[] | null {
   const lower = label.toLowerCase();
+  if (
+    lower.includes("margin") ||
+    lower.includes("growth") ||
+    lower.includes("per share")
+  ) {
+    return null;
+  }
   if (lower.includes("revenue")) return trends.revenue ?? null;
   if (lower.includes("ebitda")) return trends.ebitda ?? null;
   if (lower.includes("net profit") || lower.includes("net income"))
